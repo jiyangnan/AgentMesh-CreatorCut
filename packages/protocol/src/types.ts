@@ -262,6 +262,9 @@ export interface EditReviewPlan {
     source_asset_ref: string;
     source_start_us: number;
     source_end_us: number;
+    segment_refs: string[];
+    token_refs: string[];
+    excerpt: string;
     reason: string;
     risk: "low" | "medium" | "high";
     confidence_millis: number;

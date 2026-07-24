@@ -34,6 +34,9 @@
           "source_asset_ref",
           "source_start_us",
           "source_end_us",
+          "segment_refs",
+          "token_refs",
+          "excerpt",
           "reason",
           "risk",
           "confidence_millis",
@@ -54,6 +57,19 @@
           "source_asset_ref": { "$ref": "#/$defs/id" },
           "source_start_us": { "type": "integer", "minimum": 0 },
           "source_end_us": { "type": "integer", "minimum": 1 },
+          "segment_refs": {
+            "type": "array",
+            "maxItems": 64,
+            "uniqueItems": true,
+            "items": { "$ref": "#/$defs/id" }
+          },
+          "token_refs": {
+            "type": "array",
+            "maxItems": 256,
+            "uniqueItems": true,
+            "items": { "$ref": "#/$defs/id" }
+          },
+          "excerpt": { "type": "string", "maxLength": 8192 },
           "reason": { "type": "string", "minLength": 1, "maxLength": 8192 },
           "risk": { "enum": ["low", "medium", "high"] },
           "confidence_millis": {

@@ -1,6 +1,6 @@
 {
   "schema_version": "creatorcut-public-export/1.0",
-  "source_commit": "b78455798135bbae7b3d1f1a14df400077f378ee",
+  "source_commit": "786e8510c828e405913a4a9370fe0e365af4a7b8",
   "files": {
     "packages/protocol/README.md": "f39301815b831ba0023d32e69cea860573a73437505f631247149d6f1139b04a",
     "packages/protocol/package.json": "b88c6b819359740fe9516b8b3309641bac6c0725b7d8b356825b8f0fe233acbc",
@@ -13,16 +13,16 @@
     "packages/protocol/schemas/edit-decision-manifest.schema.json": "672fef1f9cf46b9581bd2112d89538f77936285222a4febc0a4c9e6fdb737790",
     "packages/protocol/schemas/edit-operation.schema.json": "02ac0822369708e8a3437c3a3fa8888216c896aea5e10a94ec53b9a17641b04e",
     "packages/protocol/schemas/edit-review-decision-set.schema.json": "f81b1f6a4dbc616da8746ceb4d6cc3d583720b0d0b9c8b38cc15a33fa8e4bc69",
-    "packages/protocol/schemas/edit-review-plan.schema.json": "6f3aa82ea53180a1a99dca10f81f0e0bf573af0c12c064c36aa50df4caa77866",
+    "packages/protocol/schemas/edit-review-plan.schema.json": "3a3c8aa65ae60e71903bd6f982d7e508dad543f035717994d23d4394b9f3d8f5",
     "packages/protocol/schemas/error-envelope.schema.json": "36b0c44930b778314f574439d96ff314a9588c3c4484c42f8583ce1fdc04c9b3",
     "packages/protocol/schemas/keyset.schema.json": "4477e9c2612955a4a27dc6adf6108545944b9413c3128094a100994095204c19",
     "packages/protocol/schemas/visual-event-summary.schema.json": "49412ac71b3a463ff5fa921c379b7d8c79c5184ac28a4b543095d8a19d6fed58",
     "packages/protocol/src/canonical.ts": "e265821ec571e6b29932608f4632a597826a7a3bf409dfeb939e8c70a0c7c059",
     "packages/protocol/src/index.ts": "cb304ab9cf8c8647b149159a1ede38bb34ed8562ec22769098f61c7cbc5b059d",
     "packages/protocol/src/limits.ts": "f45a35cc4d1d9796aba38b39d4ad9a8c62798c565bb827c05f42f9c909a7f319",
-    "packages/protocol/src/types.ts": "2575fa2fdf444cc4d7c03d5428dcc44c62fd9cfc025fe6c051770ab6c9661c3c",
+    "packages/protocol/src/types.ts": "808513e8ba2a9a3cc4be58fecd93700d2929a451c66eb9c5d47f6320f7ea0445",
     "packages/protocol/src/validator.ts": "65ac041eb3c906424cb496d74922b761c1a0d1e60f0cfcbca59563c88aaf4993",
-    "packages/protocol/test/public-protocol.test.ts": "44ded0cc44c8c420bdb0bffa94111a84fec7356933ad1a45bc48366a2351d9ce",
+    "packages/protocol/test/public-protocol.test.ts": "de320519c5c4498efd48296346c4386add9f4133150ad89dd33150807a4bca9e",
     "packages/protocol/tsconfig.build.json": "3dad55b4b6950103d82d02856ccaf2f05d4b33450c1dd455740074f88538ef46",
     "packages/protocol/tsconfig.json": "bf72a8a951d66e482db0193afe29ca247bf157736ae16b992fda3627300feb70",
     "packages/protocol/vitest.config.ts": "2d4ac4b984c9b3891a9eabb63b9b5c9e6164b291453e8071055a56d68d67bfda"

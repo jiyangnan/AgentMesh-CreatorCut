@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.creatorcut.agentmesh360.com/v1/edit-review-decision-set.schema.json",
+  "title": "CreatorCut EditReviewDecisionSet v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "decision_set_id",
+    "generation_id",
+    "review_plan_id",
+    "review_plan_digest",
+    "project_id",
+    "base_revision",
+    "decisions",
+    "confirmed_at"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "decision_set_id": { "$ref": "#/$defs/id" },
+    "generation_id": { "$ref": "#/$defs/id" },
+    "review_plan_id": { "$ref": "#/$defs/id" },
+    "review_plan_digest": { "$ref": "#/$defs/digest" },
+    "project_id": { "$ref": "#/$defs/id" },
+    "base_revision": { "type": "integer", "minimum": 0 },
+    "decisions": {
+      "type": "array",
+      "maxItems": 2000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["suggestion_id", "decision"],
+        "properties": {
+          "suggestion_id": { "$ref": "#/$defs/id" },
+          "decision": { "enum": ["accept", "keep", "modify"] },
+          "adjusted_source_start_us": { "type": "integer", "minimum": 0 },
+          "adjusted_source_end_us": { "type": "integer", "minimum": 1 }
+        }
+      }
+    },
+    "confirmed_at": { "$ref": "#/$defs/timestamp" }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "timestamp": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]{3})?Z$"
+    }
+  }
+}

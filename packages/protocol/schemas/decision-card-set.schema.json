@@ -39,6 +39,16 @@
           "title": { "type": "string", "minLength": 1, "maxLength": 512 },
           "prompt": { "type": "string", "minLength": 1, "maxLength": 8192 },
           "required": { "type": "boolean" },
+          "known_value_source": { "type": "string", "maxLength": 8192 },
+          "placeholder": { "type": "string", "maxLength": 8192 },
+          "default_option_ids": {
+            "type": "array",
+            "maxItems": 16,
+            "uniqueItems": true,
+            "items": { "$ref": "#/$defs/id" }
+          },
+          "default_text": { "type": "string", "maxLength": 8192 },
+          "default_approved": { "type": "boolean" },
           "options": {
             "type": "array",
             "maxItems": 16,

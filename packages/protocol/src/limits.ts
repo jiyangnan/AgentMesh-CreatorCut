@@ -83,6 +83,9 @@ export function assertManifestLimits(value: { operations: unknown[] }): void {
 }
 
 export function assertDirectorContextLimits(value: {
+  timeline: {
+    tracks: Array<{ clips: unknown[] }>;
+  };
   transcript: {
     text_utf8_bytes: number;
     segments: Array<{ tokens: unknown[] }>;
@@ -96,5 +99,10 @@ export function assertDirectorContextLimits(value: {
       (sum, segment) => sum + segment.tokens.length,
       0,
     ),
+  );
+  assertMaximum("tracks", value.timeline.tracks.length);
+  assertMaximum(
+    "clips",
+    value.timeline.tracks.reduce((sum, track) => sum + track.clips.length, 0),
   );
 }

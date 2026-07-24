@@ -2,16 +2,19 @@ import { Ajv2020, type ErrorObject } from "ajv/dist/2020.js";
 
 import clientCapabilitiesSchema from "../schemas/client-capabilities.schema.json" with { type: "json" };
 import costQuoteSchema from "../schemas/cost-quote.schema.json" with { type: "json" };
+import decisionCardAnswerSetSchema from "../schemas/decision-card-answer-set.schema.json" with { type: "json" };
 import decisionCardSetSchema from "../schemas/decision-card-set.schema.json" with { type: "json" };
 import directorContextSchema from "../schemas/director-context.schema.json" with { type: "json" };
 import directorEnvelopeSchema from "../schemas/director-envelope.schema.json" with { type: "json" };
 import editDecisionManifestSchema from "../schemas/edit-decision-manifest.schema.json" with { type: "json" };
 import editOperationSchema from "../schemas/edit-operation.schema.json" with { type: "json" };
 import editReviewPlanSchema from "../schemas/edit-review-plan.schema.json" with { type: "json" };
+import editReviewDecisionSetSchema from "../schemas/edit-review-decision-set.schema.json" with { type: "json" };
 import errorEnvelopeSchema from "../schemas/error-envelope.schema.json" with { type: "json" };
 import keysetSchema from "../schemas/keyset.schema.json" with { type: "json" };
 import visualEventSummarySchema from "../schemas/visual-event-summary.schema.json" with { type: "json" };
 import {
+  digestJcs,
   envelopeSigningBytes,
   keysetSigningBytes,
   verifyEd25519,
@@ -23,12 +26,15 @@ import {
   assertRequestSize,
   ProtocolLimitError,
 } from "./limits.js";
+import { DIRECTOR_PROTOCOL_VERSION } from "./types.js";
 import type {
   DirectorContext,
   DirectorEnvelope,
+  DecisionCardAnswerSet,
   EditDecisionManifest,
   EditOperation,
   EditReviewPlan,
+  EditReviewDecisionSet,
   SemanticDecisionCardSet,
   SignedArtifactKeyset,
   VisualEventSummary,
@@ -38,8 +44,10 @@ export type PublicProtocolKind =
   | "visual-event-summary"
   | "director-context"
   | "decision-card-set"
+  | "decision-card-answer-set"
   | "cost-quote"
   | "edit-review-plan"
+  | "edit-review-decision-set"
   | "edit-operation"
   | "edit-decision-manifest"
   | "director-envelope"
@@ -63,8 +71,10 @@ const schemas = [
   visualEventSummarySchema,
   directorContextSchema,
   decisionCardSetSchema,
+  decisionCardAnswerSetSchema,
   costQuoteSchema,
   editReviewPlanSchema,
+  editReviewDecisionSetSchema,
   editOperationSchema,
   editDecisionManifestSchema,
   directorEnvelopeSchema,
@@ -77,8 +87,10 @@ const schemaIds: Record<PublicProtocolKind, string> = {
   "visual-event-summary": visualEventSummarySchema.$id,
   "director-context": directorContextSchema.$id,
   "decision-card-set": decisionCardSetSchema.$id,
+  "decision-card-answer-set": decisionCardAnswerSetSchema.$id,
   "cost-quote": costQuoteSchema.$id,
   "edit-review-plan": editReviewPlanSchema.$id,
+  "edit-review-decision-set": editReviewDecisionSetSchema.$id,
   "edit-operation": editOperationSchema.$id,
   "edit-decision-manifest": editDecisionManifestSchema.$id,
   "director-envelope": directorEnvelopeSchema.$id,
@@ -173,9 +185,14 @@ function validateDirectorContext(
   context: DirectorContext,
 ): PublicProtocolIssue[] {
   const issues: PublicProtocolIssue[] = [];
+  const mediaDuration = context.media.duration_us;
   const tokenCount = context.transcript.segments.reduce(
     (sum, segment) => sum + segment.tokens.length,
     0,
+  );
+  const textBytes = Buffer.byteLength(
+    context.transcript.segments.map((segment) => segment.text).join(""),
+    "utf8",
   );
   if (context.transcript.segment_count !== context.transcript.segments.length) {
     issues.push(
@@ -192,6 +209,186 @@ function validateDirectorContext(
         "/transcript/token_count",
         "semantic.token_count_mismatch",
         "token_count must match nested token count",
+      ),
+    );
+  }
+  if (context.transcript.text_utf8_bytes !== textBytes) {
+    issues.push(
+      issue(
+        "/transcript/text_utf8_bytes",
+        "semantic.text_byte_count_mismatch",
+        "text_utf8_bytes must match concatenated segment text",
+      ),
+    );
+  }
+  for (const [path, expected, actual] of [
+    ["/timeline_digest", context.timeline_digest, digestJcs(context.timeline)],
+    [
+      "/transcript_digest",
+      context.transcript_digest,
+      digestJcs(context.transcript),
+    ],
+    [
+      "/capabilities_digest",
+      context.capabilities_digest,
+      digestJcs(context.capabilities),
+    ],
+  ] as const) {
+    if (expected !== actual) {
+      issues.push(
+        issue(
+          path,
+          "semantic.digest_mismatch",
+          "declared digest must match the uploaded structured fact",
+        ),
+      );
+    }
+  }
+  if (context.client_version !== context.capabilities.client_version) {
+    issues.push(
+      issue(
+        "/client_version",
+        "semantic.client_version_mismatch",
+        "context and capabilities client versions must match",
+      ),
+    );
+  }
+  if (
+    !context.protocol_versions.includes(DIRECTOR_PROTOCOL_VERSION) ||
+    !context.capabilities.protocol_versions.includes(DIRECTOR_PROTOCOL_VERSION)
+  ) {
+    issues.push(
+      issue(
+        "/protocol_versions",
+        "semantic.protocol_version_missing",
+        "Director Protocol v1 must be declared by context and capabilities",
+      ),
+    );
+  }
+
+  const trackRefs = context.timeline.tracks.map((track) => track.track_ref);
+  for (const trackRef of duplicates(trackRefs)) {
+    issues.push(
+      issue(
+        "/timeline/tracks",
+        "semantic.duplicate_track_ref",
+        `duplicate track_ref: ${trackRef}`,
+      ),
+    );
+  }
+  const clipRefs: string[] = [];
+  context.timeline.tracks.forEach((track, trackIndex) => {
+    track.clips.forEach((clip, clipIndex) => {
+      clipRefs.push(clip.clip_ref);
+      if (
+        clip.source_asset_ref !== context.media.source_asset_ref ||
+        clip.source_end_us <= clip.source_start_us ||
+        clip.source_end_us > mediaDuration ||
+        clip.timeline_end_us <= clip.timeline_start_us ||
+        clip.timeline_end_us > context.timeline.duration_us ||
+        clip.source_end_us - clip.source_start_us !==
+          clip.timeline_end_us - clip.timeline_start_us
+      ) {
+        issues.push(
+          issue(
+            `/timeline/tracks/${trackIndex}/clips/${clipIndex}`,
+            "semantic.invalid_timeline_mapping",
+            "clip mapping must reference the uploaded asset, increase, stay in range, and preserve duration",
+          ),
+        );
+      }
+    });
+  });
+  for (const clipRef of duplicates(clipRefs)) {
+    issues.push(
+      issue(
+        "/timeline/tracks",
+        "semantic.duplicate_clip_ref",
+        `duplicate clip_ref: ${clipRef}`,
+      ),
+    );
+  }
+
+  const segmentIds = context.transcript.segments.map(
+    (segment) => segment.segment_id,
+  );
+  const tokenIds = context.transcript.segments.flatMap((segment) =>
+    segment.tokens.map((token) => token.token_id),
+  );
+  for (const segmentId of duplicates(segmentIds)) {
+    issues.push(
+      issue(
+        "/transcript/segments",
+        "semantic.duplicate_segment_id",
+        `duplicate segment_id: ${segmentId}`,
+      ),
+    );
+  }
+  for (const tokenId of duplicates(tokenIds)) {
+    issues.push(
+      issue(
+        "/transcript/segments",
+        "semantic.duplicate_token_id",
+        `duplicate token_id: ${tokenId}`,
+      ),
+    );
+  }
+  context.transcript.segments.forEach((segment, segmentIndex) => {
+    if (
+      segment.source_asset_ref !== context.media.source_asset_ref ||
+      segment.end_us <= segment.start_us ||
+      segment.end_us > mediaDuration
+    ) {
+      issues.push(
+        issue(
+          `/transcript/segments/${segmentIndex}`,
+          "semantic.invalid_segment_range",
+          "segment must reference the uploaded asset and stay within duration",
+        ),
+      );
+    }
+    segment.tokens.forEach((token, tokenIndex) => {
+      if (
+        token.end_us <= token.start_us ||
+        token.start_us < segment.start_us ||
+        token.end_us > segment.end_us
+      ) {
+        issues.push(
+          issue(
+            `/transcript/segments/${segmentIndex}/tokens/${tokenIndex}`,
+            "semantic.invalid_token_range",
+            "token must increase and stay within its segment",
+          ),
+        );
+      }
+    });
+  });
+  context.transcript.silence_intervals.forEach((interval, index) => {
+    if (
+      interval.source_asset_ref !== context.media.source_asset_ref ||
+      interval.end_us <= interval.start_us ||
+      interval.end_us > mediaDuration
+    ) {
+      issues.push(
+        issue(
+          `/transcript/silence_intervals/${index}`,
+          "semantic.invalid_silence_range",
+          "silence interval must reference the uploaded asset and stay within duration",
+        ),
+      );
+    }
+  });
+  if (
+    context.visual_event_summary &&
+    (context.visual_event_summary.duration_us !== mediaDuration ||
+      context.visual_event_summary.width !== context.media.width ||
+      context.visual_event_summary.height !== context.media.height)
+  ) {
+    issues.push(
+      issue(
+        "/visual_event_summary",
+        "semantic.visual_media_mismatch",
+        "visual summary dimensions and duration must match media facts",
       ),
     );
   }
@@ -258,6 +455,34 @@ function validateCardSet(
         ),
       );
     }
+    const defaultOptionIds = card.default_option_ids ?? [];
+    if (defaultOptionIds.some((optionId) => !optionIds.includes(optionId))) {
+      issues.push(
+        issue(
+          `/cards/${cardIndex}/default_option_ids`,
+          "semantic.unknown_default_option",
+          "every default option must exist on the card",
+        ),
+      );
+    }
+    if (card.default_text !== undefined && card.type !== "text") {
+      issues.push(
+        issue(
+          `/cards/${cardIndex}/default_text`,
+          "semantic.default_type_mismatch",
+          "default_text is only valid for text cards",
+        ),
+      );
+    }
+    if (card.default_approved !== undefined && card.type !== "review") {
+      issues.push(
+        issue(
+          `/cards/${cardIndex}/default_approved`,
+          "semantic.default_type_mismatch",
+          "default_approved is only valid for review cards",
+        ),
+      );
+    }
   });
   try {
     assertCardSetLimits(cardSet);
@@ -270,6 +495,85 @@ function validateCardSet(
       throw error;
     }
   }
+  return issues;
+}
+
+function validateCardAnswers(
+  answerSet: DecisionCardAnswerSet,
+): PublicProtocolIssue[] {
+  const issues: PublicProtocolIssue[] = [];
+  for (const cardId of duplicates(
+    answerSet.answers.map((answer) => answer.card_id),
+  )) {
+    issues.push(
+      issue(
+        "/answers",
+        "semantic.duplicate_card_answer",
+        `duplicate answer for card_id: ${cardId}`,
+      ),
+    );
+  }
+  answerSet.answers.forEach((answer, index) => {
+    const valueCount = [
+      answer.selected_option_ids,
+      answer.text_value,
+      answer.approved,
+    ].filter((value) => value !== undefined).length;
+    if (valueCount !== 1) {
+      issues.push(
+        issue(
+          `/answers/${index}`,
+          "semantic.answer_value_count",
+          "each card answer must contain exactly one value kind",
+        ),
+      );
+    }
+  });
+  return issues;
+}
+
+function validateReviewDecisions(
+  decisionSet: EditReviewDecisionSet,
+): PublicProtocolIssue[] {
+  const issues: PublicProtocolIssue[] = [];
+  for (const suggestionId of duplicates(
+    decisionSet.decisions.map((decision) => decision.suggestion_id),
+  )) {
+    issues.push(
+      issue(
+        "/decisions",
+        "semantic.duplicate_suggestion_decision",
+        `duplicate decision for suggestion_id: ${suggestionId}`,
+      ),
+    );
+  }
+  decisionSet.decisions.forEach((decision, index) => {
+    const hasStart = decision.adjusted_source_start_us !== undefined;
+    const hasEnd = decision.adjusted_source_end_us !== undefined;
+    if (
+      decision.decision === "modify" &&
+      (!hasStart ||
+        !hasEnd ||
+        decision.adjusted_source_end_us! <= decision.adjusted_source_start_us!)
+    ) {
+      issues.push(
+        issue(
+          `/decisions/${index}`,
+          "semantic.invalid_adjusted_range",
+          "modified decisions require an increasing adjusted source range",
+        ),
+      );
+    }
+    if (decision.decision !== "modify" && (hasStart || hasEnd)) {
+      issues.push(
+        issue(
+          `/decisions/${index}`,
+          "semantic.unexpected_adjusted_range",
+          "only modified decisions may include an adjusted source range",
+        ),
+      );
+    }
+  });
   return issues;
 }
 
@@ -481,7 +785,13 @@ const semanticValidators: Partial<
   "decision-card-set": validateCardSet as (
     value: never,
   ) => PublicProtocolIssue[],
+  "decision-card-answer-set": validateCardAnswers as (
+    value: never,
+  ) => PublicProtocolIssue[],
   "edit-review-plan": validateReviewPlan as (
+    value: never,
+  ) => PublicProtocolIssue[],
+  "edit-review-decision-set": validateReviewDecisions as (
     value: never,
   ) => PublicProtocolIssue[],
   "edit-operation": validateOperation as (

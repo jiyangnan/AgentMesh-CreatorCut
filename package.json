@@ -12,9 +12,11 @@
     "format": "prettier --write .",
     "lint": "prettier --check .",
     "typecheck": "pnpm -r --if-present typecheck",
+    "build": "pnpm -r --if-present build",
     "test": "pnpm -r --if-present test && node --test tests/public-contract/*.test.mjs",
+    "pack:protocol": "pnpm --filter @agentmesh/creatorcut-protocol pack",
     "protocol:digest": "node scripts/protocol-bundle.mjs",
-    "verify": "pnpm lint && pnpm typecheck && pnpm test"
+    "verify": "pnpm lint && pnpm typecheck && pnpm build && pnpm test"
   },
   "devDependencies": {
     "@types/node": "24.13.3",

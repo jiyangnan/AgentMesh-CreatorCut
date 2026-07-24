@@ -47,9 +47,12 @@ Requirements:
 pnpm install
 pnpm verify
 pnpm protocol:digest
+pnpm pack:protocol
 ```
 
 `pnpm protocol:digest` prints the stable digest that private consumers must pin.
+`pnpm pack:protocol` builds the independently consumable protocol tarball used
+by private services during this pre-release phase.
 
 ## License
 

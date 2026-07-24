@@ -69,13 +69,45 @@ export interface DirectorContext {
   transcript_digest: string;
   edit_brief_digest: string;
   capabilities_digest: string;
+  media: {
+    source_asset_ref: string;
+    duration_us: number;
+    width: number;
+    height: number;
+    has_video: boolean;
+    has_audio: boolean;
+  };
+  timeline: {
+    duration_us: number;
+    canvas: { width: number; height: number };
+    tracks: Array<{
+      track_ref: string;
+      kind: "video" | "audio" | "voiceover" | "caption" | "music" | "overlay";
+      clips: Array<{
+        clip_ref: string;
+        source_asset_ref: string;
+        source_start_us: number;
+        source_end_us: number;
+        timeline_start_us: number;
+        timeline_end_us: number;
+      }>;
+    }>;
+  };
   transcript: {
     language_mode: "zh" | "en" | "mixed" | "auto";
     text_utf8_bytes: number;
     segment_count: number;
     token_count: number;
+    silence_intervals: Array<{
+      silence_id: string;
+      source_asset_ref: string;
+      start_us: number;
+      end_us: number;
+      detector: "local_audio";
+    }>;
     segments: Array<{
       segment_id: string;
+      source_asset_ref: string;
       start_us: number;
       end_us: number;
       text: string;
@@ -85,8 +117,26 @@ export interface DirectorContext {
         end_us: number;
         text: string;
         language: "zh" | "en" | "other";
+        confidence_millis: number;
       }>;
     }>;
+  };
+  capabilities: PublicClientCapabilities;
+  local_facts: {
+    project_kind: "talking_head" | "product_recording" | "mixed";
+    voice_generation_available: boolean;
+    current_finishing?: {
+      caption_style_id: "caption_none" | "caption_clean" | "caption_bold";
+      lut_id: "lut_none" | "lut_warm" | "lut_cool";
+      audio_mode: "original" | "partial_voiceover" | "full_voiceover";
+      background_music:
+        | { mode: "none" }
+        | {
+            mode: "local_template";
+            category_id: "upbeat";
+            template_id: "light_tech" | "bright_launch";
+          };
+    };
   };
   visual_event_summary?: VisualEventSummary;
 }
@@ -122,6 +172,11 @@ export interface SemanticDecisionCardSet {
     title: string;
     prompt: string;
     required: boolean;
+    known_value_source?: string;
+    placeholder?: string;
+    default_option_ids?: string[];
+    default_text?: string;
+    default_approved?: boolean;
     options?: Array<{
       option_id: string;
       label: string;
@@ -130,6 +185,26 @@ export interface SemanticDecisionCardSet {
     }>;
     min_selections?: number;
     max_selections?: number;
+  }>;
+}
+
+export interface DecisionCardAnswerSet {
+  schema_version: typeof HOST_CARD_PROTOCOL_VERSION;
+  answer_set_id: string;
+  card_set_id: string;
+  card_set_digest: string;
+  presentation_digest: string;
+  capabilities_digest: string;
+  planning_input_digest: string;
+  previous_envelope_digest: string;
+  project_id: string;
+  base_revision: number;
+  state_revision: number;
+  answers: Array<{
+    card_id: string;
+    selected_option_ids?: string[];
+    text_value?: string;
+    approved?: boolean;
   }>;
 }
 
@@ -192,6 +267,23 @@ export interface EditReviewPlan {
     confidence_millis: number;
     default_decision: "accept" | "keep";
   }>;
+}
+
+export interface EditReviewDecisionSet {
+  schema_version: typeof DIRECTOR_PROTOCOL_VERSION;
+  decision_set_id: string;
+  generation_id: string;
+  review_plan_id: string;
+  review_plan_digest: string;
+  project_id: string;
+  base_revision: number;
+  decisions: Array<{
+    suggestion_id: string;
+    decision: "accept" | "keep" | "modify";
+    adjusted_source_start_us?: number;
+    adjusted_source_end_us?: number;
+  }>;
+  confirmed_at: string;
 }
 
 export interface EditDecisionManifest {

@@ -14,14 +14,129 @@ import {
   verifyDirectorEnvelope,
   verifySignedKeyset,
   type CostQuote,
+  type DecisionCardAnswerSet,
+  type DirectorContext,
   type DirectorEnvelope,
   type EditDecisionManifest,
   type EditReviewPlan,
+  type EditReviewDecisionSet,
+  type PublicClientCapabilities,
   type SemanticDecisionCardSet,
   type SignedArtifactKeyset,
 } from "../src/index.js";
 
 const digest = (character: string): string => `sha256:${character.repeat(64)}`;
+
+const capabilities: PublicClientCapabilities = {
+  schema_version: "1.0",
+  client_version: "0.1.0",
+  host_type: "codex",
+  protocol_versions: ["1.0"],
+  card_types: ["single", "multi", "text", "visual", "voice", "review"],
+  operation_types: ["remove_range", "add_caption"],
+  supports_visual_previews: true,
+  supports_voice_preview: true,
+  max_payload_bytes: 4 * 1024 * 1024,
+};
+
+const timeline: DirectorContext["timeline"] = {
+  duration_us: 30_000_000,
+  canvas: { width: 1920, height: 1080 },
+  tracks: [
+    {
+      track_ref: "track_video",
+      kind: "video",
+      clips: [
+        {
+          clip_ref: "clip_primary",
+          source_asset_ref: "asset_primary",
+          source_start_us: 0,
+          source_end_us: 30_000_000,
+          timeline_start_us: 0,
+          timeline_end_us: 30_000_000,
+        },
+      ],
+    },
+  ],
+};
+
+const transcript: DirectorContext["transcript"] = {
+  language_mode: "mixed",
+  text_utf8_bytes: Buffer.byteLength("你好 CreatorCut", "utf8"),
+  segment_count: 1,
+  token_count: 2,
+  silence_intervals: [
+    {
+      silence_id: "silence_1",
+      source_asset_ref: "asset_primary",
+      start_us: 2_000_000,
+      end_us: 3_000_000,
+      detector: "local_audio",
+    },
+  ],
+  segments: [
+    {
+      segment_id: "segment_1",
+      source_asset_ref: "asset_primary",
+      start_us: 0,
+      end_us: 4_000_000,
+      text: "你好 CreatorCut",
+      tokens: [
+        {
+          token_id: "token_zh",
+          start_us: 0,
+          end_us: 800_000,
+          text: "你好",
+          language: "zh",
+          confidence_millis: 980,
+        },
+        {
+          token_id: "token_en",
+          start_us: 1_000_000,
+          end_us: 2_000_000,
+          text: "CreatorCut",
+          language: "en",
+          confidence_millis: 970,
+        },
+      ],
+    },
+  ],
+};
+
+const context: DirectorContext = {
+  schema_version: "1.0",
+  project_id: "project_1",
+  base_revision: 7,
+  client_version: capabilities.client_version,
+  protocol_versions: ["1.0"],
+  consent_version: "director-context-consent-v1",
+  project_digest: digest("0"),
+  timeline_digest: digestJcs(timeline),
+  transcript_digest: digestJcs(transcript),
+  edit_brief_digest: digest("6"),
+  capabilities_digest: digestJcs(capabilities),
+  media: {
+    source_asset_ref: "asset_primary",
+    duration_us: 30_000_000,
+    width: 1920,
+    height: 1080,
+    has_video: true,
+    has_audio: true,
+  },
+  timeline,
+  transcript,
+  capabilities,
+  local_facts: {
+    project_kind: "mixed",
+    voice_generation_available: true,
+    current_finishing: {
+      caption_style_id: "caption_clean",
+      lut_id: "lut_none",
+      audio_mode: "original",
+      background_music: { mode: "none" },
+    },
+  },
+};
 
 const cards: SemanticDecisionCardSet = {
   schema_version: "1.0",
@@ -35,12 +150,33 @@ const cards: SemanticDecisionCardSet = {
       title: "发布平台",
       prompt: "这条视频准备发布在哪里？",
       required: true,
+      default_option_ids: ["xiaohongshu"],
       options: [
         {
           option_id: "xiaohongshu",
           label: "小红书",
         },
       ],
+    },
+  ],
+};
+
+const answers: DecisionCardAnswerSet = {
+  schema_version: "1.0",
+  answer_set_id: "answers_direction_1",
+  card_set_id: cards.card_set_id,
+  card_set_digest: digestJcs(cards),
+  presentation_digest: digest("a"),
+  capabilities_digest: digestJcs(capabilities),
+  planning_input_digest: digest("1"),
+  previous_envelope_digest: digest("b"),
+  project_id: "project_1",
+  base_revision: 7,
+  state_revision: 1,
+  answers: [
+    {
+      card_id: "platform",
+      selected_option_ids: ["xiaohongshu"],
     },
   ],
 };
@@ -74,6 +210,23 @@ const reviewPlan: EditReviewPlan = {
       default_decision: "accept",
     },
   ],
+};
+
+const reviewDecisions: EditReviewDecisionSet = {
+  schema_version: "1.0",
+  decision_set_id: "decisions_1",
+  generation_id: "generation_1",
+  review_plan_id: reviewPlan.review_plan_id,
+  review_plan_digest: digestJcs(reviewPlan),
+  project_id: "project_1",
+  base_revision: 7,
+  decisions: [
+    {
+      suggestion_id: "suggestion_pause_1",
+      decision: "accept",
+    },
+  ],
+  confirmed_at: "2026-07-24T12:05:00.000Z",
 };
 
 const manifest: EditDecisionManifest = {
@@ -192,6 +345,40 @@ describe("CreatorCut public protocol v1", () => {
     expect(
       validatePublicProtocol("director-envelope", reviewEnvelope).valid,
     ).toBe(true);
+  });
+
+  it("validates the minimum path-free planning context and answer contracts", () => {
+    expect(validatePublicProtocol("director-context", context).valid).toBe(
+      true,
+    );
+    expect(
+      validatePublicProtocol("decision-card-answer-set", answers).valid,
+    ).toBe(true);
+    expect(
+      validatePublicProtocol("edit-review-decision-set", reviewDecisions).valid,
+    ).toBe(true);
+
+    const staleDigest = structuredClone(context);
+    staleDigest.timeline.tracks[0]!.clips[0]!.timeline_end_us -= 1;
+    expect(
+      validatePublicProtocol("director-context", staleDigest).issues.map(
+        (entry) => entry.code,
+      ),
+    ).toEqual(
+      expect.arrayContaining([
+        "semantic.digest_mismatch",
+        "semantic.invalid_timeline_mapping",
+      ]),
+    );
+
+    const invalidAnswer = structuredClone(answers);
+    invalidAnswer.answers[0]!.approved = true;
+    expect(
+      validatePublicProtocol(
+        "decision-card-answer-set",
+        invalidAnswer,
+      ).issues.map((entry) => entry.code),
+    ).toContain("semantic.answer_value_count");
   });
 
   it("validates declarative manifests and rejects executable or path fields", () => {

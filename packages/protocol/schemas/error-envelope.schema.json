@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.creatorcut.agentmesh360.com/v1/error-envelope.schema.json",
+  "title": "CreatorCut Error Envelope v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["error_version", "code", "message", "retryable"],
+  "properties": {
+    "error_version": { "const": "1.0" },
+    "code": {
+      "enum": [
+        "payload_too_large",
+        "resource_limit_exceeded",
+        "rate_limit_exceeded",
+        "protocol_version_unsupported",
+        "answer_conflict",
+        "generation_conflict",
+        "project_revision_conflict",
+        "signature_invalid"
+      ]
+    },
+    "message": { "type": "string", "minLength": 1, "maxLength": 8192 },
+    "retryable": { "type": "boolean" },
+    "limits_version": { "const": "creatorcut-limits/1.0" },
+    "limit_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "observed": { "type": "integer", "minimum": 0 },
+    "maximum": { "type": "integer", "minimum": 0 },
+    "retry_after_seconds": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 86400
+    }
+  }
+}

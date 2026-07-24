@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.creatorcut.agentmesh360.com/v1/edit-operation.schema.json",
+  "title": "CreatorCut EditOperation v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "operation_id",
+    "operation_type",
+    "base_revision",
+    "preconditions",
+    "parameters",
+    "inverse"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "operation_id": { "$ref": "#/$defs/id" },
+    "operation_type": {
+      "enum": [
+        "trim",
+        "split",
+        "remove_range",
+        "concat",
+        "set_gain",
+        "add_caption",
+        "set_canvas",
+        "apply_lut",
+        "move_clip",
+        "add_clip",
+        "clear_track",
+        "clear_captions",
+        "clear_lut"
+      ]
+    },
+    "base_revision": { "type": "integer", "minimum": 0 },
+    "preconditions": {
+      "type": "array",
+      "maxItems": 32,
+      "items": {
+        "type": "object",
+        "maxProperties": 16,
+        "propertyNames": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9_]*$"
+        }
+      }
+    },
+    "parameters": {
+      "type": "object",
+      "maxProperties": 32,
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[A-Za-z][A-Za-z0-9_]*$"
+      }
+    },
+    "inverse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "revision"],
+      "properties": {
+        "kind": { "const": "restore_snapshot" },
+        "revision": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "reason": { "type": "string", "maxLength": 8192 }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    }
+  }
+}

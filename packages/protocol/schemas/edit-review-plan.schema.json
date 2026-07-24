@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.creatorcut.agentmesh360.com/v1/edit-review-plan.schema.json",
+  "title": "CreatorCut EditReviewPlan v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "review_plan_id",
+    "source_duration_us",
+    "estimated_duration_us",
+    "story_outline",
+    "suggestions"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "review_plan_id": { "$ref": "#/$defs/id" },
+    "source_duration_us": { "type": "integer", "minimum": 1 },
+    "estimated_duration_us": { "type": "integer", "minimum": 1 },
+    "story_outline": {
+      "type": "array",
+      "maxItems": 128,
+      "items": { "type": "string", "maxLength": 8192 }
+    },
+    "suggestions": {
+      "type": "array",
+      "maxItems": 2000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "suggestion_id",
+          "category",
+          "source_asset_ref",
+          "source_start_us",
+          "source_end_us",
+          "reason",
+          "risk",
+          "confidence_millis",
+          "default_decision"
+        ],
+        "properties": {
+          "suggestion_id": { "$ref": "#/$defs/id" },
+          "category": {
+            "enum": [
+              "pause",
+              "filler",
+              "repeated_take",
+              "restart",
+              "weak_transition",
+              "off_topic"
+            ]
+          },
+          "source_asset_ref": { "$ref": "#/$defs/id" },
+          "source_start_us": { "type": "integer", "minimum": 0 },
+          "source_end_us": { "type": "integer", "minimum": 1 },
+          "reason": { "type": "string", "minLength": 1, "maxLength": 8192 },
+          "risk": { "enum": ["low", "medium", "high"] },
+          "confidence_millis": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000
+          },
+          "default_decision": { "enum": ["accept", "keep"] }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    }
+  }
+}

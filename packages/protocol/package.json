@@ -1,0 +1,27 @@
+{
+  "name": "@agentmesh/creatorcut-protocol",
+  "version": "0.1.0",
+  "description": "Public CreatorCut Director and local execution contracts",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./schemas/*": "./schemas/*"
+  },
+  "files": [
+    "schemas",
+    "src",
+    "README.md"
+  ],
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --project tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "ajv": "^8.20.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

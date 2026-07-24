@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.creatorcut.agentmesh360.com/v1/edit-decision-manifest.schema.json",
+  "title": "CreatorCut EditDecisionManifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "manifest_id",
+    "review_plan_digest",
+    "final_decisions_digest",
+    "billing_receipt_ref",
+    "required_operation_types",
+    "operations",
+    "summary"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "manifest_id": { "$ref": "#/$defs/id" },
+    "review_plan_digest": { "$ref": "#/$defs/digest" },
+    "final_decisions_digest": { "$ref": "#/$defs/digest" },
+    "billing_receipt_ref": { "$ref": "#/$defs/id" },
+    "required_operation_types": {
+      "type": "array",
+      "maxItems": 32,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "trim",
+          "split",
+          "remove_range",
+          "concat",
+          "set_gain",
+          "add_caption",
+          "set_canvas",
+          "apply_lut",
+          "move_clip",
+          "add_clip",
+          "clear_track",
+          "clear_captions",
+          "clear_lut"
+        ]
+      }
+    },
+    "operations": {
+      "type": "array",
+      "maxItems": 2000,
+      "items": {
+        "$ref": "https://schemas.creatorcut.agentmesh360.com/v1/edit-operation.schema.json"
+      }
+    },
+    "summary": { "type": "string", "maxLength": 8192 }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    }
+  }
+}

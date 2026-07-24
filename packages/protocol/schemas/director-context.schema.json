@@ -1,0 +1,125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.creatorcut.agentmesh360.com/v1/director-context.schema.json",
+  "title": "CreatorCut DirectorContext v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "project_id",
+    "base_revision",
+    "client_version",
+    "protocol_versions",
+    "consent_version",
+    "project_digest",
+    "timeline_digest",
+    "transcript_digest",
+    "edit_brief_digest",
+    "capabilities_digest",
+    "transcript"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "project_id": { "$ref": "#/$defs/id" },
+    "base_revision": { "type": "integer", "minimum": 0 },
+    "client_version": { "type": "string", "minLength": 1, "maxLength": 64 },
+    "protocol_versions": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 16,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1, "maxLength": 64 }
+    },
+    "consent_version": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "project_digest": { "$ref": "#/$defs/digest" },
+    "timeline_digest": { "$ref": "#/$defs/digest" },
+    "transcript_digest": { "$ref": "#/$defs/digest" },
+    "edit_brief_digest": { "$ref": "#/$defs/digest" },
+    "capabilities_digest": { "$ref": "#/$defs/digest" },
+    "transcript": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "language_mode",
+        "text_utf8_bytes",
+        "segment_count",
+        "token_count",
+        "segments"
+      ],
+      "properties": {
+        "language_mode": { "enum": ["zh", "en", "mixed", "auto"] },
+        "text_utf8_bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1572864
+        },
+        "segment_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 50000
+        },
+        "token_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 250000
+        },
+        "segments": {
+          "type": "array",
+          "maxItems": 50000,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["segment_id", "start_us", "end_us", "text", "tokens"],
+            "properties": {
+              "segment_id": { "$ref": "#/$defs/id" },
+              "start_us": { "type": "integer", "minimum": 0 },
+              "end_us": { "type": "integer", "minimum": 1 },
+              "text": { "type": "string", "maxLength": 8192 },
+              "tokens": {
+                "type": "array",
+                "maxItems": 250000,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "token_id",
+                    "start_us",
+                    "end_us",
+                    "text",
+                    "language"
+                  ],
+                  "properties": {
+                    "token_id": { "$ref": "#/$defs/id" },
+                    "start_us": { "type": "integer", "minimum": 0 },
+                    "end_us": { "type": "integer", "minimum": 1 },
+                    "text": { "type": "string", "maxLength": 512 },
+                    "language": { "enum": ["zh", "en", "other"] }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "visual_event_summary": {
+      "$ref": "https://schemas.creatorcut.agentmesh360.com/v1/visual-event-summary.schema.json"
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    }
+  }
+}

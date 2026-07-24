@@ -1,0 +1,25 @@
+{
+  "name": "agentmesh-creatorcut",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.30.3",
+  "engines": {
+    "node": ">=24 <25",
+    "pnpm": ">=10 <11"
+  },
+  "scripts": {
+    "format": "prettier --write .",
+    "lint": "prettier --check .",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "test": "pnpm -r --if-present test && node --test tests/public-contract/*.test.mjs",
+    "protocol:digest": "node scripts/protocol-bundle.mjs",
+    "verify": "pnpm lint && pnpm typecheck && pnpm test"
+  },
+  "devDependencies": {
+    "@types/node": "24.13.3",
+    "prettier": "3.9.6",
+    "typescript": "7.0.2",
+    "vitest": "4.1.10"
+  }
+}

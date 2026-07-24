@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.creatorcut.agentmesh360.com/v1/visual-event-summary.schema.json",
+  "title": "CreatorCut VisualEventSummary v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "duration_us",
+    "width",
+    "height",
+    "scene_changes_us",
+    "blank_intervals",
+    "frozen_intervals",
+    "cursor_activity",
+    "window_switches_us"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "duration_us": { "type": "integer", "minimum": 1 },
+    "width": { "type": "integer", "minimum": 1, "maximum": 16384 },
+    "height": { "type": "integer", "minimum": 1, "maximum": 16384 },
+    "scene_changes_us": {
+      "type": "array",
+      "maxItems": 10000,
+      "items": { "type": "integer", "minimum": 0 }
+    },
+    "blank_intervals": { "$ref": "#/$defs/intervals" },
+    "frozen_intervals": { "$ref": "#/$defs/intervals" },
+    "cursor_activity": {
+      "type": "array",
+      "maxItems": 10000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["start_us", "end_us", "density_millis"],
+        "properties": {
+          "start_us": { "type": "integer", "minimum": 0 },
+          "end_us": { "type": "integer", "minimum": 1 },
+          "density_millis": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000
+          }
+        }
+      }
+    },
+    "window_switches_us": {
+      "type": "array",
+      "maxItems": 10000,
+      "items": { "type": "integer", "minimum": 0 }
+    }
+  },
+  "$defs": {
+    "intervals": {
+      "type": "array",
+      "maxItems": 10000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["start_us", "end_us"],
+        "properties": {
+          "start_us": { "type": "integer", "minimum": 0 },
+          "end_us": { "type": "integer", "minimum": 1 }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,130 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.creatorcut.agentmesh360.com/v1/director-envelope.schema.json",
+  "title": "CreatorCut DirectorEnvelope v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "envelope_version",
+    "artifact_type",
+    "artifact_id",
+    "session_id",
+    "account_ref",
+    "project_id",
+    "sequence",
+    "protocol_version",
+    "policy_version",
+    "base_revision",
+    "planning_input_digest",
+    "transcript_digest",
+    "timeline_digest",
+    "edit_brief_digest",
+    "answer_chain_digest",
+    "capabilities_digest",
+    "issued_at",
+    "payload",
+    "signature"
+  ],
+  "properties": {
+    "envelope_version": { "const": "1.0" },
+    "artifact_type": {
+      "enum": [
+        "decision_card_set",
+        "cost_quote",
+        "review_plan",
+        "edit_manifest"
+      ]
+    },
+    "artifact_id": { "$ref": "#/$defs/id" },
+    "session_id": { "$ref": "#/$defs/id" },
+    "quote_id": { "$ref": "#/$defs/id" },
+    "generation_id": { "$ref": "#/$defs/id" },
+    "account_ref": { "$ref": "#/$defs/id" },
+    "project_id": { "$ref": "#/$defs/id" },
+    "sequence": { "type": "integer", "minimum": 1 },
+    "previous_envelope_digest": { "$ref": "#/$defs/digest" },
+    "protocol_version": { "const": "1.0" },
+    "policy_version": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "base_revision": { "type": "integer", "minimum": 0 },
+    "planning_input_digest": { "$ref": "#/$defs/digest" },
+    "transcript_digest": { "$ref": "#/$defs/digest" },
+    "timeline_digest": { "$ref": "#/$defs/digest" },
+    "edit_brief_digest": { "$ref": "#/$defs/digest" },
+    "answer_chain_digest": { "$ref": "#/$defs/digest" },
+    "capabilities_digest": { "$ref": "#/$defs/digest" },
+    "issued_at": { "$ref": "#/$defs/timestamp" },
+    "expires_at": { "$ref": "#/$defs/timestamp" },
+    "payload": { "type": "object", "maxProperties": 64 },
+    "signature": { "$ref": "#/$defs/signature" }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "artifact_type": { "const": "decision_card_set" } },
+        "required": ["artifact_type"]
+      },
+      "then": {
+        "not": {
+          "anyOf": [
+            { "required": ["quote_id"] },
+            { "required": ["generation_id"] }
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "artifact_type": { "const": "cost_quote" } },
+        "required": ["artifact_type"]
+      },
+      "then": {
+        "required": ["quote_id", "expires_at"],
+        "not": { "required": ["generation_id"] }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "artifact_type": { "enum": ["review_plan", "edit_manifest"] }
+        },
+        "required": ["artifact_type"]
+      },
+      "then": { "required": ["quote_id", "generation_id"] }
+    }
+  ],
+  "$defs": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "timestamp": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]{3})?Z$"
+    },
+    "signature": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "key_id", "value"],
+      "properties": {
+        "algorithm": { "const": "Ed25519" },
+        "key_id": { "$ref": "#/$defs/id" },
+        "value": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "pattern": "^[A-Za-z0-9+/]+={0,2}$"
+        }
+      }
+    }
+  }
+}

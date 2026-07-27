@@ -24,3 +24,15 @@ approval.
 
 Revoking local consent blocks new context upload. Deleting a cloud Director
 session does not delete or damage the local project.
+
+Media import, proxy rendering, audio preparation, silence detection,
+transcription, preview and export execute through local FFmpeg/ffprobe and
+whisper.cpp processes. CreatorCut does not upload the source media, proxy,
+prepared audio or whisper model. The project stores task checkpoints locally so
+an interrupted transcription or export can resume.
+
+The transcription task locator contains the local model/tool paths needed for
+resume. It is stored inside the local project with mode `0600`, is never added
+to `DirectorContext`, and is never sent to the Director. The persistent local
+task record carries only the model SHA-256 rather than another copy of the
+model.

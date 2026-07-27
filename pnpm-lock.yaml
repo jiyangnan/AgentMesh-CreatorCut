@@ -28,12 +28,18 @@ importers:
       "@agentmesh/creatorcut-director-client":
         specifier: workspace:*
         version: link:../../packages/director-client
+      "@agentmesh/creatorcut-media-engine":
+        specifier: workspace:*
+        version: link:../../packages/media-engine
       "@agentmesh/creatorcut-protocol":
         specifier: workspace:*
         version: link:../../packages/protocol
       "@agentmesh/creatorcut-runtime":
         specifier: workspace:*
         version: link:../../packages/runtime
+      "@agentmesh/creatorcut-transcription":
+        specifier: workspace:*
+        version: link:../../packages/transcription
 
   apps/mcp:
     dependencies:
@@ -46,12 +52,18 @@ importers:
       "@agentmesh/creatorcut-host-adapters":
         specifier: workspace:*
         version: link:../../packages/host-adapters
+      "@agentmesh/creatorcut-media-engine":
+        specifier: workspace:*
+        version: link:../../packages/media-engine
       "@agentmesh/creatorcut-protocol":
         specifier: workspace:*
         version: link:../../packages/protocol
       "@agentmesh/creatorcut-runtime":
         specifier: workspace:*
         version: link:../../packages/runtime
+      "@agentmesh/creatorcut-transcription":
+        specifier: workspace:*
+        version: link:../../packages/transcription
       "@modelcontextprotocol/sdk":
         specifier: 1.29.0
         version: 1.29.0(zod@4.4.3)
@@ -79,6 +91,15 @@ importers:
         specifier: workspace:*
         version: link:../protocol
 
+  packages/media-engine:
+    dependencies:
+      "@agentmesh/creatorcut-protocol":
+        specifier: workspace:*
+        version: link:../protocol
+      "@agentmesh/creatorcut-runtime":
+        specifier: workspace:*
+        version: link:../runtime
+
   packages/protocol:
     dependencies:
       ajv:
@@ -90,6 +111,15 @@ importers:
       "@agentmesh/creatorcut-protocol":
         specifier: workspace:*
         version: link:../protocol
+
+  packages/transcription:
+    dependencies:
+      "@agentmesh/creatorcut-media-engine":
+        specifier: workspace:*
+        version: link:../media-engine
+      "@agentmesh/creatorcut-runtime":
+        specifier: workspace:*
+        version: link:../runtime
 
 packages:
   "@emnapi/core@1.11.1":

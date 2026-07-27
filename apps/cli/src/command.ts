@@ -10,13 +10,31 @@ import {
   loadVerifiedDirectorKeyset,
 } from "@agentmesh/creatorcut-director-client";
 import {
+  applyPreviewedManifest,
+  cancelExportTask,
+  importMedia,
+  previewSignedManifest,
+  readExportTask,
+  resumeExportTask,
+  startExportTask,
+} from "@agentmesh/creatorcut-media-engine";
+import {
   approveDirectorContext,
   buildDirectorContext,
   inspectDirectorContext,
   openCreatorCutProject,
   readDirectorConsent,
+  redoLocalRevision,
   revokeDirectorConsent,
+  undoLocalRevision,
 } from "@agentmesh/creatorcut-runtime";
+import {
+  cancelTranscriptionTask,
+  readTranscriptionTask,
+  resumeTranscriptionTask,
+  transcribeProject,
+  type LanguageMode,
+} from "@agentmesh/creatorcut-transcription";
 
 import type { CliEnvelope, CliIo } from "./types.js";
 
@@ -260,6 +278,117 @@ export async function executeCli(
         },
       );
     }
+    if (commandName === "project open") {
+      const opened = await openCreatorCutProject(projectDirectory);
+      return success(
+        commandName,
+        {
+          project_id: opened.project.project_id,
+          name: opened.project.name,
+          revision: opened.project.revision,
+          project_directory: opened.directory,
+        },
+        {
+          revision: opened.project.revision,
+          next:
+            opened.transcript.segments.length > 0
+              ? "director context inspect"
+              : "transcribe start",
+        },
+      );
+    }
+    if (commandName === "project create" || commandName === "media import") {
+      const sourcePath = requiredOption(parsed, "source");
+      const projectName = option(parsed, "name");
+      const ffmpegPath = option(parsed, "ffmpeg", "CREATORCUT_FFMPEG");
+      const ffprobePath = option(parsed, "ffprobe", "CREATORCUT_FFPROBE");
+      const imported = await importMedia({
+        sourcePath,
+        projectDirectory,
+        ...(projectName ? { projectName } : {}),
+        ...(ffmpegPath ? { ffmpegPath } : {}),
+        ...(ffprobePath ? { ffprobePath } : {}),
+      });
+      return success(commandName, imported, {
+        revision: 0,
+        next: "transcribe start",
+      });
+    }
+
+    if (commandName === "transcribe start") {
+      const language = option(parsed, "language") ?? "auto";
+      if (!["zh", "en", "mixed", "auto"].includes(language)) {
+        throw new TypeError(
+          "CreatorCut transcription language must be zh, en, mixed, or auto",
+        );
+      }
+      const whisperPath = option(parsed, "whisper", "CREATORCUT_WHISPER");
+      const ffmpegPath = option(parsed, "ffmpeg", "CREATORCUT_FFMPEG");
+      const ffprobePath = option(parsed, "ffprobe", "CREATORCUT_FFPROBE");
+      const task = await transcribeProject({
+        projectDirectory,
+        modelPath: requiredOption(parsed, "model", "CREATORCUT_WHISPER_MODEL"),
+        languageMode: language as LanguageMode,
+        ...(whisperPath ? { whisperPath } : {}),
+        ...(ffmpegPath ? { ffmpegPath } : {}),
+        ...(ffprobePath ? { ffprobePath } : {}),
+        ...(option(parsed, "glossary")
+          ? {
+              glossary: option(parsed, "glossary")!
+                .split(",")
+                .map((value) => value.trim())
+                .filter(Boolean),
+            }
+          : {}),
+      });
+      if (task.state === "failed") {
+        throw new Error(
+          task.error?.message ?? "CreatorCut transcription failed",
+        );
+      }
+      return success(commandName, task, {
+        revision: task.base_revision,
+        next:
+          task.state === "completed"
+            ? "director context inspect"
+            : "transcribe status",
+      });
+    }
+    if (commandName === "transcribe status") {
+      const task = await readTranscriptionTask(projectDirectory);
+      if (!task) throw new Error("CreatorCut transcription task is missing");
+      return success(commandName, task, {
+        revision: task.base_revision,
+        next:
+          task.state === "completed"
+            ? "director context inspect"
+            : task.state === "running"
+              ? "transcribe status"
+              : "transcribe resume",
+      });
+    }
+    if (commandName === "transcribe resume") {
+      const task = await resumeTranscriptionTask(projectDirectory);
+      if (task.state === "failed") {
+        throw new Error(
+          task.error?.message ?? "CreatorCut transcription failed",
+        );
+      }
+      return success(commandName, task, {
+        revision: task.base_revision,
+        next:
+          task.state === "completed"
+            ? "director context inspect"
+            : "transcribe status",
+      });
+    }
+    if (commandName === "transcribe cancel") {
+      const task = await cancelTranscriptionTask(projectDirectory);
+      return success(commandName, task, {
+        revision: task.base_revision,
+        next: "transcribe resume",
+      });
+    }
 
     if (commandName === "director context inspect") {
       const opened = await openCreatorCutProject(projectDirectory);
@@ -395,6 +524,128 @@ export async function executeCli(
         requiresUserAction: true,
         userPrompt:
           "The signed Manifest is ready. Preview it locally before any apply.",
+      });
+    }
+    if (commandName === "edit preview") {
+      const director = await adapter();
+      const manifest = await director.getVerifiedManifest(projectDirectory);
+      const ffmpegPath = option(parsed, "ffmpeg", "CREATORCUT_FFMPEG");
+      const ffprobePath = option(parsed, "ffprobe", "CREATORCUT_FFPROBE");
+      const value = await previewSignedManifest(
+        projectDirectory,
+        manifest,
+        option(parsed, "output"),
+        {
+          ...(ffmpegPath ? { ffmpegPath } : {}),
+          ...(ffprobePath ? { ffprobePath } : {}),
+        },
+      );
+      return success(commandName, value, {
+        revision: manifest.base_revision,
+        next: `edit apply --confirm-preview ${value.confirmation.confirmation_token}`,
+        requiresUserAction: true,
+        userPrompt:
+          "Review the local preview. Apply only if its picture, original audio, subtitles, framing, filters, voice, and music match your intent.",
+      });
+    }
+    if (commandName === "edit apply") {
+      const director = await adapter();
+      const manifest = await director.getVerifiedManifest(projectDirectory);
+      const value = await applyPreviewedManifest(
+        projectDirectory,
+        manifest,
+        requiredOption(parsed, "confirm-preview"),
+      );
+      return success(
+        commandName,
+        {
+          project_id: value.opened.project.project_id,
+          revision: value.opened.project.revision,
+          manifest_digest: value.manifest_digest,
+        },
+        {
+          revision: value.opened.project.revision,
+          next: "export start --output <path.mp4>",
+        },
+      );
+    }
+    if (commandName === "edit undo") {
+      const opened = await undoLocalRevision(projectDirectory);
+      return success(
+        commandName,
+        {
+          project_id: opened.project.project_id,
+          revision: opened.project.revision,
+        },
+        {
+          revision: opened.project.revision,
+          next: "export start --output <path.mp4>",
+        },
+      );
+    }
+    if (commandName === "edit redo") {
+      const opened = await redoLocalRevision(projectDirectory);
+      return success(
+        commandName,
+        {
+          project_id: opened.project.project_id,
+          revision: opened.project.revision,
+        },
+        {
+          revision: opened.project.revision,
+          next: "export start --output <path.mp4>",
+        },
+      );
+    }
+
+    if (commandName === "export start") {
+      const ffmpegPath = option(parsed, "ffmpeg", "CREATORCUT_FFMPEG");
+      const ffprobePath = option(parsed, "ffprobe", "CREATORCUT_FFPROBE");
+      const task = await startExportTask(
+        projectDirectory,
+        requiredOption(parsed, "output"),
+        {
+          overwrite: parsed.options.get("confirm-overwrite") === true,
+          ...(ffmpegPath ? { ffmpegPath } : {}),
+          ...(ffprobePath ? { ffprobePath } : {}),
+        },
+      );
+      if (task.state === "failed") {
+        throw new Error(task.error?.message ?? "CreatorCut export failed");
+      }
+      return success(commandName, task, {
+        revision: task.base_revision,
+        next: task.state === "completed" ? "export status" : "export status",
+      });
+    }
+    if (commandName === "export status") {
+      const task = await readExportTask(projectDirectory);
+      if (!task) throw new Error("CreatorCut export task is missing");
+      return success(commandName, task, {
+        revision: task.base_revision,
+        next:
+          task.state === "completed"
+            ? "project status"
+            : task.state === "running"
+              ? "export status"
+              : "export resume",
+      });
+    }
+    if (commandName === "export resume") {
+      const task = await resumeExportTask(projectDirectory);
+      if (task.state === "failed") {
+        throw new Error(task.error?.message ?? "CreatorCut export failed");
+      }
+      return success(commandName, task, {
+        revision: task.base_revision,
+        next: "export status",
+      });
+    }
+    if (commandName === "export cancel") {
+      const task = await cancelExportTask(projectDirectory);
+      return success(commandName, task, {
+        revision: task.base_revision,
+        next: "export resume",
       });
     }
 

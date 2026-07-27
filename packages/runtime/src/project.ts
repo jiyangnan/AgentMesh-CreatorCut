@@ -1,6 +1,9 @@
 import {
+  access,
+  appendFile,
   chmod,
   mkdir,
+  open,
   readFile,
   realpath,
   rename,
@@ -18,10 +21,15 @@ import {
 
 import type {
   BuildDirectorContextOptions,
+  CommitLocalRevisionInput,
+  CreateLocalProjectInput,
   DirectorConsentRecord,
   DirectorContextInspection,
   LocalEditBrief,
   LocalMediaProject,
+  LocalOperationLogEntry,
+  LocalProjectSnapshot,
+  LocalRevisionHistory,
   LocalTimeline,
   LocalTranscript,
   OpenedCreatorCutProject,
@@ -31,6 +39,9 @@ const PUBLIC_PROTOCOL_VERSION = "1.0";
 const DEFAULT_CONSENT_VERSION = "director-context-consent-v1";
 const CONSENT_FILE = "director-consent.json";
 const REMOTE_STATE_FILE = "director-state.json";
+const HISTORY_FILE = "history.json";
+const OPERATIONS_FILE = "operations.jsonl";
+const LOCK_FILE = "project.lock";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -342,6 +353,392 @@ async function atomicPrivateJson(path: string, value: unknown): Promise<void> {
   });
   await rename(temporary, path);
   await chmod(path, 0o600);
+}
+
+async function withProjectLock<T>(
+  creatorcutDirectory: string,
+  operation: () => Promise<T>,
+): Promise<T> {
+  const lockPath = join(creatorcutDirectory, LOCK_FILE);
+  let handle;
+  try {
+    handle = await open(lockPath, "wx", 0o600);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+    const owner = await readFile(lockPath, "utf8")
+      .then((value) => JSON.parse(value) as { pid?: number })
+      .catch((): { pid?: number } => ({}));
+    if (!Number.isSafeInteger(owner.pid)) {
+      throw new Error("CreatorCut project has an unreadable operation lock");
+    }
+    try {
+      process.kill(owner.pid!, 0);
+      throw new Error(
+        "CreatorCut project is locked by another local operation",
+      );
+    } catch (ownerError) {
+      if ((ownerError as NodeJS.ErrnoException).code !== "ESRCH") {
+        throw ownerError;
+      }
+    }
+    await rm(lockPath, { force: true });
+    handle = await open(lockPath, "wx", 0o600);
+  }
+  await handle.writeFile(
+    JSON.stringify({ pid: process.pid, created_at: new Date().toISOString() }),
+    "utf8",
+  );
+  try {
+    return await operation();
+  } finally {
+    await handle.close();
+    await rm(lockPath, { force: true });
+  }
+}
+
+function emptyTranscript(project: LocalMediaProject): LocalTranscript {
+  return {
+    schema_version: "1.0",
+    transcript_id: `transcript:${project.project_id}`,
+    project_id: project.project_id,
+    revision: project.revision,
+    language_mode: "auto",
+    segments: [],
+    silence_intervals: [],
+  };
+}
+
+function conservativeEditBrief(project: LocalMediaProject): LocalEditBrief {
+  return {
+    schema_version: "1.0",
+    brief_id: `brief:${project.project_id}`,
+    project_id: project.project_id,
+    base_revision: project.revision,
+    audio_mode: "original",
+    caption_style_id: "caption_none",
+    approved: true,
+    source: "safe_local_default",
+  };
+}
+
+function snapshotOf(opened: OpenedCreatorCutProject): LocalProjectSnapshot {
+  return {
+    schema_version: "creatorcut-local-snapshot/1.0",
+    revision: opened.project.revision,
+    project: structuredClone(opened.project),
+    timeline: structuredClone(opened.timeline),
+    transcript: structuredClone(opened.transcript),
+    edit_brief: structuredClone(opened.editBrief),
+  };
+}
+
+async function writeSnapshot(
+  creatorcutDirectory: string,
+  snapshot: LocalProjectSnapshot,
+): Promise<void> {
+  await atomicPrivateJson(
+    join(creatorcutDirectory, "versions", `${snapshot.revision}.json`),
+    snapshot,
+  );
+}
+
+async function readHistory(
+  creatorcutDirectory: string,
+): Promise<LocalRevisionHistory> {
+  return (await readJson(
+    join(creatorcutDirectory, HISTORY_FILE),
+  )) as LocalRevisionHistory;
+}
+
+async function writeMirrors(
+  creatorcutDirectory: string,
+  snapshot: LocalProjectSnapshot,
+  history: LocalRevisionHistory,
+): Promise<void> {
+  await writeSnapshot(creatorcutDirectory, snapshot);
+  await atomicPrivateJson(
+    join(creatorcutDirectory, "project.json"),
+    snapshot.project,
+  );
+  await atomicPrivateJson(
+    join(creatorcutDirectory, "timeline.json"),
+    snapshot.timeline,
+  );
+  await atomicPrivateJson(
+    join(creatorcutDirectory, "transcript.json"),
+    snapshot.transcript,
+  );
+  await atomicPrivateJson(
+    join(creatorcutDirectory, "edit-brief.json"),
+    snapshot.edit_brief,
+  );
+  await atomicPrivateJson(join(creatorcutDirectory, HISTORY_FILE), history);
+}
+
+async function clearRevisionBoundState(
+  creatorcutDirectory: string,
+): Promise<void> {
+  await Promise.all(
+    [CONSENT_FILE, REMOTE_STATE_FILE, "preview-confirmation.json"].map((name) =>
+      rm(join(creatorcutDirectory, name), { force: true }),
+    ),
+  );
+}
+
+export async function createCreatorCutProject(
+  projectDirectory: string,
+  input: CreateLocalProjectInput,
+): Promise<OpenedCreatorCutProject> {
+  const directory = resolve(projectDirectory);
+  const creatorcutDirectory = join(directory, ".creatorcut");
+  if (
+    await access(join(creatorcutDirectory, "project.json"))
+      .then(() => true)
+      .catch(() => false)
+  ) {
+    throw new Error("CreatorCut project already exists");
+  }
+  await mkdir(join(creatorcutDirectory, "versions"), {
+    recursive: true,
+    mode: 0o700,
+  });
+  await mkdir(join(creatorcutDirectory, "tasks"), {
+    recursive: true,
+    mode: 0o700,
+  });
+  await Promise.all(
+    ["media", "proxies", "generated", "exports"].map((name) =>
+      mkdir(join(directory, name), { recursive: true, mode: 0o700 }),
+    ),
+  );
+  const transcript = input.transcript ?? emptyTranscript(input.project);
+  const editBrief = input.editBrief ?? conservativeEditBrief(input.project);
+  const opened: OpenedCreatorCutProject = {
+    directory,
+    creatorcutDirectory,
+    project: structuredClone(input.project),
+    timeline: structuredClone(input.timeline),
+    transcript: structuredClone(transcript),
+    editBrief: structuredClone(editBrief),
+  };
+  assertSameRevision(opened);
+  await writeMirrors(creatorcutDirectory, snapshotOf(opened), {
+    schema_version: "creatorcut-local-history/1.0",
+    current_revision: opened.project.revision,
+    undo_stack: [],
+    redo_stack: [],
+  });
+  await writeFile(join(creatorcutDirectory, OPERATIONS_FILE), "", {
+    encoding: "utf8",
+    mode: 0o600,
+  });
+  return openCreatorCutProject(directory);
+}
+
+export async function readLocalArtifact<T>(
+  projectDirectory: string,
+  relativePath: string,
+): Promise<T | null> {
+  const opened = await openCreatorCutProject(projectDirectory);
+  const path = resolve(opened.creatorcutDirectory, relativePath);
+  if (
+    path !== opened.creatorcutDirectory &&
+    !path.startsWith(`${opened.creatorcutDirectory}/`)
+  ) {
+    throw new TypeError("CreatorCut artifact path escapes the project");
+  }
+  try {
+    return (await readJson(path)) as T;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+    throw error;
+  }
+}
+
+export async function writeLocalArtifact(
+  projectDirectory: string,
+  relativePath: string,
+  value: unknown,
+): Promise<void> {
+  const opened = await openCreatorCutProject(projectDirectory);
+  const path = resolve(opened.creatorcutDirectory, relativePath);
+  if (
+    path !== opened.creatorcutDirectory &&
+    !path.startsWith(`${opened.creatorcutDirectory}/`)
+  ) {
+    throw new TypeError("CreatorCut artifact path escapes the project");
+  }
+  await atomicPrivateJson(path, value);
+}
+
+export async function replaceLocalTranscript(
+  projectDirectory: string,
+  transcript: LocalTranscript,
+): Promise<OpenedCreatorCutProject> {
+  const opened = await openCreatorCutProject(projectDirectory);
+  if (
+    transcript.project_id !== opened.project.project_id ||
+    transcript.revision !== opened.project.revision
+  ) {
+    throw new TypeError("Transcript is stale or belongs to another project");
+  }
+  await atomicPrivateJson(
+    join(opened.creatorcutDirectory, "transcript.json"),
+    transcript,
+  );
+  const refreshed = await openCreatorCutProject(projectDirectory);
+  await writeSnapshot(refreshed.creatorcutDirectory, snapshotOf(refreshed));
+  await clearRevisionBoundState(refreshed.creatorcutDirectory);
+  return refreshed;
+}
+
+export async function commitLocalRevision(
+  projectDirectory: string,
+  input: CommitLocalRevisionInput,
+  now = new Date(),
+): Promise<OpenedCreatorCutProject> {
+  const initial = await openCreatorCutProject(projectDirectory);
+  return withProjectLock(initial.creatorcutDirectory, async () => {
+    const opened = await openCreatorCutProject(projectDirectory);
+    if (opened.project.revision !== input.baseRevision) {
+      throw new Error(
+        `Project revision conflict: expected ${input.baseRevision}, current ${opened.project.revision}`,
+      );
+    }
+    const history = await readHistory(opened.creatorcutDirectory);
+    const nextRevision = opened.project.revision + 1;
+    const project: LocalMediaProject = {
+      ...structuredClone(opened.project),
+      revision: nextRevision,
+      updated_at: now.toISOString(),
+    };
+    const timeline: LocalTimeline = {
+      ...structuredClone(input.nextTimeline),
+      project_id: project.project_id,
+      revision: nextRevision,
+    };
+    const snapshot: LocalProjectSnapshot = {
+      schema_version: "creatorcut-local-snapshot/1.0",
+      revision: nextRevision,
+      project,
+      timeline,
+      transcript: {
+        ...structuredClone(opened.transcript),
+        revision: nextRevision,
+      },
+      edit_brief: {
+        ...structuredClone(opened.editBrief),
+        base_revision: nextRevision,
+      },
+    };
+    const nextHistory: LocalRevisionHistory = {
+      schema_version: "creatorcut-local-history/1.0",
+      current_revision: nextRevision,
+      undo_stack: [...history.undo_stack, opened.project.revision],
+      redo_stack: [],
+    };
+    await writeMirrors(opened.creatorcutDirectory, snapshot, nextHistory);
+    const log: LocalOperationLogEntry = {
+      schema_version: "creatorcut-local-operation-log/1.0",
+      revision: nextRevision,
+      base_revision: opened.project.revision,
+      operation_ids: [...input.operationIds],
+      ...(input.manifestDigest
+        ? { manifest_digest: input.manifestDigest }
+        : {}),
+      committed_at: now.toISOString(),
+    };
+    await appendFile(
+      join(opened.creatorcutDirectory, OPERATIONS_FILE),
+      `${JSON.stringify(log)}\n`,
+      { encoding: "utf8", mode: 0o600 },
+    );
+    await clearRevisionBoundState(opened.creatorcutDirectory);
+    return openCreatorCutProject(projectDirectory);
+  });
+}
+
+async function restoreHistoricalRevision(
+  projectDirectory: string,
+  direction: "undo" | "redo",
+  now = new Date(),
+): Promise<OpenedCreatorCutProject> {
+  const initial = await openCreatorCutProject(projectDirectory);
+  return withProjectLock(initial.creatorcutDirectory, async () => {
+    const opened = await openCreatorCutProject(projectDirectory);
+    const history = await readHistory(opened.creatorcutDirectory);
+    const sourceStack =
+      direction === "undo" ? history.undo_stack : history.redo_stack;
+    const targetRevision = sourceStack.at(-1);
+    if (targetRevision === undefined) {
+      throw new Error(`No ${direction} revision is available`);
+    }
+    const target = (await readJson(
+      join(opened.creatorcutDirectory, "versions", `${targetRevision}.json`),
+    )) as LocalProjectSnapshot;
+    const nextRevision = opened.project.revision + 1;
+    const snapshot: LocalProjectSnapshot = {
+      ...structuredClone(target),
+      revision: nextRevision,
+      project: {
+        ...structuredClone(target.project),
+        revision: nextRevision,
+        updated_at: now.toISOString(),
+      },
+      timeline: {
+        ...structuredClone(target.timeline),
+        revision: nextRevision,
+      },
+      transcript: {
+        ...structuredClone(target.transcript),
+        revision: nextRevision,
+      },
+      edit_brief: {
+        ...structuredClone(target.edit_brief),
+        base_revision: nextRevision,
+      },
+    };
+    const nextHistory: LocalRevisionHistory =
+      direction === "undo"
+        ? {
+            schema_version: "creatorcut-local-history/1.0",
+            current_revision: nextRevision,
+            undo_stack: history.undo_stack.slice(0, -1),
+            redo_stack: [...history.redo_stack, opened.project.revision],
+          }
+        : {
+            schema_version: "creatorcut-local-history/1.0",
+            current_revision: nextRevision,
+            undo_stack: [...history.undo_stack, opened.project.revision],
+            redo_stack: history.redo_stack.slice(0, -1),
+          };
+    await writeMirrors(opened.creatorcutDirectory, snapshot, nextHistory);
+    await appendFile(
+      join(opened.creatorcutDirectory, OPERATIONS_FILE),
+      `${JSON.stringify({
+        schema_version: "creatorcut-local-operation-log/1.0",
+        revision: nextRevision,
+        base_revision: opened.project.revision,
+        operation_ids: [`local:${direction}:${targetRevision}`],
+        committed_at: now.toISOString(),
+      } satisfies LocalOperationLogEntry)}\n`,
+      "utf8",
+    );
+    await clearRevisionBoundState(opened.creatorcutDirectory);
+    return openCreatorCutProject(projectDirectory);
+  });
+}
+
+export function undoLocalRevision(
+  projectDirectory: string,
+): Promise<OpenedCreatorCutProject> {
+  return restoreHistoricalRevision(projectDirectory, "undo");
+}
+
+export function redoLocalRevision(
+  projectDirectory: string,
+): Promise<OpenedCreatorCutProject> {
+  return restoreHistoricalRevision(projectDirectory, "redo");
 }
 
 export async function approveDirectorContext(

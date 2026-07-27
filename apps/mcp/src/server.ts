@@ -319,5 +319,250 @@ export function createCreatorCutMcpServer(
     },
   );
 
+  server.registerTool(
+    "creatorcut_edit_preview",
+    {
+      title: "Render CreatorCut Signed Manifest Preview",
+      description:
+        "Re-verify the current signed Manifest, deterministically apply it to an in-memory timeline, and render a local preview. It never changes the project revision.",
+      inputSchema: { output_path: z.string().min(1).optional() },
+      outputSchema: {
+        preview: z.record(z.string(), z.unknown()),
+        confirmation: z.record(z.string(), z.unknown()),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: false,
+      },
+    },
+    async ({ output_path }) => {
+      try {
+        const output = await service.preview(output_path);
+        return response(
+          output,
+          "Review the local CreatorCut preview. Use its exact confirmation token only after the media matches the user's intent.",
+        );
+      } catch (error) {
+        return errorResponse(error);
+      }
+    },
+  );
+
+  server.registerTool(
+    "creatorcut_edit_apply",
+    {
+      title: "Apply Confirmed CreatorCut Manifest",
+      description:
+        "Apply the exact signed Manifest represented by an unchanged local preview. Requires the preview confirmation token and creates a new undoable project revision.",
+      inputSchema: { confirmation_token: z.string().uuid() },
+      outputSchema: {
+        project_id: z.string(),
+        revision: z.number().int().nonnegative(),
+        manifest_digest: z.string(),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: false,
+        openWorldHint: false,
+      },
+    },
+    async ({ confirmation_token }) => {
+      try {
+        return response(
+          await service.apply(confirmation_token),
+          "CreatorCut committed the confirmed Manifest as a new local revision.",
+        );
+      } catch (error) {
+        return errorResponse(error);
+      }
+    },
+  );
+
+  for (const [name, title, action] of [
+    ["creatorcut_edit_undo", "Undo CreatorCut Revision", () => service.undo()],
+    ["creatorcut_edit_redo", "Redo CreatorCut Revision", () => service.redo()],
+  ] as const) {
+    server.registerTool(
+      name,
+      {
+        title,
+        description:
+          "Restore an immutable local timeline snapshot as a new monotonic CreatorCut project revision.",
+        inputSchema: {},
+        outputSchema: {
+          project_id: z.string(),
+          revision: z.number().int().nonnegative(),
+        },
+        annotations: {
+          readOnlyHint: false,
+          destructiveHint: true,
+          idempotentHint: false,
+          openWorldHint: false,
+        },
+      },
+      async () => {
+        try {
+          return response(
+            await action(),
+            `${title} completed as a new local revision.`,
+          );
+        } catch (error) {
+          return errorResponse(error);
+        }
+      },
+    );
+  }
+
+  server.registerTool(
+    "creatorcut_transcribe_start",
+    {
+      title: "Start Local CreatorCut Transcription",
+      description:
+        "Run local whisper.cpp for Chinese, English, auto, or mixed-language transcription. No media or model data is uploaded.",
+      inputSchema: {
+        model_path: z.string().min(1),
+        language_mode: z.enum(["zh", "en", "mixed", "auto"]),
+        glossary: z.array(z.string().min(1).max(128)).max(128).default([]),
+      },
+      outputSchema: { task: z.record(z.string(), z.unknown()) },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: false,
+      },
+    },
+    async ({ model_path, language_mode, glossary }) => {
+      try {
+        return response(
+          await service.transcriptionStart({
+            modelPath: model_path,
+            languageMode: language_mode,
+            glossary,
+          }),
+          "CreatorCut local transcription task finished or saved a resumable failure state.",
+        );
+      } catch (error) {
+        return errorResponse(error);
+      }
+    },
+  );
+
+  for (const [name, title, action] of [
+    [
+      "creatorcut_transcribe_status",
+      "Get CreatorCut Transcription Status",
+      () => service.transcriptionStatus(),
+    ],
+    [
+      "creatorcut_transcribe_resume",
+      "Resume CreatorCut Transcription",
+      () => service.transcriptionResume(),
+    ],
+    [
+      "creatorcut_transcribe_cancel",
+      "Cancel CreatorCut Transcription",
+      () => service.transcriptionCancel(),
+    ],
+  ] as const) {
+    server.registerTool(
+      name,
+      {
+        title,
+        description:
+          "Read or change the current local transcription task state.",
+        inputSchema: {},
+        outputSchema: { task: z.record(z.string(), z.unknown()) },
+        annotations: {
+          readOnlyHint: name.endsWith("_status"),
+          destructiveHint: name.endsWith("_cancel"),
+          idempotentHint: name.endsWith("_status"),
+          openWorldHint: false,
+        },
+      },
+      async () => {
+        try {
+          return response(await action(), `${title} completed.`);
+        } catch (error) {
+          return errorResponse(error);
+        }
+      },
+    );
+  }
+
+  server.registerTool(
+    "creatorcut_export_start",
+    {
+      title: "Start CreatorCut MP4 Export",
+      description:
+        "Render the current confirmed local timeline to MP4. Existing files are never overwritten without an explicit true confirmation.",
+      inputSchema: {
+        output_path: z.string().min(1),
+        confirm_overwrite: z.boolean().default(false),
+      },
+      outputSchema: { task: z.record(z.string(), z.unknown()) },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: false,
+        openWorldHint: false,
+      },
+    },
+    async ({ output_path, confirm_overwrite }) => {
+      try {
+        return response(
+          await service.exportStart(output_path, confirm_overwrite),
+          "CreatorCut local export finished or saved a resumable failure state.",
+        );
+      } catch (error) {
+        return errorResponse(error);
+      }
+    },
+  );
+
+  for (const [name, title, action] of [
+    [
+      "creatorcut_export_status",
+      "Get CreatorCut Export Status",
+      () => service.exportStatus(),
+    ],
+    [
+      "creatorcut_export_resume",
+      "Resume CreatorCut Export",
+      () => service.exportResume(),
+    ],
+    [
+      "creatorcut_export_cancel",
+      "Cancel CreatorCut Export",
+      () => service.exportCancel(),
+    ],
+  ] as const) {
+    server.registerTool(
+      name,
+      {
+        title,
+        description: "Read or change the current local export task state.",
+        inputSchema: {},
+        outputSchema: { task: z.record(z.string(), z.unknown()) },
+        annotations: {
+          readOnlyHint: name.endsWith("_status"),
+          destructiveHint: name.endsWith("_cancel"),
+          idempotentHint: name.endsWith("_status"),
+          openWorldHint: false,
+        },
+      },
+      async () => {
+        try {
+          return response(await action(), `${title} completed.`);
+        } catch (error) {
+          return errorResponse(error);
+        }
+      },
+    );
+  }
+
   return server;
 }

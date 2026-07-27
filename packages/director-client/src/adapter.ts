@@ -562,6 +562,37 @@ export class CloudDirectorAdapter {
     return manifest;
   }
 
+  async getVerifiedManifest(
+    projectDirectory: string,
+  ): Promise<DirectorEnvelope<EditDecisionManifest>> {
+    const opened = await openCreatorCutProject(projectDirectory);
+    const context = buildDirectorContext(opened, { hostType: this.#hostType });
+    const state = await this.#requireState(opened, context);
+    if (
+      !state.manifest_envelope ||
+      !state.review_envelope ||
+      !state.quote_envelope ||
+      !state.generation_id
+    ) {
+      throw new Error("CreatorCut signed Manifest is missing");
+    }
+    return this.#verifyEnvelope<EditDecisionManifest>({
+      value: state.manifest_envelope,
+      context,
+      artifactType: "edit_manifest",
+      expectedPreviousDigest: digestJcs(state.review_envelope),
+      expectedSequence: state.review_envelope.sequence + 1,
+      ...(state.session_id === undefined
+        ? {}
+        : { expectedSessionId: state.session_id }),
+      expectedGenerationId: state.generation_id,
+      expectedQuoteId: state.quote_envelope.payload.quote_id,
+      ...(state.account_ref === undefined
+        ? {}
+        : { expectedAccountRef: state.account_ref }),
+    });
+  }
+
   async deleteSession(projectDirectory: string): Promise<void> {
     const opened = await openCreatorCutProject(projectDirectory);
     const state = await readDirectorState<PublicDirectorState>(opened);

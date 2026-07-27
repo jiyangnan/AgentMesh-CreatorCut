@@ -21,8 +21,10 @@
     "@agentmesh/creatorcut-credentials": "workspace:*",
     "@agentmesh/creatorcut-director-client": "workspace:*",
     "@agentmesh/creatorcut-host-adapters": "workspace:*",
+    "@agentmesh/creatorcut-media-engine": "workspace:*",
     "@agentmesh/creatorcut-protocol": "workspace:*",
     "@agentmesh/creatorcut-runtime": "workspace:*",
+    "@agentmesh/creatorcut-transcription": "workspace:*",
     "@modelcontextprotocol/sdk": "1.29.0",
     "zod": "4.4.3"
   }

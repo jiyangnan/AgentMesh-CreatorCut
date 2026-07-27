@@ -3,6 +3,14 @@ import {
   capabilitiesForHost,
   type HostCardSubmission,
 } from "@agentmesh/creatorcut-host-adapters";
+import {
+  applyPreviewedManifest,
+  cancelExportTask,
+  previewSignedManifest,
+  readExportTask,
+  resumeExportTask,
+  startExportTask,
+} from "@agentmesh/creatorcut-media-engine";
 import type { PublicClientCapabilities } from "@agentmesh/creatorcut-protocol";
 import {
   approveDirectorContext,
@@ -10,7 +18,16 @@ import {
   inspectDirectorContext,
   openCreatorCutProject,
   readDirectorConsent,
+  redoLocalRevision,
+  undoLocalRevision,
 } from "@agentmesh/creatorcut-runtime";
+import {
+  cancelTranscriptionTask,
+  readTranscriptionTask,
+  resumeTranscriptionTask,
+  transcribeProject,
+  type LanguageMode,
+} from "@agentmesh/creatorcut-transcription";
 
 export class CreatorCutMcpService {
   constructor(
@@ -109,5 +126,102 @@ export class CreatorCutMcpService {
         await this.getAdapter()
       ).review(this.projectDirectory),
     };
+  }
+
+  async preview(outputPath?: string): Promise<Record<string, unknown>> {
+    const adapter = await this.getAdapter();
+    const manifest = await adapter.getVerifiedManifest(this.projectDirectory);
+    return {
+      ...(await previewSignedManifest(
+        this.projectDirectory,
+        manifest,
+        outputPath,
+      )),
+    };
+  }
+
+  async apply(confirmationToken: string): Promise<Record<string, unknown>> {
+    const adapter = await this.getAdapter();
+    const manifest = await adapter.getVerifiedManifest(this.projectDirectory);
+    const result = await applyPreviewedManifest(
+      this.projectDirectory,
+      manifest,
+      confirmationToken,
+    );
+    return {
+      project_id: result.opened.project.project_id,
+      revision: result.opened.project.revision,
+      manifest_digest: result.manifest_digest,
+    };
+  }
+
+  async undo(): Promise<Record<string, unknown>> {
+    const opened = await undoLocalRevision(this.projectDirectory);
+    return {
+      project_id: opened.project.project_id,
+      revision: opened.project.revision,
+    };
+  }
+
+  async redo(): Promise<Record<string, unknown>> {
+    const opened = await redoLocalRevision(this.projectDirectory);
+    return {
+      project_id: opened.project.project_id,
+      revision: opened.project.revision,
+    };
+  }
+
+  async exportStart(
+    outputPath: string,
+    confirmOverwrite: boolean,
+  ): Promise<Record<string, unknown>> {
+    return {
+      task: await startExportTask(this.projectDirectory, outputPath, {
+        overwrite: confirmOverwrite,
+      }),
+    };
+  }
+
+  async exportStatus(): Promise<Record<string, unknown>> {
+    const task = await readExportTask(this.projectDirectory);
+    if (!task) throw new Error("CreatorCut export task is missing");
+    return { task };
+  }
+
+  async exportResume(): Promise<Record<string, unknown>> {
+    return { task: await resumeExportTask(this.projectDirectory) };
+  }
+
+  async exportCancel(): Promise<Record<string, unknown>> {
+    return { task: await cancelExportTask(this.projectDirectory) };
+  }
+
+  async transcriptionStart(input: {
+    modelPath: string;
+    languageMode: LanguageMode;
+    glossary: string[];
+  }): Promise<Record<string, unknown>> {
+    return {
+      task: await transcribeProject({
+        projectDirectory: this.projectDirectory,
+        modelPath: input.modelPath,
+        languageMode: input.languageMode,
+        glossary: input.glossary,
+      }),
+    };
+  }
+
+  async transcriptionStatus(): Promise<Record<string, unknown>> {
+    const task = await readTranscriptionTask(this.projectDirectory);
+    if (!task) throw new Error("CreatorCut transcription task is missing");
+    return { task };
+  }
+
+  async transcriptionResume(): Promise<Record<string, unknown>> {
+    return { task: await resumeTranscriptionTask(this.projectDirectory) };
+  }
+
+  async transcriptionCancel(): Promise<Record<string, unknown>> {
+    return { task: await cancelTranscriptionTask(this.projectDirectory) };
   }
 }

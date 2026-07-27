@@ -7,9 +7,13 @@ import { describe, expect, it } from "vitest";
 import {
   approveDirectorContext,
   buildDirectorContext,
+  commitLocalRevision,
+  createCreatorCutProject,
   inspectDirectorContext,
   openCreatorCutProject,
+  redoLocalRevision,
   requireDirectorConsent,
+  undoLocalRevision,
 } from "../src/index.js";
 
 async function fixtureProject(): Promise<string> {
@@ -108,6 +112,75 @@ async function fixtureProject(): Promise<string> {
 }
 
 describe("public CreatorCut runtime", () => {
+  it("creates, commits, undoes, and redoes monotonic local revisions", async () => {
+    const root = await mkdtemp(join(tmpdir(), "creatorcut-public-store-"));
+    const projectDirectory = join(root, "project.creatorcut");
+    await createCreatorCutProject(projectDirectory, {
+      project: {
+        schema_version: "1.0",
+        project_id: "project-store-1",
+        name: "Store fixture",
+        revision: 0,
+        assets: [
+          {
+            asset_id: "asset-1",
+            kind: "video",
+            relative_path: "media/source.mp4",
+            sha256: "a".repeat(64),
+            duration_us: 5_000_000,
+            width: 1920,
+            height: 1080,
+            has_video: true,
+            has_audio: true,
+          },
+        ],
+      },
+      timeline: {
+        schema_version: "1.0",
+        timeline_id: "timeline-store-1",
+        project_id: "project-store-1",
+        revision: 0,
+        duration_us: 5_000_000,
+        canvas: { width: 1920, height: 1080 },
+        tracks: [
+          {
+            track_id: "track-video",
+            kind: "video",
+            clips: [
+              {
+                clip_id: "clip-1",
+                asset_id: "asset-1",
+                source_start_us: 0,
+                source_end_us: 5_000_000,
+                timeline_start_us: 0,
+                timeline_end_us: 5_000_000,
+              },
+            ],
+          },
+        ],
+      },
+    });
+    const committed = await commitLocalRevision(projectDirectory, {
+      baseRevision: 0,
+      nextTimeline: {
+        ...(await openCreatorCutProject(projectDirectory)).timeline,
+        canvas: { width: 1080, height: 1920 },
+      },
+      operationIds: ["operation-canvas"],
+      manifestDigest: `sha256:${"b".repeat(64)}`,
+    });
+    expect(committed.project.revision).toBe(1);
+    expect(committed.timeline.canvas.width).toBe(1080);
+
+    const undone = await undoLocalRevision(projectDirectory);
+    expect(undone.project.revision).toBe(2);
+    expect(undone.timeline.canvas.width).toBe(1920);
+
+    const redone = await redoLocalRevision(projectDirectory);
+    expect(redone.project.revision).toBe(3);
+    expect(redone.timeline.canvas.width).toBe(1080);
+  });
+
   it("builds a path-free mixed-language DirectorContext", async () => {
     const opened = await openCreatorCutProject(await fixtureProject());
     const context = buildDirectorContext(opened, {

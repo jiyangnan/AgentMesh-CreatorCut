@@ -76,8 +76,42 @@
 - [x] MCP card tools return complete structured presentation plus equivalent
       text fallback.
 
+## TC-PUBLIC-MEDIA-001: local media import and project history
+
+- [x] Import streams SHA-256, verifies the copied source, probes rotation-aware
+      metadata and creates a local H.264 proxy without changing original audio.
+- [x] Project snapshots are immutable; apply, undo and redo create monotonic
+      revisions under a stale-process-recoverable project lock.
+- [x] Existing project destinations, project asset path escape, realpath
+      symlink escape and export-to-project-asset collisions fail closed.
+
+## TC-PUBLIC-ASR-001: local bilingual transcription and recovery
+
+- [x] `zh`, `en`, `auto` and `mixed` modes map whisper.cpp JSON into stable
+      Chinese/English token timing and recover split UTF-8 tokens.
+- [x] Mixed mode persists `auto`, Chinese and English candidates and chooses by
+      bilingual coverage/confidence.
+- [x] Transcription start/status/resume/cancel persist local checkpoints and use
+      CPU fallback after a failed GPU attempt.
+- [x] A real 12-second mixed-language product recording completed local import,
+      three-candidate transcription and transcript persistence in approximately
+      17 seconds with a locally installed small model.
+
+## TC-PUBLIC-EXEC-001: signed Manifest preview, apply and export
+
+- [x] Every Protocol v1 declarative operation is validated against its
+      preconditions and applied deterministically to a planned timeline.
+- [x] Preview renders locally and records Manifest, planned-timeline and preview
+      digests plus a single exact confirmation token.
+- [x] Apply rejects a missing/stale token, modified preview, changed revision or
+      changed signed Manifest, then commits one new revision on success.
+- [x] Export start/status/resume/cancel persist state, preserve original audio by
+      default, render through shell-free FFmpeg invocation and verify the output.
+- [x] A real local FFmpeg import/proxy/export smoke produced a valid MP4 with
+      both H.264 video and AAC audio.
+
 ## Next Cycle 3 gate
 
-Extract media import/transcription and deterministic local Manifest
-preview/apply/undo/export, then run real Codex, Claude Code, OpenClaw and generic
-text host smoke against one signed semantic fixture.
+Build the Codex MCP App UI and public Skills, then run Codex, Claude Code,
+OpenClaw and generic text interruption-recovery smoke against one signed
+semantic fixture. Cycle 3 remains in progress.

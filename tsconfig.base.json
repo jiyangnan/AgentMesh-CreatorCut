@@ -21,7 +21,13 @@
       "@agentmesh/creatorcut-host-adapters": [
         "./packages/host-adapters/src/index.ts"
       ],
-      "@agentmesh/creatorcut-runtime": ["./packages/runtime/src/index.ts"]
+      "@agentmesh/creatorcut-media-engine": [
+        "./packages/media-engine/src/index.ts"
+      ],
+      "@agentmesh/creatorcut-runtime": ["./packages/runtime/src/index.ts"],
+      "@agentmesh/creatorcut-transcription": [
+        "./packages/transcription/src/index.ts"
+      ]
     },
     "resolveJsonModule": true,
     "verbatimModuleSyntax": true,

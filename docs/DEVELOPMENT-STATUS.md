@@ -69,6 +69,28 @@ release, tag, public installer, deployed public client, or production endpoint.
 
 No further Cycle 3 batch may be added without a user-approved plan delta.
 
+### B-C code and host checkpoint
+
+- Public code checkpoint `main@50ba975` contains the Codex MCP App resource,
+  authoritative render/submit path, one canonical presentation digest,
+  host-specific render digests, and public Claude Code/OpenClaw Skills.
+- Node `24.18.0` `pnpm verify` passed with 62 Vitest and 12 Node
+  public-contract cases; Protocol v1 remains frozen.
+- The built MCP stdio contract rendered and submitted all eight fixture cards
+  and matched the fixed expected AnswerSet digest.
+- A real Codex CLI host rendered all eight cards in a desktop-visible thread,
+  but independent native-widget visual inspection and host submission are
+  still missing; B remains open.
+- OpenClaw `2026.6.9` installed and invoked the Skill, submitted the fixed
+  AnswerSet successfully, and stopped before quote/edit.
+- Claude Code `2.1.220` plugin validation passed, but its real host call failed
+  before tool execution because the local OAuth token was revoked; C remains
+  open.
+- Kimi CLI returned `B/C CODE PASS` with no blocking code finding and explicitly
+  kept B, C, D, and Cycle 3 open.
+- Exact bounded evidence:
+  [Cycle 3 B-C host surfaces](operations/2026-07-27-cycle3-b-c-host-surfaces.md).
+
 ### A3 evidence
 
 - Fixture digest:

@@ -523,6 +523,40 @@ describe("public local media execution", () => {
     ).toMatch(/^RIFF/u);
   });
 
+  it("keeps the final mixed output on the approved safe limiter ceiling", async () => {
+    const directory = await projectFixture();
+    const signed = envelope();
+    signed.payload.finishing = {
+      caption_style_id: "caption_clean",
+      lut_id: "lut_none",
+      voice_mode: "original",
+      background_music: {
+        mode: "local_template",
+        category_id: "upbeat",
+        template_id: "bright_launch",
+      },
+    };
+    let ffmpegArgs: string[] = [];
+    const runner: ProcessRunner = async (command, args) => {
+      if (command === "ffprobe") {
+        return { exitCode: 0, stdout: probeJson, stderr: "" };
+      }
+      ffmpegArgs = args;
+      await writeFile(args.at(-1)!, "rendered-media");
+      return { exitCode: 0, stdout: "", stderr: "" };
+    };
+
+    await previewSignedManifest(directory, signed, undefined, { runner });
+
+    const filterIndex = ffmpegArgs.indexOf("-filter_complex");
+    expect(filterIndex).toBeGreaterThanOrEqual(0);
+    const filter = ffmpegArgs[filterIndex + 1]!;
+    expect(filter).toContain(
+      "amix=inputs=2:duration=first:normalize=0,alimiter=limit=0.89,aresample=48000[aout]",
+    );
+    expect(filter).not.toContain("alimiter=limit=0.95");
+  });
+
   it("keeps the two approved upbeat templates deterministic and distinct", () => {
     const light = synthesizeLocalMusicBedWav(2_000_000, "light_tech");
     const bright = synthesizeLocalMusicBedWav(2_000_000, "bright_launch");

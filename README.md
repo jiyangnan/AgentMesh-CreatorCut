@@ -11,14 +11,16 @@ declarative reversible operations.
 
 ## Current status
 
-This repository is at the first M1 release-engineering checkpoint. It currently
-contains the frozen public Protocol v1 and its signature, resource-limit, and
-safe-operation tests.
+This repository has completed CreatorCut Cycle 3 / Batch 1. It contains the
+frozen public Protocol v1 plus a source-buildable local runtime, verified
+Director client, macOS Keychain credential adapter, stable JSON CLI, public MCP
+server, and cross-host semantic card/text presentation.
 
-The CLI, MCP server, local runtime, Director client, host adapters, skills, and
-installer listed in the M1 release plan have not yet been exported here. There
-is no public release, tag, remote installation command, or production Director
-endpoint yet.
+This is still a development checkpoint. Media import/transcription extraction,
+local Manifest preview/apply/undo/export, a Codex MCP App card UI, managed
+installation, remote release metadata, and full public-product dogfood remain
+unfinished. There is no public release, tag, installation command, or
+production Director endpoint yet.
 
 ## Product boundary
 
@@ -53,6 +55,21 @@ pnpm pack:protocol
 `pnpm protocol:digest` prints the stable digest that private consumers must pin.
 `pnpm pack:protocol` builds the independently consumable protocol tarball used
 by private services during this pre-release phase.
+
+After a source build, the development CLI can be invoked with Node 24:
+
+```bash
+node apps/cli/dist/src/main.js doctor
+```
+
+Remote Director commands intentionally require an AgentMesh API key stored by
+`creatorcut auth login`, a trusted recovery-root-signed Director keyset, an
+explicit endpoint, and the pinned protocol bundle digest. The repository does
+not ship staging credentials or silently select a production endpoint.
+
+See [Agent onboarding](docs/agent-onboarding.md),
+[privacy contract](docs/privacy.md), and
+[Cycle 3 / Batch 1 evidence](docs/operations/2026-07-27-cycle3-batch1-public-client-foundation.md).
 
 ## License
 

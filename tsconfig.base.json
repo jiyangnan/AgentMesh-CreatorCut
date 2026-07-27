@@ -11,6 +11,18 @@
     "noImplicitOverride": true,
     "noFallthroughCasesInSwitch": true,
     "noEmit": true,
+    "paths": {
+      "@agentmesh/creatorcut-credentials": [
+        "./packages/credentials/src/index.ts"
+      ],
+      "@agentmesh/creatorcut-director-client": [
+        "./packages/director-client/src/index.ts"
+      ],
+      "@agentmesh/creatorcut-host-adapters": [
+        "./packages/host-adapters/src/index.ts"
+      ],
+      "@agentmesh/creatorcut-runtime": ["./packages/runtime/src/index.ts"]
+    },
     "resolveJsonModule": true,
     "verbatimModuleSyntax": true,
     "skipLibCheck": true

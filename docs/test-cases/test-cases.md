@@ -26,7 +26,58 @@
 - [x] Public files contain no internal checkout path, planner/policy package path, Service Token marker, or internal media-directory reference.
 - [x] README states incomplete product/release status instead of advertising unavailable commands.
 
-## Next contract gate
+## TC-PUBLIC-007: CLI auth and stable output
 
-The private Server must pin this repository's protocol bundle digest and pass the
-same golden vectors before Director policy migration begins.
+- [x] CLI returns `creatorcut-cli/1.0` JSON with stable success/error,
+      `requires_user_action`, `retryable`, and `next_suggested` fields.
+- [x] macOS Keychain write sends the AgentMesh API key on stdin and never puts
+      it in argv.
+- [x] `--key` is rejected and the attempted secret is absent from output.
+- [x] `auth logout` removes only the local Keychain item and explicitly reports
+      that the remote Core API key was not revoked.
+
+## TC-PUBLIC-PRIVACY-001: context inspection and consent
+
+- [x] Current `.creatorcut` project, timeline, transcript and approved EditBrief
+      produce a schema-validated DirectorContext.
+- [x] Context contains Chinese, English or mixed transcript text and timing but
+      no original media bytes, screenshots, local relative/absolute paths or
+      usernames.
+- [x] Consent is mode `0600`, contains no transcript text, and binds exact
+      project ID, revision, planning digest, transcript digest and consent
+      version.
+- [x] Any context or revision change invalidates the previous consent.
+
+## TC-PUBLIC-008: cross-host cards
+
+- [x] Native option IDs and numbered text tokens normalize to identical stable
+      answer semantics.
+- [x] Stale presentation digest, duplicate card, unknown option and missing
+      required answer fail closed.
+- [x] Codex, Claude Code, OpenClaw and generic text capabilities are represented
+      independently from Server card ordering and defaults.
+
+## TC-PUBLIC-DIRECTOR-001: verified public Director client
+
+- [x] Non-loopback plaintext endpoints are rejected.
+- [x] Preflight is content-free and does not authenticate or upload transcript.
+- [x] Director keyset must be recovery-root signed, current, unexpired and above
+      the configured version floor.
+- [x] Session, quote, ReviewPlan and Manifest verification binds project,
+      revision, planning input, transcript, timeline, EditBrief, capabilities,
+      sequence, previous digest and stable identifiers.
+- [x] Generation retry reuses the locally persisted `generation_id`.
+
+## TC-PUBLIC-MCP-001: public runtime boundary
+
+- [x] MCP project/context tools work locally without a Director connection.
+- [x] MCP imports only public runtime, Director client and host adapters; it
+      does not import Studio or local strategy packages.
+- [x] MCP card tools return complete structured presentation plus equivalent
+      text fallback.
+
+## Next Cycle 3 gate
+
+Extract media import/transcription and deterministic local Manifest
+preview/apply/undo/export, then run real Codex, Claude Code, OpenClaw and generic
+text host smoke against one signed semantic fixture.

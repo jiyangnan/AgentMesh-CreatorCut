@@ -1,0 +1,405 @@
+import { access } from "node:fs/promises";
+import { resolve } from "node:path";
+
+import {
+  KeychainCredentialStore,
+  type CredentialStore,
+} from "@agentmesh/creatorcut-credentials";
+import {
+  CloudDirectorAdapter,
+  loadVerifiedDirectorKeyset,
+} from "@agentmesh/creatorcut-director-client";
+import {
+  approveDirectorContext,
+  buildDirectorContext,
+  inspectDirectorContext,
+  openCreatorCutProject,
+  readDirectorConsent,
+  revokeDirectorConsent,
+} from "@agentmesh/creatorcut-runtime";
+
+import type { CliEnvelope, CliIo } from "./types.js";
+
+interface ParsedArguments {
+  command: string[];
+  options: Map<string, string | true>;
+}
+
+interface CliDependencies {
+  credentials?: CredentialStore;
+  adapterFactory?: () => Promise<CloudDirectorAdapter>;
+  cwd?: () => string;
+}
+
+function parseArguments(argv: string[]): ParsedArguments {
+  const command: string[] = [];
+  const options = new Map<string, string | true>();
+  for (let index = 0; index < argv.length; index += 1) {
+    const token = argv[index];
+    if (!token) continue;
+    if (!token.startsWith("--")) {
+      command.push(token);
+      continue;
+    }
+    if (token === "--key") {
+      throw new TypeError(
+        "CreatorCut never accepts API keys in command arguments",
+      );
+    }
+    const next = argv[index + 1];
+    if (next && !next.startsWith("--")) {
+      options.set(token.slice(2), next);
+      index += 1;
+    } else {
+      options.set(token.slice(2), true);
+    }
+  }
+  return { command, options };
+}
+
+function option(
+  parsed: ParsedArguments,
+  name: string,
+  environmentName?: string,
+): string | undefined {
+  const value = parsed.options.get(name);
+  if (typeof value === "string") return value;
+  return environmentName ? process.env[environmentName] : undefined;
+}
+
+function requiredOption(
+  parsed: ParsedArguments,
+  name: string,
+  environmentName?: string,
+): string {
+  const value = option(parsed, name, environmentName);
+  if (!value) {
+    throw new TypeError(
+      `CreatorCut requires --${name}${
+        environmentName ? ` or ${environmentName}` : ""
+      }`,
+    );
+  }
+  return value;
+}
+
+function success<T>(
+  command: string,
+  data: T,
+  options: {
+    revision?: number;
+    next?: string;
+    requiresUserAction?: boolean;
+    userPrompt?: string;
+  } = {},
+): CliEnvelope<T> {
+  return {
+    schema_version: "creatorcut-cli/1.0",
+    ok: true,
+    command,
+    ...(options.revision === undefined
+      ? {}
+      : { project_revision: options.revision }),
+    requires_user_action: options.requiresUserAction ?? false,
+    ...(options.userPrompt ? { user_prompt: options.userPrompt } : {}),
+    retryable: false,
+    ...(options.next ? { next_suggested: options.next } : {}),
+    data,
+  };
+}
+
+function failure(command: string, error: unknown): CliEnvelope {
+  const message =
+    error instanceof Error ? error.message : "Unknown CreatorCut error";
+  return {
+    schema_version: "creatorcut-cli/1.0",
+    ok: false,
+    command,
+    requires_user_action: false,
+    retryable: /timeout|temporar|503|network|fetch/iu.test(message),
+    error: {
+      code: error instanceof TypeError ? "invalid_input" : "operation_failed",
+      message,
+    },
+  };
+}
+
+async function defaultAdapter(
+  parsed: ParsedArguments,
+  credentials: CredentialStore,
+): Promise<CloudDirectorAdapter> {
+  const apiKey = await credentials.getApiKey();
+  if (!apiKey) {
+    throw new Error(
+      "CreatorCut is not authenticated; run creatorcut auth login",
+    );
+  }
+  const keysetPath = requiredOption(
+    parsed,
+    "keyset",
+    "CREATORCUT_DIRECTOR_KEYSET",
+  );
+  const recoveryRootsPath = requiredOption(
+    parsed,
+    "recovery-roots",
+    "CREATORCUT_DIRECTOR_RECOVERY_ROOTS",
+  );
+  const minimumVersionValue = option(
+    parsed,
+    "minimum-keyset-version",
+    "CREATORCUT_MINIMUM_KEYSET_VERSION",
+  );
+  const minimumVersion =
+    minimumVersionValue === undefined
+      ? undefined
+      : Number.parseInt(minimumVersionValue, 10);
+  if (
+    minimumVersion !== undefined &&
+    (!Number.isSafeInteger(minimumVersion) || minimumVersion <= 0)
+  ) {
+    throw new TypeError("CreatorCut minimum keyset version is invalid");
+  }
+  const trust = await loadVerifiedDirectorKeyset({
+    keysetPath,
+    recoveryRootsPath,
+    ...(minimumVersion === undefined ? {} : { minimumVersion }),
+  });
+  return new CloudDirectorAdapter({
+    endpoint: requiredOption(
+      parsed,
+      "endpoint",
+      "CREATORCUT_DIRECTOR_ENDPOINT",
+    ),
+    apiKey,
+    protocolBundleDigest: requiredOption(
+      parsed,
+      "protocol-digest",
+      "CREATORCUT_PROTOCOL_BUNDLE_DIGEST",
+    ),
+    signedKeyset: trust.keyset,
+    trustedRecoveryRoots: trust.roots,
+    ...(minimumVersion === undefined
+      ? {}
+      : { minimumKeysetVersion: minimumVersion }),
+  });
+}
+
+export async function executeCli(
+  argv: string[],
+  io: CliIo,
+  dependencies: CliDependencies = {},
+): Promise<CliEnvelope> {
+  let commandName = "invalid";
+  try {
+    const parsed = parseArguments(argv);
+    commandName = parsed.command.join(" ") || "help";
+    const credentials =
+      dependencies.credentials ?? new KeychainCredentialStore();
+    const projectDirectory = resolve(
+      option(parsed, "project") ?? dependencies.cwd?.() ?? process.cwd(),
+    );
+    const adapter = () =>
+      dependencies.adapterFactory?.() ?? defaultAdapter(parsed, credentials);
+
+    if (commandName === "doctor") {
+      const checks = {
+        platform: process.platform,
+        node: process.versions.node,
+        keychain: process.platform === "darwin",
+        authenticated: await credentials.hasApiKey(),
+        project: await access(resolve(projectDirectory, ".creatorcut"))
+          .then(() => true)
+          .catch(() => false),
+      };
+      return success(commandName, checks, {
+        next: checks.authenticated ? "project status" : "auth login",
+      });
+    }
+
+    if (commandName === "auth login") {
+      const apiKey = (await io.stdin()).trim();
+      if (!apiKey) {
+        throw new TypeError("AgentMesh API key is required on stdin");
+      }
+      await credentials.setApiKey(apiKey);
+      return success(
+        commandName,
+        { stored_in: "macOS Keychain", authenticated: true },
+        { next: "director context inspect" },
+      );
+    }
+    if (commandName === "auth status") {
+      return success(commandName, {
+        authenticated: await credentials.hasApiKey(),
+        storage: "macOS Keychain",
+      });
+    }
+    if (commandName === "auth logout") {
+      return success(commandName, {
+        removed: await credentials.deleteApiKey(),
+        remote_api_key_revoked: false,
+      });
+    }
+
+    if (commandName === "project status") {
+      const opened = await openCreatorCutProject(projectDirectory);
+      const consent = await readDirectorConsent(opened);
+      return success(
+        commandName,
+        {
+          project_id: opened.project.project_id,
+          name: opened.project.name,
+          revision: opened.project.revision,
+          language_mode: opened.transcript.language_mode,
+          transcript_segments: opened.transcript.segments.length,
+          director_consent: consent !== null,
+        },
+        {
+          revision: opened.project.revision,
+          next: consent ? "director start" : "director context inspect",
+        },
+      );
+    }
+
+    if (commandName === "director context inspect") {
+      const opened = await openCreatorCutProject(projectDirectory);
+      const context = buildDirectorContext(opened);
+      return success(commandName, inspectDirectorContext(context), {
+        revision: opened.project.revision,
+        next: "director context consent --confirm-upload",
+        requiresUserAction: true,
+        userPrompt:
+          "Review the complete DirectorContext above. It uploads transcript text and timing, but no original media, screenshots, absolute paths, or usernames.",
+      });
+    }
+    if (commandName === "director context consent") {
+      if (parsed.options.get("confirm-upload") !== true) {
+        throw new TypeError(
+          "Explicit --confirm-upload is required after context inspection",
+        );
+      }
+      const opened = await openCreatorCutProject(projectDirectory);
+      const context = buildDirectorContext(opened);
+      const consent = await approveDirectorContext(opened, context);
+      return success(commandName, consent, {
+        revision: opened.project.revision,
+        next: "director start",
+      });
+    }
+    if (commandName === "director context revoke") {
+      const opened = await openCreatorCutProject(projectDirectory);
+      await revokeDirectorConsent(opened);
+      return success(
+        commandName,
+        { revoked: true },
+        {
+          revision: opened.project.revision,
+          next: "director delete",
+        },
+      );
+    }
+
+    if (commandName === "director start") {
+      const value = await (await adapter()).start({ projectDirectory });
+      return success(commandName, value, {
+        revision: value.base_revision,
+        next: value.current_card_envelope ? "cards get" : "edit quote",
+      });
+    }
+    if (commandName === "director status") {
+      const value = await (await adapter()).status(projectDirectory);
+      return success(commandName, value, {
+        next:
+          value.kind === "session" &&
+          value.value.current_card_envelope !== undefined
+            ? "cards get"
+            : value.kind === "session"
+              ? "edit quote"
+              : "edit status",
+      });
+    }
+    if (commandName === "director delete") {
+      await (await adapter()).deleteSession(projectDirectory);
+      return success(commandName, { deleted: true });
+    }
+
+    if (commandName === "cards get") {
+      const value = await (await adapter()).getCards({ projectDirectory });
+      return success(commandName, value, {
+        next: "cards submit",
+        requiresUserAction: true,
+        userPrompt: value.presentation.text_fallback,
+      });
+    }
+    if (commandName === "cards submit") {
+      const submission = JSON.parse(await io.stdin()) as never;
+      const value = await (
+        await adapter()
+      ).submitCards({
+        projectDirectory,
+        submission,
+      });
+      return success(commandName, value, {
+        revision: value.base_revision,
+        next: value.current_card_envelope ? "cards get" : "edit quote",
+      });
+    }
+
+    if (commandName === "edit quote") {
+      const quote = await (await adapter()).quote(projectDirectory);
+      return success(commandName, quote, {
+        next: "edit generate --confirmation-id <id>",
+        requiresUserAction: true,
+        userPrompt: `Confirm ${quote.payload.cost} credits for one immutable CreatorCut Director Generation.`,
+      });
+    }
+    if (commandName === "edit generate") {
+      const confirmationId = requiredOption(parsed, "confirmation-id");
+      const generation = await (
+        await adapter()
+      ).generate({
+        projectDirectory,
+        confirmationId,
+      });
+      return success(commandName, generation, {
+        next: "edit status",
+      });
+    }
+    if (commandName === "edit status") {
+      const value = await (await adapter()).status(projectDirectory);
+      return success(commandName, value, {
+        next:
+          value.kind === "generation" && value.value.state === "awaiting_review"
+            ? "edit review"
+            : "edit status",
+      });
+    }
+    if (commandName === "edit review") {
+      const review = await (await adapter()).review(projectDirectory);
+      return success(commandName, review, {
+        next: "edit finalize",
+        requiresUserAction: true,
+        userPrompt:
+          "Review every signed suggestion and submit a complete EditReviewDecisionSet on stdin.",
+      });
+    }
+    if (commandName === "edit finalize") {
+      const decisions = JSON.parse(await io.stdin()) as never;
+      const manifest = await (
+        await adapter()
+      ).finalize(projectDirectory, {
+        decisions,
+      });
+      return success(commandName, manifest, {
+        next: "edit preview",
+        requiresUserAction: true,
+        userPrompt:
+          "The signed Manifest is ready. Preview it locally before any apply.",
+      });
+    }
+
+    throw new TypeError(`Unknown CreatorCut command: ${commandName}`);
+  } catch (error) {
+    return failure(commandName, error);
+  }
+}

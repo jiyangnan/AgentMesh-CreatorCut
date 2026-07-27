@@ -1,0 +1,26 @@
+{
+  "name": "@agentmesh/creatorcut-cli",
+  "version": "0.1.0",
+  "description": "Public CreatorCut command-line client",
+  "license": "Apache-2.0",
+  "type": "module",
+  "bin": {
+    "creatorcut": "./dist/src/main.js"
+  },
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc --project tsconfig.build.json",
+    "typecheck": "tsc --project tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@agentmesh/creatorcut-credentials": "workspace:*",
+    "@agentmesh/creatorcut-director-client": "workspace:*",
+    "@agentmesh/creatorcut-protocol": "workspace:*",
+    "@agentmesh/creatorcut-runtime": "workspace:*"
+  }
+}

@@ -1,0 +1,160 @@
+import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+import { describe, expect, it } from "vitest";
+
+import { MemoryCredentialStore } from "@agentmesh/creatorcut-credentials";
+
+import { executeCli } from "../src/index.js";
+
+async function projectFixture(): Promise<string> {
+  const root = await mkdtemp(join(tmpdir(), "creatorcut-cli-"));
+  const state = join(root, ".creatorcut");
+  await mkdir(state);
+  const write = (name: string, value: unknown) =>
+    writeFile(join(state, name), JSON.stringify(value), "utf8");
+  await write("project.json", {
+    schema_version: "1.0-alpha",
+    project_id: "project-cli-1",
+    name: "CLI fixture",
+    revision: 1,
+    assets: [
+      {
+        asset_id: "asset-1",
+        kind: "video",
+        relative_path: "source.mov",
+        sha256: "b".repeat(64),
+        duration_us: 2_000_000,
+        width: 1080,
+        height: 1920,
+        has_video: true,
+        has_audio: true,
+      },
+    ],
+  });
+  await write("timeline.json", {
+    schema_version: "1.0-alpha",
+    timeline_id: "timeline-1",
+    project_id: "project-cli-1",
+    revision: 1,
+    duration_us: 2_000_000,
+    canvas: { width: 1080, height: 1920 },
+    tracks: [
+      {
+        track_id: "video",
+        kind: "video",
+        clips: [
+          {
+            clip_id: "clip",
+            asset_id: "asset-1",
+            source_start_us: 0,
+            source_end_us: 2_000_000,
+            timeline_start_us: 0,
+            timeline_end_us: 2_000_000,
+          },
+        ],
+      },
+    ],
+  });
+  await write("transcript.json", {
+    schema_version: "1.0-alpha",
+    transcript_id: "transcript-1",
+    project_id: "project-cli-1",
+    revision: 1,
+    language_mode: "zh",
+    segments: [
+      {
+        segment_id: "segment-1",
+        source_asset_id: "asset-1",
+        start_us: 0,
+        end_us: 1_000_000,
+        display_text: "你好",
+        tokens: [
+          {
+            token_id: "token-1",
+            text: "你好",
+            start_us: 0,
+            end_us: 1_000_000,
+            language: "zh",
+            confidence: 1,
+          },
+        ],
+      },
+    ],
+  });
+  await write("edit-brief.json", {
+    schema_version: "1.0-alpha",
+    brief_id: "brief-1",
+    project_id: "project-cli-1",
+    base_revision: 1,
+    audio_mode: "original",
+    caption_style_id: "caption_clean",
+    approved: true,
+  });
+  return root;
+}
+
+const io = (stdin = "") => ({
+  stdin: async () => stdin,
+  stdout: () => undefined,
+});
+
+describe("creatorcut CLI", () => {
+  it("stores auth through the credential abstraction and returns stable JSON", async () => {
+    const credentials = new MemoryCredentialStore();
+    const login = await executeCli(["auth", "login"], io("am_test_key\n"), {
+      credentials,
+    });
+    expect(login).toMatchObject({
+      schema_version: "creatorcut-cli/1.0",
+      ok: true,
+      command: "auth login",
+      requires_user_action: false,
+    });
+    expect(await credentials.getApiKey()).toBe("am_test_key");
+  });
+
+  it("rejects API keys passed through argv", async () => {
+    const result = await executeCli(
+      ["auth", "login", "--key", "am_leaked"],
+      io(),
+      { credentials: new MemoryCredentialStore() },
+    );
+    expect(result.ok).toBe(false);
+    expect(JSON.stringify(result)).not.toContain("am_leaked");
+  });
+
+  it("requires inspect then explicit project-level consent", async () => {
+    const project = await projectFixture();
+    const inspect = await executeCli(
+      ["director", "context", "inspect", "--project", project],
+      io(),
+      { credentials: new MemoryCredentialStore() },
+    );
+    expect(inspect).toMatchObject({
+      ok: true,
+      requires_user_action: true,
+      next_suggested: "director context consent --confirm-upload",
+    });
+    const denied = await executeCli(
+      ["director", "context", "consent", "--project", project],
+      io(),
+      { credentials: new MemoryCredentialStore() },
+    );
+    expect(denied.ok).toBe(false);
+    const approved = await executeCli(
+      [
+        "director",
+        "context",
+        "consent",
+        "--project",
+        project,
+        "--confirm-upload",
+      ],
+      io(),
+      { credentials: new MemoryCredentialStore() },
+    );
+    expect(approved.ok).toBe(true);
+  });
+});

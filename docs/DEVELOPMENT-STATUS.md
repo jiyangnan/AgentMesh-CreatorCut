@@ -9,11 +9,24 @@
 - [x] Stable protocol bundle digest and repository privacy scan.
 - [x] Protocol package builds to standalone Node 24 ESM, declarations and bundled JSON Schema.
 - [x] DirectorContext includes path-free planning facts, capabilities, AnswerSet and ReviewDecisionSet.
-- [ ] Local project/runtime extraction.
-- [ ] Director client and signed Generation recovery.
-- [ ] CLI and MCP.
-- [ ] Cross-host interactive cards and text fallback.
+- [x] Local read-only project/runtime compatibility layer for current
+      `.creatorcut` project, timeline, transcript and approved EditBrief.
+- [x] Project-level DirectorContext inspection, exact digest-bound consent,
+      private local Director state and consent revocation.
+- [x] Verified Director client for preflight, session/cards, quote, idempotent
+      Generation recovery, ReviewPlan and finalize/Manifest.
+- [x] Stable JSON CLI for doctor, Keychain auth, project/context, Director,
+      cards and paid edit workflow.
+- [x] Public stdio MCP server using only public runtime/Director client; no
+      Studio or local Director policy dependency.
+- [x] Cross-host semantic card presentation and generic text fallback.
+- [ ] Public media import/transcription extraction.
+- [ ] Local signed Manifest preview/apply/undo/redo and export execution.
+- [ ] Codex MCP App card UI and real Claude Code/OpenClaw host smoke.
+- [ ] Public Skills and end-to-end agent onboarding verification.
 - [ ] Managed installer and signed release verification.
 - [ ] Real public-product dogfood.
 
-There is no remote release, tag, public installer, or production endpoint yet.
+Cycle 3 remains in progress. Batch 1 is a local `main` implementation checkpoint,
+not a remote release, tag, public installer, deployed public client, or
+production endpoint.

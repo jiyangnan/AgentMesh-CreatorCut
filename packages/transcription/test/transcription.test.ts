@@ -147,6 +147,35 @@ describe("public bilingual transcription", () => {
     expect(opened.transcript.silence_intervals).toHaveLength(1);
   });
 
+  it("does not reuse candidates after the model digest changes", async () => {
+    const { directory, model } = await fixture();
+    let whisperRuns = 0;
+    const countingRunner: ProcessRunner = async (command, args) => {
+      if (command === "ffmpeg") {
+        if (args.at(-1) !== "-") await writeFile(args.at(-1)!, "wav");
+        return { exitCode: 0, stdout: "", stderr: "" };
+      }
+      whisperRuns += 1;
+      const outputIndex = args.indexOf("-of");
+      await writeFile(`${args[outputIndex + 1]!}.json`, JSON.stringify(raw));
+      return { exitCode: 0, stdout: "", stderr: "" };
+    };
+    await transcribeProject({
+      projectDirectory: directory,
+      modelPath: model,
+      languageMode: "mixed",
+      runner: countingRunner,
+    });
+    await writeFile(model, "different model");
+    await transcribeProject({
+      projectDirectory: directory,
+      modelPath: model,
+      languageMode: "mixed",
+      runner: countingRunner,
+    });
+    expect(whisperRuns).toBe(6);
+  });
+
   it("rejects a project-local symlink that resolves outside the project", async () => {
     const { directory, model } = await fixture();
     const source = join(directory, "media", "source.mov");

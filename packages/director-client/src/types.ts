@@ -35,6 +35,9 @@ export interface CloudDirectorAdapterOptions {
   transport?: DirectorTransport;
   now?: () => Date;
   uuid?: () => string;
+  finalizePollIntervalMs?: number;
+  finalizePollAttempts?: number;
+  sleep?: (milliseconds: number, signal?: AbortSignal) => Promise<void>;
 }
 
 export interface DirectorSessionView {

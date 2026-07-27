@@ -13,6 +13,7 @@ import {
   type DirectorContext,
   type DirectorEnvelope,
   type EditDecisionManifest,
+  type EditReviewDecisionSet,
   type EditReviewPlan,
   type SemanticDecisionCardSet,
   type SignedArtifactKeyset,
@@ -84,7 +85,7 @@ function signingFixture(): {
 }
 
 interface Cycle3Fixture {
-  fixed_clock: { manifest: string };
+  fixed_clock: { manifest: string; review_decision: string };
   director_context: DirectorContext;
   local_snapshot: {
     project: CreateLocalProjectInput["project"];
@@ -394,6 +395,92 @@ describe("CloudDirectorAdapter", () => {
         name,
       ).rejects.toThrow(/binding mismatch/u);
     }
+  });
+
+  it("polls boundedly until asynchronous finalization returns a signed Manifest", async () => {
+    const signing = signingFixture();
+    const { directory, context, fixture } = await cycle3Project();
+    const opened = await openCreatorCutProject(directory);
+    const review = resignEnvelope(
+      fixture.envelope_chain.review_plan,
+      signing.directorPrivateKey,
+    );
+    const manifestValue = structuredClone(fixture.envelope_chain.manifest);
+    manifestValue.previous_envelope_digest = digestJcs(review);
+    manifestValue.sequence = review.sequence + 1;
+    const manifest = resignEnvelope(manifestValue, signing.directorPrivateKey);
+    const generationId = manifest.generation_id!;
+    await writeDirectorState(opened, {
+      schema_version: "creatorcut-public-director-state/1.0",
+      project_id: context.project_id,
+      base_revision: context.base_revision,
+      planning_input_digest: digestJcs(context),
+      session_id: manifest.session_id,
+      account_ref: manifest.account_ref,
+      quote_envelope: fixture.envelope_chain.quote,
+      generation_id: generationId,
+      review_envelope: review,
+      updated_at: fixture.fixed_clock.manifest,
+    });
+    const decisions: EditReviewDecisionSet = {
+      schema_version: "1.0",
+      decision_set_id: "decisions-polling",
+      generation_id: generationId,
+      review_plan_id: review.payload.review_plan_id,
+      review_plan_digest: digestJcs(review.payload),
+      project_id: context.project_id,
+      base_revision: context.base_revision,
+      decisions: review.payload.suggestions.map((suggestion) => ({
+        suggestion_id: suggestion.suggestion_id,
+        decision: suggestion.default_decision,
+      })),
+      confirmed_at: fixture.fixed_clock.review_decision,
+    };
+    let gets = 0;
+    const baseGeneration = {
+      generation_id: generationId,
+      session_id: manifest.session_id,
+      project_id: context.project_id,
+      base_revision: context.base_revision,
+      planning_input_digest: digestJcs(context),
+      quote_id: fixture.envelope_chain.quote.payload.quote_id,
+      attempt: 1,
+    };
+    const adapter = new CloudDirectorAdapter({
+      endpoint: "https://director.example.test",
+      apiKey: "am_test_key",
+      protocolBundleDigest: `sha256:${"a".repeat(64)}`,
+      signedKeyset: signing.keyset,
+      trustedRecoveryRoots: signing.roots,
+      now: () => new Date(fixture.fixed_clock.manifest),
+      finalizePollIntervalMs: 0,
+      finalizePollAttempts: 3,
+      sleep: async () => undefined,
+      transport: async (request) => {
+        if (request.path.endsWith("/review-decisions")) {
+          return { ...baseGeneration, state: "awaiting_review" };
+        }
+        if (request.method === "POST" && request.path.endsWith("/finalize")) {
+          return { ...baseGeneration, state: "finalizing" };
+        }
+        if (request.method === "GET") {
+          gets += 1;
+          return gets === 1
+            ? { ...baseGeneration, state: "signing" }
+            : {
+                ...baseGeneration,
+                state: "ready",
+                manifest_envelope: manifest,
+              };
+        }
+        throw new Error(`Unexpected Director request: ${request.path}`);
+      },
+    });
+
+    await expect(adapter.finalize(directory, { decisions })).resolves.toEqual(
+      manifest,
+    );
+    expect(gets).toBe(2);
   });
 
   it("persists and reuses the Generation ID across a lost create response", async () => {

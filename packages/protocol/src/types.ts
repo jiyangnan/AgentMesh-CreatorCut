@@ -297,7 +297,21 @@ export interface EditDecisionManifest {
   billing_receipt_ref: string;
   required_operation_types: EditOperationType[];
   operations: EditOperation[];
+  finishing: EditFinishingIntent;
   summary: string;
+}
+
+export interface EditFinishingIntent {
+  caption_style_id: "caption_none" | "caption_clean" | "caption_bold";
+  lut_id: "lut_none" | "lut_warm" | "lut_cool";
+  voice_mode: "original" | "partial_voiceover" | "full_voiceover";
+  background_music:
+    | { mode: "none" }
+    | {
+        mode: "local_template";
+        category_id: "upbeat";
+        template_id: "light_tech" | "bright_launch";
+      };
 }
 
 export interface PublicClientCapabilities {

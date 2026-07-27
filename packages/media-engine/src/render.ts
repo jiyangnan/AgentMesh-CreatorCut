@@ -73,16 +73,28 @@ function subtitleDocument(
     24,
     Math.round(timeline.canvas.height * (portrait ? 0.03 : 0.044)),
   );
+  const boldFontSize = Math.round(fontSize * 1.22);
+  const captionFont =
+    process.platform === "darwin"
+      ? "Hiragino Sans GB"
+      : process.platform === "win32"
+        ? "Microsoft YaHei"
+        : "Noto Sans CJK SC";
   const margin = Math.max(
     24,
     timeline.caption_safe_area?.bottom_px ??
       Math.round(timeline.canvas.height * 0.09),
   );
   const events = captions
-    .map(
-      (caption) =>
-        `Dialogue: 0,${assTime(caption.start_us)},${assTime(caption.end_us)},Default,,0,0,0,,${assText(caption.text)}`,
-    )
+    .map((caption) => {
+      const style =
+        caption.style_id === "caption_bold"
+          ? "Bold"
+          : caption.style_id === "caption_clean"
+            ? "Clean"
+            : "Default";
+      return `Dialogue: 0,${assTime(caption.start_us)},${assTime(caption.end_us)},${style},,0,0,0,,${assText(caption.text)}`;
+    })
     .join("\n");
   return `[Script Info]
 ScriptType: v4.00+
@@ -93,12 +105,40 @@ ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,Arial,${fontSize},&H00FFFFFF,&H000000FF,&H00101010,&H70000000,-1,0,0,0,100,100,0,0,1,3,1,2,60,60,${margin},1
+Style: Default,${captionFont},${fontSize},&H00FFFFFF,&H000000FF,&H00101010,&H70000000,-1,0,0,0,100,100,0,0,1,3,1,2,60,60,${margin},1
+Style: Clean,${captionFont},${fontSize},&H00FFFFFF,&H000000FF,&H00101010,&H50000000,-1,0,0,0,100,100,0,0,1,3,0,2,60,60,${margin},1
+Style: Bold,${captionFont},${boldFontSize},&H0000E8FF,&H000000FF,&H00101010,&H60000000,-1,0,0,0,100,100,0,0,1,4,1,2,48,48,${margin},1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 ${events}
 `;
+}
+
+function isHdr(asset: LocalMediaAsset | undefined): boolean {
+  const primaries = asset?.color_primaries?.toLowerCase() ?? "";
+  const transfer = asset?.color_transfer?.toLowerCase() ?? "";
+  return (
+    primaries.includes("bt2020") ||
+    transfer.includes("arib-std-b67") ||
+    transfer.includes("smpte2084") ||
+    transfer.includes("pq") ||
+    transfer.includes("hlg")
+  );
+}
+
+function safeColorFilters(asset: LocalMediaAsset | undefined): string[] {
+  if (!isHdr(asset)) {
+    return [];
+  }
+  return [
+    "zscale=t=linear:npl=100",
+    "format=gbrpf32le",
+    "zscale=p=bt709",
+    "tonemap=hable:desat=1",
+    "zscale=t=bt709:m=bt709:r=tv",
+    "setparams=color_primaries=bt709:color_trc=bt709:colorspace=bt709:range=tv",
+  ];
 }
 
 function sortedClips(
@@ -176,9 +216,11 @@ export async function renderTimeline(
     if (input === undefined) throw new Error("CreatorCut input map is invalid");
     const width = options.timeline.canvas.width;
     const height = options.timeline.canvas.height;
+    const sourceAsset = assetById.get(clip.asset_id);
     const chain = [
       `trim=start=${seconds(clip.source_start_us)}:end=${seconds(clip.source_end_us)}`,
       "setpts=PTS-STARTPTS",
+      ...safeColorFilters(sourceAsset),
       "setsar=1",
       `scale=${width}:${height}:force_original_aspect_ratio=decrease`,
       `pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:color=black`,
@@ -266,11 +308,25 @@ export async function renderTimeline(
         `[${input}:a:0]atrim=start=${seconds(clip.source_start_us)}:end=${seconds(clip.source_end_us)},asetpts=PTS-STARTPTS,aresample=48000,adelay=${delay}:all=1,apad,atrim=duration=${seconds(options.timeline.duration_us)},volume=${gain}dB[music${index}]`,
       );
     }
+    const musicInput =
+      musicClips.length === 1
+        ? "[music0]anull"
+        : `${musicClips.map((_, index) => `[music${index}]`).join("")}amix=inputs=${musicClips.length}:duration=longest:normalize=0`;
+    const fadeOutStart = Math.max(
+      0,
+      options.timeline.duration_us / 1_000_000 - 2.2,
+    );
     filters.push(
-      `[${primaryAudio}]${musicClips.map((_, index) => `[music${index}]`).join("")}amix=inputs=${musicClips.length + 1}:duration=first:normalize=0[aout]`,
+      `${musicInput},afade=t=in:st=0:d=1.2,afade=t=out:st=${fadeOutStart.toFixed(3)}:d=2.2,loudnorm=I=-24:TP=-2:LRA=7[musicbed]`,
+    );
+    filters.push(
+      `[${primaryAudio}]asplit=2[voicekeep][voiceside]`,
+      `[musicbed][voiceside]sidechaincompress=threshold=0.04:ratio=2.5:attack=15:release=300[duckedmusic]`,
+      `[voicekeep]volume=6dB,alimiter=limit=0.89[voicefinal]`,
+      `[voicefinal][duckedmusic]amix=inputs=2:duration=first:normalize=0,alimiter=limit=0.95,aresample=48000[aout]`,
     );
   } else {
-    filters.push(`[${primaryAudio}]anull[aout]`);
+    filters.push(`[${primaryAudio}]alimiter=limit=0.95,aresample=48000[aout]`);
   }
 
   let subtitleFile: string | undefined;
@@ -311,6 +367,14 @@ export async function renderTimeline(
     "aac",
     "-b:a",
     options.quality === "preview" ? "128k" : "192k",
+    "-color_primaries",
+    "bt709",
+    "-color_trc",
+    "bt709",
+    "-colorspace",
+    "bt709",
+    "-color_range",
+    "tv",
     "-movflags",
     "+faststart",
     output,

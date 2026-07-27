@@ -7,6 +7,8 @@ export {
   type ExportTask,
 } from "./export-task.js";
 export { applyPreviewedManifest, previewSignedManifest } from "./manifest.js";
+export { materializeFinishing } from "./finishing.js";
+export { synthesizeLocalMusicBedWav } from "./music-synth.js";
 export { applyEditOperations } from "./operations.js";
 export {
   createCreatorCutOperationResolver,

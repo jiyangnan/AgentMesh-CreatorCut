@@ -110,7 +110,7 @@ describe("creatorcut CLI", () => {
     expect(result).toMatchObject({
       ok: true,
       command: "version",
-      data: { version: "0.1.0-rc.4" },
+      data: { version: "0.1.0-rc.5" },
     });
   });
 
@@ -196,6 +196,65 @@ describe("creatorcut CLI", () => {
       { credentials: new MemoryCredentialStore() },
     );
     expect(approved.ok).toBe(true);
+  });
+
+  it("shows and safely replaces a human-corrected bilingual transcript", async () => {
+    const project = await projectFixture();
+    const shown = await executeCli(
+      ["transcribe", "show", "--project", project],
+      io(),
+      { credentials: new MemoryCredentialStore() },
+    );
+    expect(shown).toMatchObject({
+      ok: true,
+      data: { transcript_id: "transcript-1", language_mode: "zh" },
+    });
+    const correctedPath = join(project, "corrected-transcript.json");
+    await writeFile(
+      correctedPath,
+      JSON.stringify({
+        ...(shown.data as Record<string, unknown>),
+        language_mode: "mixed",
+        segments: [
+          {
+            segment_id: "segment-1",
+            source_asset_id: "asset-1",
+            start_us: 0,
+            end_us: 1_000_000,
+            display_text: "你好 CreatorCut",
+            tokens: [
+              {
+                token_id: "token-1",
+                text: "你好",
+                start_us: 0,
+                end_us: 400_000,
+                language: "zh",
+                confidence: 1,
+              },
+              {
+                token_id: "token-2",
+                text: "CreatorCut",
+                start_us: 450_000,
+                end_us: 1_000_000,
+                language: "en",
+                confidence: 1,
+              },
+            ],
+          },
+        ],
+      }),
+      "utf8",
+    );
+    const replaced = await executeCli(
+      ["transcribe", "replace", "--project", project, "--file", correctedPath],
+      io(),
+      { credentials: new MemoryCredentialStore() },
+    );
+    expect(replaced).toMatchObject({
+      ok: true,
+      next_suggested: "director context inspect",
+      data: { language_mode: "mixed" },
+    });
   });
 
   it("returns the stable answer id with every card presentation", async () => {

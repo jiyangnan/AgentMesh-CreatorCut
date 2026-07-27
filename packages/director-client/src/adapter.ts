@@ -120,6 +120,12 @@ export class CloudDirectorAdapter {
   readonly #transport: DirectorTransport;
   readonly #now: () => Date;
   readonly #uuid: () => string;
+  readonly #finalizePollIntervalMs: number;
+  readonly #finalizePollAttempts: number;
+  readonly #sleep: (
+    milliseconds: number,
+    signal?: AbortSignal,
+  ) => Promise<void>;
 
   constructor(options: CloudDirectorAdapterOptions) {
     this.#endpoint = normalizedEndpoint(options.endpoint);
@@ -128,6 +134,32 @@ export class CloudDirectorAdapter {
     this.#hostType = options.hostType ?? "text";
     this.#now = options.now ?? (() => new Date());
     this.#uuid = options.uuid ?? randomUUID;
+    this.#finalizePollIntervalMs = Math.max(
+      0,
+      options.finalizePollIntervalMs ?? 500,
+    );
+    this.#finalizePollAttempts = Math.max(
+      1,
+      options.finalizePollAttempts ?? 60,
+    );
+    this.#sleep =
+      options.sleep ??
+      ((milliseconds, signal) =>
+        new Promise<void>((resolve, reject) => {
+          if (signal?.aborted) {
+            reject(signal.reason);
+            return;
+          }
+          const timer = setTimeout(resolve, milliseconds);
+          signal?.addEventListener(
+            "abort",
+            () => {
+              clearTimeout(timer);
+              reject(signal.reason);
+            },
+            { once: true },
+          );
+        }));
     this.#keyset = verifySignedKeyset(
       options.signedKeyset,
       options.trustedRecoveryRoots,
@@ -566,12 +598,41 @@ export class CloudDirectorAdapter {
       path: `/v1/director/generations/${encodeURIComponent(state.generation_id)}/finalize`,
       authenticated: true,
     });
-    if (!generation.manifest_envelope) {
+    for (
+      let attempt = 0;
+      !generation.manifest_envelope && attempt < this.#finalizePollAttempts;
+      attempt += 1
+    ) {
+      this.#assertGeneration(generation, context, {
+        generationId: state.generation_id,
+        ...(state.session_id === undefined
+          ? {}
+          : { sessionId: state.session_id }),
+        quoteId: state.quote_envelope.payload.quote_id,
+      });
+      if (
+        ["failed", "failed_terminal", "refunded"].includes(generation.state)
+      ) {
+        throw new Error(
+          `CreatorCut Director finalization failed: ${generation.error_code ?? generation.state}`,
+        );
+      }
+      if (generation.state === "ready") {
+        throw new Error(
+          "CreatorCut Director returned ready without a signed Manifest",
+        );
+      }
+      await this.#sleep(this.#finalizePollIntervalMs);
       generation = await this.#request<DirectorGenerationView>({
         method: "GET",
         path: `/v1/director/generations/${encodeURIComponent(state.generation_id)}`,
         authenticated: true,
       });
+    }
+    if (!generation.manifest_envelope) {
+      throw new Error(
+        "CreatorCut Director finalization is still processing; retry finalize",
+      );
     }
     this.#assertGeneration(generation, context, {
       generationId: state.generation_id,

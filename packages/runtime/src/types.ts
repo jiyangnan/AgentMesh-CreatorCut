@@ -174,6 +174,8 @@ export interface CreateLocalProjectInput {
 export interface CommitLocalRevisionInput {
   baseRevision: number;
   nextTimeline: LocalTimeline;
+  nextProject?: LocalMediaProject;
+  nextEditBrief?: LocalEditBrief;
   operationIds: string[];
   manifestDigest?: string;
 }

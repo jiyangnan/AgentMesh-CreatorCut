@@ -12,6 +12,7 @@
     "billing_receipt_ref",
     "required_operation_types",
     "operations",
+    "finishing",
     "summary"
   ],
   "properties": {
@@ -47,6 +48,49 @@
       "maxItems": 2000,
       "items": {
         "$ref": "https://schemas.creatorcut.agentmesh360.com/v1/edit-operation.schema.json"
+      }
+    },
+    "finishing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "caption_style_id",
+        "lut_id",
+        "voice_mode",
+        "background_music"
+      ],
+      "properties": {
+        "caption_style_id": {
+          "enum": ["caption_none", "caption_clean", "caption_bold"]
+        },
+        "lut_id": {
+          "enum": ["lut_none", "lut_warm", "lut_cool"]
+        },
+        "voice_mode": {
+          "enum": ["original", "partial_voiceover", "full_voiceover"]
+        },
+        "background_music": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["mode"],
+              "properties": { "mode": { "const": "none" } }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["mode", "category_id", "template_id"],
+              "properties": {
+                "mode": { "const": "local_template" },
+                "category_id": { "const": "upbeat" },
+                "template_id": {
+                  "enum": ["light_tech", "bright_launch"]
+                }
+              }
+            }
+          ]
+        }
       }
     },
     "summary": { "type": "string", "maxLength": 8192 }

@@ -89,7 +89,9 @@ export interface PreviewRecord {
   project_id: string;
   base_revision: number;
   manifest_digest: string;
+  planned_project_digest: string;
   planned_timeline_digest: string;
+  planned_edit_brief_digest: string;
   preview_path: string;
   preview_sha256: string;
   confirmation_token: string;

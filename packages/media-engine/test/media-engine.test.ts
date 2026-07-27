@@ -20,8 +20,10 @@ import {
   applyPreviewedManifest,
   importMedia,
   previewSignedManifest,
+  renderTimeline,
   resumeExportTask,
   startExportTask,
+  synthesizeLocalMusicBedWav,
   type ProcessRunner,
 } from "../src/index.js";
 
@@ -157,6 +159,48 @@ async function projectFixture(): Promise<string> {
         },
       ],
     },
+    transcript: {
+      schema_version: "1.0",
+      transcript_id: "transcript-media-1",
+      project_id: "project-media-1",
+      revision: 0,
+      language_mode: "mixed",
+      segments: [
+        {
+          segment_id: "segment-media-1",
+          source_asset_id: "asset-source",
+          start_us: 0,
+          end_us: 4_000_000,
+          display_text: "你好 CreatorCut export",
+          tokens: [
+            {
+              token_id: "token-media-1",
+              text: "你好",
+              start_us: 0,
+              end_us: 800_000,
+              language: "zh",
+              confidence: 0.99,
+            },
+            {
+              token_id: "token-media-2",
+              text: "CreatorCut",
+              start_us: 900_000,
+              end_us: 2_000_000,
+              language: "en",
+              confidence: 0.99,
+            },
+            {
+              token_id: "token-media-3",
+              text: "export",
+              start_us: 2_200_000,
+              end_us: 4_000_000,
+              language: "en",
+              confidence: 0.98,
+            },
+          ],
+        },
+      ],
+    },
   });
   await writeFile(join(directory, "media", "source.mp4"), "source-media");
   return directory;
@@ -192,6 +236,12 @@ function envelope(): DirectorEnvelope<EditDecisionManifest> {
       billing_receipt_ref: "billing-1",
       required_operation_types: ["set_canvas"],
       operations: [canvasOperation()],
+      finishing: {
+        caption_style_id: "caption_none",
+        lut_id: "lut_none",
+        voice_mode: "original",
+        background_music: { mode: "none" },
+      },
       summary: "Portrait preview",
     },
     signature: {
@@ -419,6 +469,100 @@ describe("public local media execution", () => {
       ),
     ).rejects.toThrow(/stale or belongs to another project/u);
     expect((await openCreatorCutProject(directory)).project.revision).toBe(1);
+  });
+
+  it("materializes signed captions, original voice, and local upbeat music before apply", async () => {
+    const directory = await projectFixture();
+    const signed = envelope();
+    signed.payload.finishing = {
+      caption_style_id: "caption_clean",
+      lut_id: "lut_none",
+      voice_mode: "original",
+      background_music: {
+        mode: "local_template",
+        category_id: "upbeat",
+        template_id: "light_tech",
+      },
+    };
+    const preview = await previewSignedManifest(directory, signed, undefined, {
+      runner: mediaRunner,
+    });
+    expect(preview.confirmation.planned_project_digest).toMatch(
+      /^sha256:[a-f0-9]{64}$/u,
+    );
+    const applied = await applyPreviewedManifest(
+      directory,
+      signed,
+      preview.confirmation.confirmation_token,
+    );
+    expect(applied.opened.timeline.captions?.length).toBeGreaterThan(0);
+    expect(
+      applied.opened.timeline.tracks.find((track) => track.kind === "music")
+        ?.clips,
+    ).toHaveLength(1);
+    expect(
+      applied.opened.timeline.tracks.some(
+        (track) => track.kind === "voiceover",
+      ),
+    ).toBe(false);
+    expect(applied.opened.editBrief).toMatchObject({
+      audio_mode: "original",
+      caption_style_id: "caption_clean",
+      lut_id: "lut_none",
+      background_music: {
+        mode: "local_template",
+        template_id: "light_tech",
+      },
+    });
+    const music = applied.opened.project.assets.find((asset) =>
+      asset.asset_id.includes("asset_music_light_tech"),
+    );
+    expect(music).toBeDefined();
+    expect(
+      await readFile(join(directory, music!.relative_path), "ascii"),
+    ).toMatch(/^RIFF/u);
+  });
+
+  it("keeps the two approved upbeat templates deterministic and distinct", () => {
+    const light = synthesizeLocalMusicBedWav(2_000_000, "light_tech");
+    const bright = synthesizeLocalMusicBedWav(2_000_000, "bright_launch");
+    expect(light.subarray(0, 4).toString("ascii")).toBe("RIFF");
+    expect(bright.subarray(0, 4).toString("ascii")).toBe("RIFF");
+    expect(
+      light.equals(synthesizeLocalMusicBedWav(2_000_000, "light_tech")),
+    ).toBe(true);
+    expect(light.equals(bright)).toBe(false);
+  });
+
+  it("tone-maps HLG or PQ sources to tagged BT.709 output", async () => {
+    const directory = await projectFixture();
+    const opened = await openCreatorCutProject(directory);
+    const project = structuredClone(opened.project);
+    project.assets[0]!.color_primaries = "bt2020";
+    project.assets[0]!.color_transfer = "arib-std-b67";
+    project.assets[0]!.color_space = "bt2020nc";
+    let ffmpegArgs: string[] = [];
+    const runner: ProcessRunner = async (command, args) => {
+      if (command === "ffprobe") {
+        return { exitCode: 0, stdout: probeJson, stderr: "" };
+      }
+      ffmpegArgs = args;
+      await writeFile(args.at(-1)!, "rendered-media");
+      return { exitCode: 0, stdout: "", stderr: "" };
+    };
+    await renderTimeline({
+      projectDirectory: directory,
+      project,
+      timeline: opened.timeline,
+      outputPath: join(directory, "exports", "hdr-preview.mp4"),
+      quality: "preview",
+      overwrite: true,
+      runner,
+    });
+    const command = ffmpegArgs.join(" ");
+    expect(command).toContain("zscale=t=linear:npl=100");
+    expect(command).toContain("tonemap=hable:desat=1");
+    expect(command).toContain("-color_primaries bt709");
   });
 
   it("rejects changed preview bytes, Manifest bindings, and project revisions", async () => {

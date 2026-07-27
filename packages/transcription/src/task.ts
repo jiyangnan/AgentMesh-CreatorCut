@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { access, mkdir, readFile, realpath, rm } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve } from "node:path";
 
@@ -219,7 +219,23 @@ export async function transcribeProject(
     ffprobe_path: options.ffprobePath ?? "ffprobe",
   };
   await writeLocalArtifact(opened.directory, LOCATOR_PATH, locator);
-  const work = join(opened.creatorcutDirectory, "tasks", "transcription-work");
+  const workKey = createHash("sha256")
+    .update(
+      JSON.stringify({
+        source_sha256: task.source_sha256,
+        model_sha256: task.model_sha256,
+        language_mode: task.language_mode,
+        glossary: task.glossary,
+      }),
+    )
+    .digest("hex")
+    .slice(0, 24);
+  const work = join(
+    opened.creatorcutDirectory,
+    "tasks",
+    "transcription-work",
+    workKey,
+  );
   await mkdir(work, { recursive: true, mode: 0o700 });
   const audioPath = join(work, "audio.wav");
   let current: TranscriptionTask = {

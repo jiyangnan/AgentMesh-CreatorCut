@@ -1,4 +1,4 @@
-import { access } from "node:fs/promises";
+import { access, readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -27,7 +27,9 @@ import {
   openCreatorCutProject,
   readDirectorConsent,
   redoLocalRevision,
+  replaceLocalTranscript,
   revokeDirectorConsent,
+  type LocalTranscript,
   undoLocalRevision,
 } from "@agentmesh/creatorcut-runtime";
 import {
@@ -48,7 +50,7 @@ import {
 
 import type { CliEnvelope, CliIo } from "./types.js";
 
-const CURRENT_CLIENT_VERSION = "0.1.0-rc.4";
+const CURRENT_CLIENT_VERSION = "0.1.0-rc.5";
 const DEFAULT_RELEASE_ENDPOINT =
   "https://api.agentmesh360.com/v1/products/creatorcut/client-release";
 
@@ -577,6 +579,22 @@ export async function executeCli(
       return success(commandName, task, {
         revision: task.base_revision,
         next: "transcribe resume",
+      });
+    }
+    if (commandName === "transcribe show") {
+      const opened = await openCreatorCutProject(projectDirectory);
+      return success(commandName, opened.transcript, {
+        revision: opened.project.revision,
+        next: "transcribe replace --file <corrected-transcript.json>",
+      });
+    }
+    if (commandName === "transcribe replace") {
+      const path = resolve(requiredOption(parsed, "file"));
+      const value = JSON.parse(await readFile(path, "utf8")) as LocalTranscript;
+      const opened = await replaceLocalTranscript(projectDirectory, value);
+      return success(commandName, opened.transcript, {
+        revision: opened.project.revision,
+        next: "director context inspect",
       });
     }
 

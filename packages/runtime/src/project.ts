@@ -547,15 +547,16 @@ export async function replaceLocalTranscript(
   transcript: LocalTranscript,
 ): Promise<OpenedCreatorCutProject> {
   const opened = await openCreatorCutProject(projectDirectory);
+  const validated = assertTranscript(transcript);
   if (
-    transcript.project_id !== opened.project.project_id ||
-    transcript.revision !== opened.project.revision
+    validated.project_id !== opened.project.project_id ||
+    validated.revision !== opened.project.revision
   ) {
     throw new TypeError("Transcript is stale or belongs to another project");
   }
   await atomicPrivateJson(
     join(opened.creatorcutDirectory, "transcript.json"),
-    transcript,
+    validated,
   );
   const refreshed = await openCreatorCutProject(projectDirectory);
   await writeSnapshot(refreshed.creatorcutDirectory, snapshotOf(refreshed));
@@ -578,8 +579,22 @@ export async function commitLocalRevision(
     }
     const history = await readHistory(opened.creatorcutDirectory);
     const nextRevision = opened.project.revision + 1;
+    if (
+      input.nextProject &&
+      input.nextProject.project_id !== opened.project.project_id
+    ) {
+      throw new TypeError("Next project belongs to another CreatorCut project");
+    }
+    if (
+      input.nextEditBrief &&
+      input.nextEditBrief.project_id !== opened.project.project_id
+    ) {
+      throw new TypeError(
+        "Next EditBrief belongs to another CreatorCut project",
+      );
+    }
     const project: LocalMediaProject = {
-      ...structuredClone(opened.project),
+      ...structuredClone(input.nextProject ?? opened.project),
       revision: nextRevision,
       updated_at: now.toISOString(),
     };
@@ -598,7 +613,8 @@ export async function commitLocalRevision(
         revision: nextRevision,
       },
       edit_brief: {
-        ...structuredClone(opened.editBrief),
+        ...structuredClone(input.nextEditBrief ?? opened.editBrief),
+        project_id: project.project_id,
         base_revision: nextRevision,
       },
     };

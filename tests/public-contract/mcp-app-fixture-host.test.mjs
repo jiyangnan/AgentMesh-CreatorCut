@@ -92,7 +92,7 @@ test("Codex fixture stdio host renders and submits the locked AnswerSet", async 
     assert.equal(submitted.isError, undefined);
     assert.equal(
       submitted.structuredContent.state.answer_set_digest,
-      "sha256:2d6927b43a55ee7adaec27523e375dd17e19cfb6c1c98a1bc1c3ea0a39f4a6f2",
+      "sha256:cfe3d574a3a99fa359a73d0494340546b9c6af0ab2b7013498f35aae9237b82f",
     );
   } finally {
     await client.close();

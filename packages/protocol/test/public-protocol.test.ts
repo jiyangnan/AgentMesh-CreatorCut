@@ -255,6 +255,12 @@ const manifest: EditDecisionManifest = {
       reason: "删除已确认停顿",
     },
   ],
+  finishing: {
+    caption_style_id: "caption_clean",
+    lut_id: "lut_none",
+    voice_mode: "original",
+    background_music: { mode: "none" },
+  },
   summary: "删除一处低风险停顿。",
 };
 

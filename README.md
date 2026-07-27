@@ -11,26 +11,24 @@ declarative reversible operations.
 
 ## Current status
 
-This repository has recorded the CreatorCut Cycle 3 / Batch 2 local
-implementation checkpoint. It contains the frozen public Protocol v1 plus a
+This repository has recorded the CreatorCut Cycle 3 / Batch 3 code checkpoint.
+It contains the frozen public Protocol v1 plus a
 source-buildable local runtime, Director verification code, macOS Keychain
 credential adapter, stable JSON CLI, public MCP server, semantic card/text
 presentation adapters, local media import, Chinese/English/mixed whisper.cpp
 transcription, local Manifest preview/apply/undo/redo, and resumable export.
 
-Batch 2 did not use a Manifest generated and signed by the real
-`creatorcut-server` policy/finalize path. The Server currently emits
-`track_ref`/`clip_ref`, while the local executor still expects local IDs. The
-only Cycle 3 closeout batch therefore starts by freezing the
-`creatorcut-operations/1.0` adjunct contract, resolving signed refs from the
-Manifest base revision, and passing a real Server-generated `remove_range`
-fixture plus the full advertised-operation test matrix.
+Batch 3 now includes the independent `creatorcut-operations/1.0` contract,
+immutable `*_ref` resolution, a real Server-generated signed `remove_range`
+fixture, the complete advertised-operation test matrix, Codex MCP App code,
+public Claude Code/OpenClaw Skills, generic-text fixture submission, and named
+session/Generation/preview/export recovery tests.
 
-This is still a development checkpoint. A Codex MCP App card UI, public Skills,
-real Claude Code/OpenClaw/generic-text fixture and interruption recovery,
-managed installation, remote release metadata, and full public-product dogfood
-remain unfinished. There is no public release, tag, installation command, or
-production Director endpoint yet.
+This is still a development checkpoint. Real Codex native submission and an
+authenticated Claude Code run remain open, so B-D and Cycle 3 are not closed.
+Managed installation, remote release metadata and full public-product dogfood
+also remain unfinished. There is no public release, tag, installation command,
+or production Director endpoint yet.
 
 ## Product boundary
 
@@ -103,7 +101,7 @@ not ship staging credentials or silently select a production endpoint.
 
 See [Agent onboarding](docs/agent-onboarding.md),
 [privacy contract](docs/privacy.md), and
-[Cycle 3 / Batch 2 evidence](docs/operations/2026-07-27-cycle3-batch2-local-media-execution.md).
+[Cycle 3 D recovery evidence](docs/operations/2026-07-27-cycle3-d-recovery-code-evidence.md).
 
 ## License
 

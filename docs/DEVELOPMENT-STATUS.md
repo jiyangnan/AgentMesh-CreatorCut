@@ -91,6 +91,26 @@ No further Cycle 3 batch may be added without a user-approved plan delta.
 - Exact bounded evidence:
   [Cycle 3 B-C host surfaces](operations/2026-07-27-cycle3-b-c-host-surfaces.md).
 
+### D recovery-code checkpoint
+
+- Public checkpoint `main@e6ccf27` completes the generic-text fixture smoke,
+  response-loss session retry, same-ID export resume, finalizing/materialized
+  recovery, duplicate-apply rejection and project-asset overwrite guard.
+- Private checkpoint `creatorcut-server main@a796487` adds checksum-pinned
+  migration 002 and concurrent active-session deduplication across memory and
+  PostgreSQL stores.
+- Public Node `24.18.0` `pnpm verify` passed with 66 Vitest and 13 Node
+  public-contract cases. Server `pnpm verify` passed with 60 tests; an isolated
+  PostgreSQL 16 run separately passed all 7 store integration cases.
+- Protocol v1, fixture, canonical presentation and expected AnswerSet digests
+  remain frozen.
+- The same Kimi CLI session returned `D CODE PASS` with no blocking finding.
+- Exact bounded evidence:
+  [Cycle 3 D recovery code](operations/2026-07-27-cycle3-d-recovery-code-evidence.md).
+
+D remains open because Codex native submit and authenticated Claude Code
+real-host evidence are still missing. This checkpoint is not Cycle 3 closeout.
+
 ### A3 evidence
 
 - Fixture digest:

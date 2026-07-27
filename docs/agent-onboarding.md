@@ -20,7 +20,10 @@ release.
 7. Start or resume the current revision's Director session.
 8. Present only the signed semantic card set returned by the Director. Preserve
    card IDs and option IDs. If native controls are unavailable, show the exact
-   numbered text fallback.
+   numbered text fallback. Native controls submit the exact `option_id`; the
+   numbered fallback submits the displayed numeric `submission_value`. The
+   public normalizer accepts either representation and always emits the same
+   semantic option ID.
 9. Submit answers for the exact presentation digest and revision.
 10. Show the signed Core-priced quote. A paid Generation requires a distinct,
     explicit confirmation ID.
@@ -41,6 +44,9 @@ release.
 - Reject a changed preview file, stale preview token, project asset path escape,
   symlink escape, output path collision and export overwrite without explicit
   confirmation.
+- If a persisted `finalizing` export has invalid partial bytes, fail closed.
+  Inspect and remove only that task's hidden partial file, or select a new
+  output, before retrying; never silently replace unknown bytes.
 - `requires_user_action=true` means stop and present `user_prompt`.
 - Do not report completion until local export validation and user media review
   pass.

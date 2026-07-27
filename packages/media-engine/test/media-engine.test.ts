@@ -552,8 +552,10 @@ describe("public local media execution", () => {
     expect(filterIndex).toBeGreaterThanOrEqual(0);
     const filter = ffmpegArgs[filterIndex + 1]!;
     expect(filter).toContain(
-      "amix=inputs=2:duration=first:normalize=0,alimiter=limit=0.89,aresample=48000[aout]",
+      "amix=inputs=2:duration=first:normalize=0,alimiter=limit=0.89:level=false,aresample=48000[aout]",
     );
+    expect(filter.match(/alimiter=limit=0\.89:level=false/gu)).toHaveLength(2);
+    expect(filter).not.toMatch(/alimiter=limit=0\.89(?!:level=false)/u);
     expect(filter).not.toContain("alimiter=limit=0.95");
   });
 

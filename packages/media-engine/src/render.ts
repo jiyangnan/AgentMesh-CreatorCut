@@ -322,11 +322,13 @@ export async function renderTimeline(
     filters.push(
       `[${primaryAudio}]asplit=2[voicekeep][voiceside]`,
       `[musicbed][voiceside]sidechaincompress=threshold=0.04:ratio=2.5:attack=15:release=300[duckedmusic]`,
-      `[voicekeep]volume=6dB,alimiter=limit=0.89[voicefinal]`,
-      `[voicefinal][duckedmusic]amix=inputs=2:duration=first:normalize=0,alimiter=limit=0.89,aresample=48000[aout]`,
+      `[voicekeep]volume=6dB,alimiter=limit=0.89:level=false[voicefinal]`,
+      `[voicefinal][duckedmusic]amix=inputs=2:duration=first:normalize=0,alimiter=limit=0.89:level=false,aresample=48000[aout]`,
     );
   } else {
-    filters.push(`[${primaryAudio}]alimiter=limit=0.89,aresample=48000[aout]`);
+    filters.push(
+      `[${primaryAudio}]alimiter=limit=0.89:level=false,aresample=48000[aout]`,
+    );
   }
 
   let subtitleFile: string | undefined;

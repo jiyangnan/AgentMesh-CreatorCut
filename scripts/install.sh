@@ -96,8 +96,11 @@ git -C "$NEXT_DIR" checkout -q --detach "$GIT_COMMIT"
 ok "Verified tag, commit and canonical source archive"
 
 info "Installing CreatorCut dependencies"
-corepack pnpm@10.30.3 --dir "$NEXT_DIR" install --frozen-lockfile
-corepack pnpm@10.30.3 --dir "$NEXT_DIR" build
+(
+  cd "$NEXT_DIR"
+  corepack pnpm@10.30.3 install --frozen-lockfile
+  corepack pnpm@10.30.3 --filter '!agentmesh-creatorcut' -r --if-present build
+)
 
 mkdir -p "$NEXT_DIR/release"
 cp "$WORK_DIR/recovery-roots.json" "$NEXT_DIR/release/recovery-roots.json"

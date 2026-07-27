@@ -140,7 +140,14 @@ async function installAndBuild(run: RunCommand, root: string): Promise<void> {
     "install",
     "--frozen-lockfile",
   ]);
-  await runChecked(run, root, "corepack", ["pnpm@10.30.3", "build"]);
+  await runChecked(run, root, "corepack", [
+    "pnpm@10.30.3",
+    "--filter",
+    "!agentmesh-creatorcut",
+    "-r",
+    "--if-present",
+    "build",
+  ]);
 }
 
 export async function applyManagedUpdate(input: {

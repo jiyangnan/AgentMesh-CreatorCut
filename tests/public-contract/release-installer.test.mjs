@@ -307,9 +307,17 @@ test("installer and managed updater pin the frozen pnpm runtime", async () => {
     "utf8",
   );
 
-  assert.match(installer, /corepack pnpm@10\.30\.3 --dir/u);
+  assert.match(installer, /cd "\$NEXT_DIR"/u);
+  assert.match(installer, /corepack pnpm@10\.30\.3 install/u);
   assert.doesNotMatch(installer, /corepack pnpm --dir/u);
+  assert.match(
+    installer,
+    /corepack pnpm@10\.30\.3 --filter '!agentmesh-creatorcut' -r --if-present build/u,
+  );
+  assert.doesNotMatch(installer, /corepack pnpm@10\.30\.3 build/u);
   assert.match(updater, /"pnpm@10\.30\.3"/u);
+  assert.match(updater, /"!agentmesh-creatorcut"/u);
+  assert.match(updater, /"--if-present"/u);
 });
 
 test("clean macOS fixture installs only the signed tag, commit and archive", async () => {

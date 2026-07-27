@@ -11,6 +11,7 @@ import {
   commitLocalRevision,
   createCreatorCutProject,
   openCreatorCutProject,
+  writeLocalArtifact,
 } from "@agentmesh/creatorcut-runtime";
 import { describe, expect, it } from "vitest";
 
@@ -19,6 +20,7 @@ import {
   applyPreviewedManifest,
   importMedia,
   previewSignedManifest,
+  resumeExportTask,
   startExportTask,
   type ProcessRunner,
 } from "../src/index.js";
@@ -409,6 +411,14 @@ describe("public local media execution", () => {
     );
     expect(applied.opened.project.revision).toBe(1);
     expect(applied.opened.timeline.canvas.width).toBe(1080);
+    await expect(
+      applyPreviewedManifest(
+        directory,
+        envelope(),
+        preview.confirmation.confirmation_token,
+      ),
+    ).rejects.toThrow(/stale or belongs to another project/u);
+    expect((await openCreatorCutProject(directory)).project.revision).toBe(1);
   });
 
   it("rejects changed preview bytes, Manifest bindings, and project revisions", async () => {
@@ -491,5 +501,105 @@ describe("public local media execution", () => {
     });
     expect(confirmed.state).toBe("completed");
     expect(await readFile(output, "utf8")).toBe("rendered-media");
+
+    const assetPath = join(directory, "media", "source.mp4");
+    const assetRejected = await startExportTask(directory, assetPath, {
+      overwrite: true,
+      runner: mediaRunner,
+    });
+    expect(assetRejected).toMatchObject({
+      state: "failed",
+      error: {
+        message: expect.stringMatching(/never overwrite a project asset/u),
+      },
+    });
+    expect(await readFile(assetPath, "utf8")).toBe("source-media");
+  });
+
+  it("resumes an interrupted export with the same task identity", async () => {
+    const directory = await projectFixture();
+    const output = join(directory, "exports", "resume.mp4");
+    const failingRunner: ProcessRunner = async (command) => {
+      if (command.includes("ffprobe")) {
+        return { exitCode: 0, stdout: probeJson, stderr: "" };
+      }
+      return { exitCode: 1, stdout: "", stderr: "interrupted" };
+    };
+    const interrupted = await startExportTask(directory, output, {
+      runner: failingRunner,
+    });
+    expect(interrupted.state).toBe("failed");
+
+    const resumed = await resumeExportTask(directory, {
+      runner: mediaRunner,
+    });
+    expect(resumed).toMatchObject({
+      task_id: interrupted.task_id,
+      state: "completed",
+      output_path: output,
+      result: { output_path: output },
+    });
+    expect(await readFile(output, "utf8")).toBe("rendered-media");
+  });
+
+  it("finalizes a previously materialized export without rerendering", async () => {
+    const directory = await projectFixture();
+    const output = join(directory, "exports", "materialized.mp4");
+    const completed = await startExportTask(directory, output, {
+      runner: mediaRunner,
+    });
+    expect(completed.state).toBe("completed");
+    await writeLocalArtifact(directory, "tasks/export.json", {
+      ...completed,
+      state: "finalizing",
+      progress_millis: 900,
+    });
+    let processCalls = 0;
+    const forbiddenRunner: ProcessRunner = async () => {
+      processCalls += 1;
+      throw new Error("export must not rerender");
+    };
+
+    const recovered = await resumeExportTask(directory, {
+      runner: forbiddenRunner,
+    });
+    expect(recovered).toMatchObject({
+      task_id: completed.task_id,
+      state: "completed",
+      output_sha256: completed.output_sha256,
+      output_path: output,
+    });
+    expect(processCalls).toBe(0);
+    expect(await readFile(output, "utf8")).toBe("rendered-media");
+  });
+
+  it("rejects a tampered recovery locator even when a project asset has the expected export bytes", async () => {
+    const directory = await projectFixture();
+    const output = join(directory, "exports", "safe.mp4");
+    const completed = await startExportTask(directory, output, {
+      runner: mediaRunner,
+    });
+    const assetPath = join(directory, "media", "source.mp4");
+    await writeFile(assetPath, await readFile(output));
+    await writeLocalArtifact(directory, "tasks/export.json", {
+      ...completed,
+      state: "finalizing",
+      progress_millis: 900,
+    });
+    await writeLocalArtifact(directory, "tasks/export-locator.json", {
+      schema_version: "creatorcut-export-locator/1.0",
+      output_path: assetPath,
+      ffmpeg_path: "ffmpeg",
+      ffprobe_path: "ffprobe",
+      overwrite: true,
+    });
+
+    await expect(resumeExportTask(directory)).resolves.toMatchObject({
+      state: "failed",
+      error: {
+        message: expect.stringMatching(/never overwrite a project asset/u),
+      },
+    });
+    expect(await readFile(assetPath, "utf8")).toBe("rendered-media");
   });
 });

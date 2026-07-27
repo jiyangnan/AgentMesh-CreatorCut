@@ -14,6 +14,7 @@ import {
   type DirectorEnvelope,
   type EditDecisionManifest,
   type EditReviewPlan,
+  type SemanticDecisionCardSet,
   type SignedArtifactKeyset,
 } from "@agentmesh/creatorcut-protocol";
 import {
@@ -93,6 +94,7 @@ interface Cycle3Fixture {
     synthetic_media_stub_utf8: string;
   };
   envelope_chain: {
+    direction_card: DirectorEnvelope<SemanticDecisionCardSet>;
     quote: DirectorEnvelope<CostQuote>;
     review_plan: DirectorEnvelope<EditReviewPlan>;
     manifest: DirectorEnvelope<EditDecisionManifest>;
@@ -236,6 +238,81 @@ describe("CloudDirectorAdapter", () => {
           now: () => new Date("2026-07-27T00:00:00.000Z"),
         }),
     ).toThrow(/HTTPS/u);
+  });
+
+  it("retries a lost session-create response and persists the server-deduplicated session", async () => {
+    const signing = signingFixture();
+    const { directory, context, fixture } = await cycle3Project();
+    const opened = await openCreatorCutProject(directory);
+    const directionEnvelope = resignEnvelope(
+      fixture.envelope_chain.direction_card,
+      signing.directorPrivateKey,
+    );
+    const session = {
+      session_id: directionEnvelope.session_id,
+      project_id: context.project_id,
+      base_revision: context.base_revision,
+      planning_input_digest: digestJcs(context),
+      state: "active",
+      stage: "direction",
+      state_revision: 0,
+      answer_chain_digest: directionEnvelope.answer_chain_digest,
+      current_card_envelope: directionEnvelope,
+    };
+    let sessionCreateAttempts = 0;
+    const adapter = new CloudDirectorAdapter({
+      endpoint: "https://director.example.test",
+      apiKey: "am_test_key",
+      protocolBundleDigest: `sha256:${"a".repeat(64)}`,
+      signedKeyset: signing.keyset,
+      trustedRecoveryRoots: signing.roots,
+      now: () => new Date(fixture.fixed_clock.manifest),
+      transport: async (request) => {
+        if (request.path === "/v1/director/preflight") {
+          return {
+            product_id: "creatorcut",
+            protocol_version: "1.0",
+            protocol_bundle_digest: `sha256:${"a".repeat(64)}`,
+            compatible: true,
+            action_code: "creatorcut.director.plan",
+            cost: 50,
+            core_enabled: true,
+            accepting_new_generations: true,
+          };
+        }
+        if (
+          request.method === "POST" &&
+          request.path === "/v1/director/sessions"
+        ) {
+          sessionCreateAttempts += 1;
+          expect(request.body).toEqual(context);
+          if (sessionCreateAttempts === 1) {
+            throw new Error("session response lost after server commit");
+          }
+          return session;
+        }
+        throw new Error(`Unexpected Director request: ${request.path}`);
+      },
+    });
+
+    await expect(
+      adapter.start({ projectDirectory: directory }),
+    ).rejects.toThrow(/response lost/u);
+    expect(
+      (await readDirectorState<PublicDirectorState>(opened))?.session_id,
+    ).toBeUndefined();
+
+    await expect(
+      adapter.start({ projectDirectory: directory }),
+    ).resolves.toMatchObject({
+      session_id: session.session_id,
+      session_stage: "direction",
+      state_revision: 0,
+    });
+    expect(sessionCreateAttempts).toBe(2);
+    expect(
+      (await readDirectorState<PublicDirectorState>(opened))?.session_id,
+    ).toBe(session.session_id);
   });
 
   it("verifies the full Manifest chain and every signed input or identifier binding", async () => {

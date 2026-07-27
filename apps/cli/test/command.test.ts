@@ -102,6 +102,45 @@ const io = (stdin = "") => ({
 });
 
 describe("creatorcut CLI", () => {
+  it("reports the public client version through the stable envelope", async () => {
+    const result = await executeCli(["version"], io(), {
+      credentials: new MemoryCredentialStore(),
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      command: "version",
+      data: { version: "0.1.0" },
+    });
+  });
+
+  it("defers upgrades while a resumable local task is active", async () => {
+    const project = await projectFixture();
+    await mkdir(join(project, ".creatorcut", "tasks"));
+    await writeFile(
+      join(project, ".creatorcut", "tasks", "export.json"),
+      JSON.stringify({ state: "running" }),
+      "utf8",
+    );
+
+    const result = await executeCli(
+      ["upgrade-check", "--project", project],
+      io(),
+      { credentials: new MemoryCredentialStore() },
+    );
+
+    expect(result).toMatchObject({
+      ok: true,
+      command: "upgrade-check",
+      next_suggested: "export status",
+      data: {
+        compatible: true,
+        update_safe: false,
+        active_tasks: [{ kind: "export", state: "running" }],
+      },
+    });
+  });
+
   it("stores auth through the credential abstraction and returns stable JSON", async () => {
     const credentials = new MemoryCredentialStore();
     const login = await executeCli(["auth", "login"], io("am_test_key\n"), {

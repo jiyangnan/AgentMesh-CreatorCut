@@ -1,5 +1,6 @@
 import { access } from "node:fs/promises";
-import { resolve } from "node:path";
+import { homedir } from "node:os";
+import { join, resolve } from "node:path";
 
 import {
   KeychainCredentialStore,
@@ -36,8 +37,20 @@ import {
   transcribeProject,
   type LanguageMode,
 } from "@agentmesh/creatorcut-transcription";
+import {
+  applyManagedUpdate,
+  fetchVerifiedReleaseManifest,
+  findActiveProjectTasks,
+  loadVerifiedReleaseKeyset,
+  readManagedInstallMetadata,
+  releaseCheck,
+} from "@agentmesh/creatorcut-release-manager";
 
 import type { CliEnvelope, CliIo } from "./types.js";
+
+const CURRENT_CLIENT_VERSION = "0.1.0";
+const DEFAULT_RELEASE_ENDPOINT =
+  "https://api.agentmesh360.com/v1/products/creatorcut/client-release";
 
 interface ParsedArguments {
   command: string[];
@@ -203,6 +216,60 @@ async function defaultAdapter(
   });
 }
 
+function releaseMetadataPath(parsed: ParsedArguments): string {
+  return resolve(
+    option(parsed, "install-metadata", "CREATORCUT_INSTALL_METADATA") ??
+      join(
+        process.env.CREATORCUT_INSTALL_DIR ??
+          join(homedir(), ".local", "share", "creatorcut"),
+        ".creatorcut-install.json",
+      ),
+  );
+}
+
+async function releaseTrust(parsed: ParsedArguments, minimumVersion?: number) {
+  const configuredMinimum = option(
+    parsed,
+    "minimum-release-keyset-version",
+    "CREATORCUT_MINIMUM_RELEASE_KEYSET_VERSION",
+  );
+  const parsedMinimum =
+    configuredMinimum === undefined
+      ? minimumVersion
+      : Number.parseInt(configuredMinimum, 10);
+  if (
+    parsedMinimum !== undefined &&
+    (!Number.isSafeInteger(parsedMinimum) || parsedMinimum <= 0)
+  ) {
+    throw new TypeError("CreatorCut minimum release keyset version is invalid");
+  }
+  return await loadVerifiedReleaseKeyset({
+    keysetPath: requiredOption(
+      parsed,
+      "release-keyset",
+      "CREATORCUT_RELEASE_KEYSET",
+    ),
+    recoveryRootsPath: requiredOption(
+      parsed,
+      "release-recovery-roots",
+      "CREATORCUT_RELEASE_RECOVERY_ROOTS",
+    ),
+    ...(parsedMinimum === undefined ? {} : { minimumVersion: parsedMinimum }),
+  });
+}
+
+async function fetchRelease(
+  parsed: ParsedArguments,
+  minimumKeysetVersion?: number,
+) {
+  return await fetchVerifiedReleaseManifest({
+    endpoint:
+      option(parsed, "release-endpoint", "CREATORCUT_RELEASE_ENDPOINT") ??
+      DEFAULT_RELEASE_ENDPOINT,
+    trust: await releaseTrust(parsed, minimumKeysetVersion),
+  });
+}
+
 export async function executeCli(
   argv: string[],
   io: CliIo,
@@ -220,6 +287,10 @@ export async function executeCli(
     const adapter = () =>
       dependencies.adapterFactory?.() ?? defaultAdapter(parsed, credentials);
 
+    if (commandName === "version") {
+      return success(commandName, { version: CURRENT_CLIENT_VERSION });
+    }
+
     if (commandName === "doctor") {
       const checks = {
         platform: process.platform,
@@ -233,6 +304,116 @@ export async function executeCli(
       return success(commandName, checks, {
         next: checks.authenticated ? "project status" : "auth login",
       });
+    }
+
+    if (commandName === "upgrade-check") {
+      const opened = await openCreatorCutProject(projectDirectory);
+      const activeTasks = await findActiveProjectTasks(projectDirectory);
+      return success(
+        commandName,
+        {
+          compatible: true,
+          update_safe: activeTasks.length === 0,
+          project_schema_version: opened.project.schema_version,
+          project_revision: opened.project.revision,
+          active_tasks: activeTasks,
+          preserved_state: [
+            ".creatorcut/project.json",
+            ".creatorcut/timeline.json",
+            ".creatorcut/transcript.json",
+            ".creatorcut/edit-brief.json",
+            ".creatorcut/tasks",
+            ".creatorcut/versions",
+          ],
+        },
+        {
+          revision: opened.project.revision,
+          next:
+            activeTasks.length === 0
+              ? "update check"
+              : activeTasks.some((task) => task.kind === "export")
+                ? "export status"
+                : "transcribe status",
+        },
+      );
+    }
+
+    if (commandName === "update check") {
+      const metadataPath = releaseMetadataPath(parsed);
+      const metadataExists = await access(metadataPath)
+        .then(() => true)
+        .catch(() => false);
+      const metadata = metadataExists
+        ? await readManagedInstallMetadata(metadataPath)
+        : undefined;
+      const manifest = await fetchRelease(
+        parsed,
+        metadata?.release_keyset_version,
+      );
+      return success(
+        commandName,
+        {
+          ...releaseCheck(CURRENT_CLIENT_VERSION, manifest),
+          managed: metadata !== undefined,
+        },
+        {
+          next:
+            manifest.latest_client_version === CURRENT_CLIENT_VERSION
+              ? "project status"
+              : "update apply",
+        },
+      );
+    }
+
+    if (commandName === "update apply") {
+      const metadataPath = releaseMetadataPath(parsed);
+      const metadata = await readManagedInstallMetadata(metadataPath);
+      const projectExists = await access(
+        resolve(projectDirectory, ".creatorcut"),
+      )
+        .then(() => true)
+        .catch(() => false);
+      if (projectExists) {
+        const activeTasks = await findActiveProjectTasks(projectDirectory);
+        if (activeTasks.length > 0) {
+          return success(
+            commandName,
+            {
+              status: "deferred",
+              current_version: CURRENT_CLIENT_VERSION,
+              active_tasks: activeTasks,
+            },
+            {
+              next: activeTasks.some((task) => task.kind === "export")
+                ? "export status"
+                : "transcribe status",
+            },
+          );
+        }
+      }
+      const manifest = await fetchRelease(
+        parsed,
+        metadata.release_keyset_version,
+      );
+      const check = releaseCheck(CURRENT_CLIENT_VERSION, manifest);
+      if (check.status === "current") {
+        return success(commandName, check, { next: "project status" });
+      }
+      const updated = await applyManagedUpdate({
+        manifest,
+        metadataPath,
+        ...(projectExists ? { projectDirectory } : {}),
+      });
+      return success(
+        commandName,
+        {
+          status: "updated",
+          from_version: CURRENT_CLIENT_VERSION,
+          to_version: updated.version,
+          git_commit: updated.git_commit,
+        },
+        { next: "doctor" },
+      );
     }
 
     if (commandName === "auth login") {

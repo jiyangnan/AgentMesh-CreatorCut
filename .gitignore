@@ -6,3 +6,5 @@ coverage/
 .env
 .env.*
 !.env.example
+.creatorcut-install.json
+.creatorcut-update.lock

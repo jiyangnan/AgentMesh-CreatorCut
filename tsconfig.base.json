@@ -27,6 +27,9 @@
       "@agentmesh/creatorcut-media-engine": [
         "./packages/media-engine/src/index.ts"
       ],
+      "@agentmesh/creatorcut-release-manager": [
+        "./packages/release-manager/src/index.ts"
+      ],
       "@agentmesh/creatorcut-runtime": ["./packages/runtime/src/index.ts"],
       "@agentmesh/creatorcut-transcription": [
         "./packages/transcription/src/index.ts"

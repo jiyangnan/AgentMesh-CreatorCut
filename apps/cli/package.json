@@ -23,6 +23,7 @@
     "@agentmesh/creatorcut-host-adapters": "workspace:*",
     "@agentmesh/creatorcut-media-engine": "workspace:*",
     "@agentmesh/creatorcut-protocol": "workspace:*",
+    "@agentmesh/creatorcut-release-manager": "workspace:*",
     "@agentmesh/creatorcut-runtime": "workspace:*",
     "@agentmesh/creatorcut-transcription": "workspace:*"
   }

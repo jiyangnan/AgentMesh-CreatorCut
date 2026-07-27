@@ -1,0 +1,26 @@
+{
+  "name": "@agentmesh/creatorcut-release-manager",
+  "version": "0.1.0",
+  "description": "Fail-closed CreatorCut release verification and managed updates",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "import": "./dist/src/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc --project tsconfig.build.json",
+    "typecheck": "tsc --project tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@agentmesh/creatorcut-protocol": "workspace:*"
+  }
+}

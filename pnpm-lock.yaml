@@ -37,6 +37,9 @@ importers:
       "@agentmesh/creatorcut-protocol":
         specifier: workspace:*
         version: link:../../packages/protocol
+      "@agentmesh/creatorcut-release-manager":
+        specifier: workspace:*
+        version: link:../../packages/release-manager
       "@agentmesh/creatorcut-runtime":
         specifier: workspace:*
         version: link:../../packages/runtime
@@ -126,6 +129,12 @@ importers:
       ajv:
         specifier: ^8.20.0
         version: 8.20.0
+
+  packages/release-manager:
+    dependencies:
+      "@agentmesh/creatorcut-protocol":
+        specifier: workspace:*
+        version: link:../protocol
 
   packages/runtime:
     dependencies:

@@ -1,0 +1,9 @@
+{
+  "roots": [
+    {
+      "key_id": "creatorcut-recovery-2026-01",
+      "public_key_pem": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAB9x+2cTw2Bo8Xr+VHwnU23bhUz/AwyeWanYM6Q9giuI=\n-----END PUBLIC KEY-----\n"
+    }
+  ],
+  "schema_version": 1
+}

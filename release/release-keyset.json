@@ -1,0 +1,20 @@
+{
+  "expires_at": "2027-07-27T13:49:50.000Z",
+  "issued_at": "2026-07-27T13:49:50.000Z",
+  "keys": [
+    {
+      "key_id": "creatorcut-release-2026-01",
+      "not_after": "2027-07-27T13:49:50.000Z",
+      "not_before": "2026-07-27T13:49:50.000Z",
+      "public_key_pem": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEA8yIi1jCgdCJH7CmUxJANgYM5ba0EHhjQASb5+MQOTwU=\n-----END PUBLIC KEY-----\n",
+      "status": "current"
+    }
+  ],
+  "keyset_version": 1,
+  "purpose": "release",
+  "signature": {
+    "algorithm": "Ed25519",
+    "key_id": "creatorcut-recovery-2026-01",
+    "value": "mCol4VnQW/avmV8n2d3y8p1p28t3u1RpMLS+g1fY3pUcaQ2H4Z/b5ZpkgEJJ5d+z5y7faLzLR7wT4nd9UR8JDw=="
+  }
+}

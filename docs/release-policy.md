@@ -44,6 +44,13 @@ may Core sign a ReleaseManifest with the new key. Revocation ships in a higher
 keyset version. Key IDs are never reused. Director and Release rotations do not
 change one another.
 
+Initial trust material is generated with `pnpm release:generate-trust` after
+the Protocol package is built. The command requires an absolute private output
+directory outside the public repository, refuses to overwrite any existing
+material, writes private files with mode `0600`, and emits only public file
+digests. The recovery private key remains offline; only the online Release seed
+is injected into Core's server-only signing-key registry.
+
 ## Core authority
 
 Core stores public release metadata in `CLIENT_RELEASE_REGISTRY_JSON`, keyed by

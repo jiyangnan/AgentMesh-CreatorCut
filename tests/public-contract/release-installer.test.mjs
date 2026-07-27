@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash, generateKeyPairSync, sign } from "node:crypto";
 import { execFile, execFileSync } from "node:child_process";
-import { mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -9,7 +9,10 @@ import { promisify } from "node:util";
 import test from "node:test";
 
 import { keysetSigningBytes } from "../../packages/protocol/dist/src/index.js";
-import { releaseManifestSigningBytes } from "../../packages/release-manager/dist/src/index.js";
+import {
+  releaseManifestSigningBytes,
+  verifyReleaseKeyset,
+} from "../../packages/release-manager/dist/src/index.js";
 
 const execFileAsync = promisify(execFile);
 const repositoryRoot = resolve(
@@ -240,6 +243,58 @@ test("standalone verifier accepts an immutable release candidate", async () => {
   ]);
 
   assert.equal(JSON.parse(result.stdout).version, "0.1.0-rc.2");
+});
+
+test("release trust generator separates private material and refuses overwrite", async () => {
+  const root = await mkdtemp(join(tmpdir(), "creatorcut-release-trust-"));
+  const publicDirectory = join(root, "public");
+  const privateDirectory = join(root, "private");
+  const args = [
+    join(repositoryRoot, "scripts", "generate-release-trust.mjs"),
+    "--public-dir",
+    publicDirectory,
+    "--private-dir",
+    privateDirectory,
+    "--issued-at",
+    "2026-07-27T00:00:00.000Z",
+    "--expires-at",
+    "2027-07-27T00:00:00.000Z",
+    "--recovery-key-id",
+    "creatorcut-recovery-test",
+    "--release-key-id",
+    "creatorcut-release-test",
+    "--keyset-version",
+    "1",
+  ];
+  const generated = await execFileAsync(process.execPath, args);
+  const output = JSON.parse(generated.stdout);
+  const roots = JSON.parse(
+    await readFile(join(publicDirectory, "recovery-roots.json"), "utf8"),
+  );
+  const keyset = JSON.parse(
+    await readFile(join(publicDirectory, "release-keyset.json"), "utf8"),
+  );
+
+  const trust = verifyReleaseKeyset({
+    keyset,
+    recoveryRoots: roots,
+    minimumVersion: 1,
+    now: new Date("2026-07-27T00:01:00.000Z"),
+  });
+  assert.equal(trust.keyset.keys[0].key_id, "creatorcut-release-test");
+  assert.equal(output.release_key_id, "creatorcut-release-test");
+  assert.equal((await stat(privateDirectory)).mode & 0o777, 0o700);
+  assert.equal(
+    (await stat(join(privateDirectory, "creatorcut-recovery-test.private.pem")))
+      .mode & 0o777,
+    0o600,
+  );
+  assert.equal(
+    (await stat(join(privateDirectory, "creatorcut-release-test.seed.json")))
+      .mode & 0o777,
+    0o600,
+  );
+  await assert.rejects(execFileAsync(process.execPath, args), /refusing/u);
 });
 
 test("clean macOS fixture installs only the signed tag, commit and archive", async () => {

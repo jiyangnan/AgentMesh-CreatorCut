@@ -163,10 +163,21 @@ SHIM="$BIN_DIR/creatorcut"
 } > "$SHIM"
 chmod 755 "$SHIM"
 
-if ! "$SHIM" version >/dev/null; then
+if ! "$SHIM" version > "$WORK_DIR/version-smoke.json"; then
   rm -rf "$INSTALL_DIR"
   [ ! -e "$BACKUP_DIR" ] || mv "$BACKUP_DIR" "$INSTALL_DIR"
   err "CreatorCut smoke check failed; the previous install was restored."
+fi
+if ! node -e '
+const fs = require("fs");
+const response = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+if (response.ok !== true || response.data?.version !== process.argv[2]) {
+  process.exit(1);
+}
+' "$WORK_DIR/version-smoke.json" "$VERSION"; then
+  rm -rf "$INSTALL_DIR"
+  [ ! -e "$BACKUP_DIR" ] || mv "$BACKUP_DIR" "$INSTALL_DIR"
+  err "CreatorCut smoke check returned the wrong release version; the previous install was restored."
 fi
 rm -rf "$BACKUP_DIR"
 

@@ -268,7 +268,7 @@ describe("CreatorCut managed updates", () => {
           stderr: Buffer.alloc(0),
         };
       }
-      if (key === "corepack pnpm build") {
+      if (key === "corepack pnpm@10.30.3 build") {
         buildCount += 1;
         if (buildCount === 1) {
           return {

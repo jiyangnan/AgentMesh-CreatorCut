@@ -48,7 +48,7 @@ import {
 
 import type { CliEnvelope, CliIo } from "./types.js";
 
-const CURRENT_CLIENT_VERSION = "0.1.0-rc.1";
+const CURRENT_CLIENT_VERSION = "0.1.0-rc.2";
 const DEFAULT_RELEASE_ENDPOINT =
   "https://api.agentmesh360.com/v1/products/creatorcut/client-release";
 

@@ -136,11 +136,11 @@ async function writeMetadata(
 
 async function installAndBuild(run: RunCommand, root: string): Promise<void> {
   await runChecked(run, root, "corepack", [
-    "pnpm",
+    "pnpm@10.30.3",
     "install",
     "--frozen-lockfile",
   ]);
-  await runChecked(run, root, "corepack", ["pnpm", "build"]);
+  await runChecked(run, root, "corepack", ["pnpm@10.30.3", "build"]);
 }
 
 export async function applyManagedUpdate(input: {

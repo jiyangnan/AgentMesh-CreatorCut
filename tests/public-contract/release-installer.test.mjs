@@ -297,6 +297,21 @@ test("release trust generator separates private material and refuses overwrite",
   await assert.rejects(execFileAsync(process.execPath, args), /refusing/u);
 });
 
+test("installer and managed updater pin the frozen pnpm runtime", async () => {
+  const installer = await readFile(
+    join(repositoryRoot, "scripts", "install.sh"),
+    "utf8",
+  );
+  const updater = await readFile(
+    join(repositoryRoot, "packages", "release-manager", "src", "update.ts"),
+    "utf8",
+  );
+
+  assert.match(installer, /corepack pnpm@10\.30\.3 --dir/u);
+  assert.doesNotMatch(installer, /corepack pnpm --dir/u);
+  assert.match(updater, /"pnpm@10\.30\.3"/u);
+});
+
 test("clean macOS fixture installs only the signed tag, commit and archive", async () => {
   if (process.platform !== "darwin") return;
   const root = await mkdtemp(join(tmpdir(), "creatorcut-clean-install-"));

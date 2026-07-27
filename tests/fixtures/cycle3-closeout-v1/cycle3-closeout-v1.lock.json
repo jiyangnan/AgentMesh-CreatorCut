@@ -1,0 +1,8 @@
+{
+  "schema_version": "creatorcut-cycle3-closeout-lock/1.0",
+  "fixture_id": "cycle3-closeout-v1",
+  "fixture_digest": "sha256:00975986abab5256b187a0394869fb408a815513be49d6850531d38c9a04206b",
+  "canonical_bytes": 29028,
+  "manifest_envelope_digest": "sha256:7a9d47a7190a5252d82b38eb3a4e28b5f417e7ead8f88fae8fc595f738dd9b83",
+  "expected_answer_set_digest": "sha256:2d6927b43a55ee7adaec27523e375dd17e19cfb6c1c98a1bc1c3ea0a39f4a6f2"
+}

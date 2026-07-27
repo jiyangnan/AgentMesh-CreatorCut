@@ -126,11 +126,11 @@
 
 ## TC-PUBLIC-SERVER-FIXTURE-001: real Server signed Manifest
 
-- [ ] Generate a deterministic `remove_range` Manifest through the real
+- [x] Generate a deterministic `remove_range` Manifest through the real
       `creatorcut-server` policy/finalize/signing code path using test-only keys.
-- [ ] Verify, preview and apply that fixture in this repository without a Server
+- [x] Verify, preview and apply that fixture in this repository without a Server
       source checkout.
-- [ ] Preserve the signed `track_ref`, `clip_ref` and `source_asset_ref`
+- [x] Preserve the signed `track_ref`, `clip_ref` and `source_asset_ref`
       vocabulary; resolve them deterministically from the Manifest
       `base_revision` snapshot.
 - [ ] Reject unresolved, ambiguous or stale refs and any keyset, envelope chain,

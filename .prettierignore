@@ -2,3 +2,4 @@ node_modules
 dist
 coverage
 LICENSE
+tests/fixtures/cycle3-closeout-v1/cycle3-closeout-v1.json

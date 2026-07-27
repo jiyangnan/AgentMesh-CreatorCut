@@ -26,8 +26,9 @@
       Chinese/English/auto/mixed whisper.cpp transcription.
 - [x] Local Manifest preview/apply/undo/redo and resumable export execution
       checkpoint.
-- [ ] Real `creatorcut-server` generated signed `remove_range` fixture,
-      operation `*_ref` resolution and 13-operation test matrix.
+- [x] Real `creatorcut-server` generated signed `remove_range` fixture and
+      deterministic operation `*_ref` resolution.
+- [ ] Complete named 13-operation apply/fail-closed test matrix.
 - [ ] Codex MCP App card UI and real Claude Code/OpenClaw host smoke.
 - [ ] Public Skills and end-to-end agent onboarding verification.
 - [ ] Managed installer and signed release verification.
@@ -52,11 +53,31 @@ release, tag, public installer, deployed public client, or production endpoint.
       and Server `remove_range`-only guard; Protocol v1 digest is unchanged.
 - [x] A2: immutable base-ref resolver, explicit output ref map and named
       fail-closed tests.
-- [ ] A3-A6: real Server fixture, complete named regression, evidence and
-      hygiene closeout.
+- [x] A3: deterministic sanitized real-Server fixture independently verifies,
+      rebuilds its base-revision project, previews and applies without a
+      Server source checkout.
+- [ ] A4-A6: complete named regression, evidence and hygiene closeout.
 - [ ] B: Codex MCP App native card UI.
 - [ ] C: public Claude Code and OpenClaw Skills.
 - [ ] D: one signed fixture across Codex, Claude Code, OpenClaw and generic
       text, including interruption recovery.
 
 No further Cycle 3 batch may be added without a user-approved plan delta.
+
+### A3 evidence
+
+- Fixture digest:
+  `sha256:00975986abab5256b187a0394869fb408a815513be49d6850531d38c9a04206b`.
+- Manifest envelope digest:
+  `sha256:7a9d47a7190a5252d82b38eb3a4e28b5f417e7ead8f88fae8fc595f738dd9b83`.
+- The public contract test verifies the recovery-root-signed keyset and
+  five-envelope chain, reconstructs the revision-3 synthetic project from the
+  fixture snapshot, previews and applies two signed `remove_range` operations,
+  and commits revision 4 with duration reduced from 8,000,000 to 7,070,000
+  microseconds.
+- The fixed host interaction in this A3 fixture is the direction-card round.
+  Before B starts, the canonical presentation digest algorithm must be aligned
+  with the public host adapter; B-D remain incomplete.
+- Kimi CLI session `session_94175357-6db9-4064-8dcd-f86c6536362e` returned
+  `A3 PASS`. The tested renderer is a shell-free mocked media runner, so this
+  contract result does not replace a real FFmpeg smoke.

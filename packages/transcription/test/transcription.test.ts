@@ -1,8 +1,9 @@
-import { mkdtemp, writeFile } from "node:fs/promises";
+import { mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import {
+  commitLocalRevision,
   createCreatorCutProject,
   openCreatorCutProject,
 } from "@agentmesh/creatorcut-runtime";
@@ -13,6 +14,7 @@ import {
   detectTranscriptLanguage,
   parseSilence,
   parseWhisperJson,
+  resumeTranscriptionTask,
   transcribeProject,
 } from "../src/index.js";
 
@@ -143,5 +145,45 @@ describe("public bilingual transcription", () => {
     const opened = await openCreatorCutProject(directory);
     expect(opened.transcript.segments[0]?.display_text).toBe("你好 CreatorCut");
     expect(opened.transcript.silence_intervals).toHaveLength(1);
+  });
+
+  it("rejects a project-local symlink that resolves outside the project", async () => {
+    const { directory, model } = await fixture();
+    const source = join(directory, "media", "source.mov");
+    const outside = join(directory, "..", "outside.mov");
+    await writeFile(outside, "outside");
+    await rm(source);
+    await symlink(outside, source);
+
+    await expect(
+      transcribeProject({
+        projectDirectory: directory,
+        modelPath: model,
+        languageMode: "auto",
+        runner,
+      }),
+    ).rejects.toThrow(/escapes the project/u);
+  });
+
+  it("rejects transcription resume after the project revision changes", async () => {
+    const { directory, model } = await fixture();
+    const task = await transcribeProject({
+      projectDirectory: directory,
+      modelPath: model,
+      languageMode: "mixed",
+      runner,
+    });
+    expect(task.state).toBe("completed");
+
+    const opened = await openCreatorCutProject(directory);
+    await commitLocalRevision(directory, {
+      baseRevision: opened.project.revision,
+      nextTimeline: opened.timeline,
+      operationIds: ["operation-after-transcription"],
+    });
+
+    await expect(resumeTranscriptionTask(directory)).rejects.toThrow(
+      /stale for the current revision/u,
+    );
   });
 });

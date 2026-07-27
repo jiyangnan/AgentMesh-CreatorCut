@@ -152,6 +152,7 @@ export function createCreatorCutMcpServer(
       outputSchema: {
         envelope_id: z.string(),
         envelope_digest: z.string(),
+        presentation_digest: z.string(),
         presentation: z.record(z.string(), z.unknown()),
       },
       annotations: {

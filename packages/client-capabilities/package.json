@@ -1,7 +1,7 @@
 {
-  "name": "@agentmesh/creatorcut-host-adapters",
+  "name": "@agentmesh/creatorcut-client-capabilities",
   "version": "0.1.0",
-  "description": "Cross-host semantic card presentation for CreatorCut",
+  "description": "Canonical public CreatorCut client capability profiles",
   "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/src/index.js",
@@ -21,7 +21,6 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@agentmesh/creatorcut-client-capabilities": "workspace:*",
     "@agentmesh/creatorcut-protocol": "workspace:*"
   }
 }

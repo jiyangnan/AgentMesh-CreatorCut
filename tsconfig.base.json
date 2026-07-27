@@ -12,6 +12,9 @@
     "noFallthroughCasesInSwitch": true,
     "noEmit": true,
     "paths": {
+      "@agentmesh/creatorcut-client-capabilities": [
+        "./packages/client-capabilities/src/index.ts"
+      ],
       "@agentmesh/creatorcut-credentials": [
         "./packages/credentials/src/index.ts"
       ],

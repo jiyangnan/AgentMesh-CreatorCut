@@ -11,7 +11,10 @@ import {
   resumeExportTask,
   startExportTask,
 } from "@agentmesh/creatorcut-media-engine";
-import type { PublicClientCapabilities } from "@agentmesh/creatorcut-protocol";
+import {
+  digestJcs,
+  type PublicClientCapabilities,
+} from "@agentmesh/creatorcut-protocol";
 import {
   approveDirectorContext,
   buildDirectorContext,
@@ -85,7 +88,8 @@ export class CreatorCutMcpService {
     });
     return {
       envelope_id: cards.envelope.artifact_id,
-      envelope_digest: cards.presentation.presentation_digest,
+      envelope_digest: digestJcs(cards.envelope),
+      presentation_digest: cards.presentation.presentation_digest,
       presentation: cards.presentation,
     };
   }

@@ -249,7 +249,7 @@ test("verified remove_range fixture previews and applies transactionally", async
   );
 });
 
-test("fixture verification fails closed on keyset, payload and chain tampering", () => {
+test("fixture verification fails closed on keyset, signature, chain, binding and operation tampering", () => {
   const { keyset, now } = verifiedFixtureChain();
   const badKeyset = structuredClone(fixture.signed_keyset);
   badKeyset.signature.value = "AA==";
@@ -269,17 +269,63 @@ test("fixture verification fails closed on keyset, payload and chain tampering",
     /keyset signature/u,
   );
 
-  const badPayload = structuredClone(fixture.envelope_chain.manifest);
-  badPayload.payload.operations[0].parameters.timeline_start_us += 1;
-  assert.throws(
-    () => protocol.verifyDirectorEnvelope(badPayload, keyset, { now }),
-    /signature/u,
-  );
-
-  const badChain = structuredClone(fixture.envelope_chain.manifest);
-  badChain.previous_envelope_digest = `sha256:${"0".repeat(64)}`;
-  assert.throws(
-    () => protocol.verifyDirectorEnvelope(badChain, keyset, { now }),
-    /signature/u,
-  );
+  const cases = [
+    [
+      "signature",
+      (value) => {
+        value.signature.value = "AA==";
+      },
+    ],
+    [
+      "chain",
+      (value) => {
+        value.previous_envelope_digest = `sha256:${"0".repeat(64)}`;
+      },
+    ],
+    [
+      "revision",
+      (value) => {
+        value.base_revision += 1;
+      },
+    ],
+    [
+      "planning input",
+      (value) => {
+        value.planning_input_digest = `sha256:${"1".repeat(64)}`;
+      },
+    ],
+    [
+      "transcript input",
+      (value) => {
+        value.transcript_digest = `sha256:${"2".repeat(64)}`;
+      },
+    ],
+    [
+      "project identifier",
+      (value) => {
+        value.project_id = "project-tampered";
+      },
+    ],
+    [
+      "Generation identifier",
+      (value) => {
+        value.generation_id = "generation-tampered";
+      },
+    ],
+    [
+      "operation",
+      (value) => {
+        value.payload.operations[0].parameters.timeline_start_us += 1;
+      },
+    ],
+  ];
+  for (const [name, mutate] of cases) {
+    const changed = structuredClone(fixture.envelope_chain.manifest);
+    mutate(changed);
+    assert.throws(
+      () => protocol.verifyDirectorEnvelope(changed, keyset, { now }),
+      /signature/u,
+      name,
+    );
+  }
 });

@@ -16,8 +16,8 @@ import {
   assertPublicProtocol,
   digestJcs,
   type DirectorContext,
-  type PublicClientCapabilities,
 } from "@agentmesh/creatorcut-protocol";
+import { buildPublicClientCapabilities } from "@agentmesh/creatorcut-client-capabilities";
 
 import {
   localAssetWireRef,
@@ -176,40 +176,6 @@ export async function openCreatorCutProject(
   return project;
 }
 
-function clientCapabilities(
-  clientVersion: string,
-  hostType: PublicClientCapabilities["host_type"],
-): PublicClientCapabilities {
-  const rich = hostType === "codex";
-  return {
-    schema_version: PUBLIC_PROTOCOL_VERSION,
-    client_version: clientVersion,
-    host_type: hostType,
-    protocol_versions: [PUBLIC_PROTOCOL_VERSION],
-    card_types: rich
-      ? ["single", "multi", "text", "visual", "voice", "review"]
-      : ["single", "multi", "text", "review"],
-    operation_types: [
-      "trim",
-      "split",
-      "remove_range",
-      "concat",
-      "set_gain",
-      "add_caption",
-      "set_canvas",
-      "apply_lut",
-      "move_clip",
-      "add_clip",
-      "clear_track",
-      "clear_captions",
-      "clear_lut",
-    ],
-    supports_visual_previews: rich,
-    supports_voice_preview: rich,
-    max_payload_bytes: 1_048_576,
-  };
-}
-
 export function buildDirectorContext(
   opened: OpenedCreatorCutProject,
   options: BuildDirectorContextOptions = {},
@@ -218,9 +184,9 @@ export function buildDirectorContext(
     opened.project.assets.find((asset) => asset.kind === "video") ??
     opened.project.assets.find((asset) => asset.kind === "audio");
   if (!source) throw new TypeError("Project has no video or audio source");
-  const capabilities = clientCapabilities(
-    options.clientVersion ?? "0.1.0",
+  const capabilities = buildPublicClientCapabilities(
     options.hostType ?? "text",
+    options.clientVersion ?? "0.1.0",
   );
   const timeline: DirectorContext["timeline"] = {
     duration_us: opened.timeline.duration_us,

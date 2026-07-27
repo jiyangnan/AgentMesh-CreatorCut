@@ -15,7 +15,7 @@
       private local Director state and consent revocation.
 - [x] Director client implementation for preflight, session/cards, quote,
       locally persisted Generation IDs, ReviewPlan and finalize/Manifest.
-- [ ] Named response-loss/idempotent Generation recovery tests.
+- [x] Named response-loss/idempotent Generation recovery tests.
 - [x] Stable JSON CLI for doctor, Keychain auth, project/context, Director,
       cards and paid edit workflow.
 - [x] Public stdio MCP server using only public runtime/Director client; no
@@ -28,7 +28,7 @@
       checkpoint.
 - [x] Real `creatorcut-server` generated signed `remove_range` fixture and
       deterministic operation `*_ref` resolution.
-- [ ] Complete named 13-operation apply/fail-closed test matrix.
+- [x] Complete named 13-operation apply/fail-closed test matrix.
 - [ ] Codex MCP App card UI and real Claude Code/OpenClaw host smoke.
 - [ ] Public Skills and end-to-end agent onboarding verification.
 - [ ] Managed installer and signed release verification.
@@ -56,7 +56,12 @@ release, tag, public installer, deployed public client, or production endpoint.
 - [x] A3: deterministic sanitized real-Server fixture independently verifies,
       rebuilds its base-revision project, previews and applies without a
       Server source checkout.
-- [ ] A4-A6: complete named regression, evidence and hygiene closeout.
+- [x] A4: named Director recovery, 13-operation, ref, path/revision and
+      preview/export tamper regressions.
+- [x] A5: completion claims are bound to named tests, fixed digests and the
+      exact smoke scope recorded below.
+- [x] A6: one capabilities builder, correct MCP envelope/presentation digests,
+      realpath-safe transcription and revision-bound resume.
 - [ ] B: Codex MCP App native card UI.
 - [ ] C: public Claude Code and OpenClaw Skills.
 - [ ] D: one signed fixture across Codex, Claude Code, OpenClaw and generic
@@ -81,3 +86,21 @@ No further Cycle 3 batch may be added without a user-approved plan delta.
 - Kimi CLI session `session_94175357-6db9-4064-8dcd-f86c6536362e` returned
   `A3 PASS`. The tested renderer is a shell-free mocked media runner, so this
   contract result does not replace a real FFmpeg smoke.
+
+### A4-A6 evidence
+
+- [Cycle 3 A4-A6 contract and recovery evidence](operations/2026-07-27-cycle3-batch3-a4-a6-contract-recovery.md)
+  lists every named test file and the exact verified scope.
+- Node `24.18.0` `pnpm verify` passed with 58 Vitest cases and 9 Node public
+  contract cases. `git diff --check` passed.
+- Protocol v1 remains
+  `sha256:951723362bd171ad35a2194d2aa284b470db25f766bd46598b23268c9fbef59d`
+  and now has a public lock test. The fixture and Manifest envelope digests
+  remain unchanged.
+- The same Kimi CLI session first rejected a misplaced capabilities builder
+  because it changed the frozen protocol digest, then returned `A4+A6 PASS`
+  after the builder moved to a non-protocol package and the Node 24 gate
+  passed.
+- A4-A6 did not run a new real FFmpeg or real-host smoke. The earlier Batch 2
+  FFmpeg smoke remains the media evidence; Codex/Claude Code/OpenClaw/generic
+  host evidence remains B-D.

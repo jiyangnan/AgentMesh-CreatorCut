@@ -1,11 +1,16 @@
 import { describe, expect, it } from "vitest";
 
-import type {
-  PublicClientCapabilities,
-  SemanticDecisionCardSet,
+import {
+  type PublicClientCapabilities,
+  type SemanticDecisionCardSet,
 } from "@agentmesh/creatorcut-protocol";
+import { buildPublicClientCapabilities } from "@agentmesh/creatorcut-client-capabilities";
 
-import { normalizeHostSubmission, presentSemanticCards } from "../src/index.js";
+import {
+  capabilitiesForHost,
+  normalizeHostSubmission,
+  presentSemanticCards,
+} from "../src/index.js";
 
 const cards: SemanticDecisionCardSet = {
   schema_version: "1.0",
@@ -53,6 +58,19 @@ function capabilities(
 }
 
 describe("cross-host card adapters", () => {
+  it("uses the single public capabilities builder for every host", () => {
+    for (const hostType of [
+      "codex",
+      "claude_code",
+      "openclaw",
+      "text",
+    ] as const) {
+      expect(capabilitiesForHost(hostType, "0.1.7")).toEqual(
+        buildPublicClientCapabilities(hostType, "0.1.7"),
+      );
+    }
+  });
+
   it("keeps stable semantic answers across native and text hosts", () => {
     const codex = presentSemanticCards(cards, capabilities("codex"));
     const text = presentSemanticCards(cards, capabilities("text"));

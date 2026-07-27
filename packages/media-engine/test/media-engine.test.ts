@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -8,6 +8,7 @@ import type {
   EditOperation,
 } from "@agentmesh/creatorcut-protocol";
 import {
+  commitLocalRevision,
   createCreatorCutProject,
   openCreatorCutProject,
 } from "@agentmesh/creatorcut-runtime";
@@ -18,6 +19,7 @@ import {
   applyPreviewedManifest,
   importMedia,
   previewSignedManifest,
+  startExportTask,
   type ProcessRunner,
 } from "../src/index.js";
 
@@ -407,5 +409,87 @@ describe("public local media execution", () => {
     );
     expect(applied.opened.project.revision).toBe(1);
     expect(applied.opened.timeline.canvas.width).toBe(1080);
+  });
+
+  it("rejects changed preview bytes, Manifest bindings, and project revisions", async () => {
+    const changedPreviewDirectory = await projectFixture();
+    const changedPreview = await previewSignedManifest(
+      changedPreviewDirectory,
+      envelope(),
+      undefined,
+      { runner: mediaRunner },
+    );
+    await writeFile(changedPreview.preview.output_path, "tampered-preview");
+    await expect(
+      applyPreviewedManifest(
+        changedPreviewDirectory,
+        envelope(),
+        changedPreview.confirmation.confirmation_token,
+      ),
+    ).rejects.toThrow(/preview file is missing or changed/u);
+
+    const changedManifestDirectory = await projectFixture();
+    const changedManifestPreview = await previewSignedManifest(
+      changedManifestDirectory,
+      envelope(),
+      undefined,
+      { runner: mediaRunner },
+    );
+    const changedManifest = envelope();
+    changedManifest.payload.operations[0]!.parameters.width = 720;
+    await expect(
+      applyPreviewedManifest(
+        changedManifestDirectory,
+        changedManifest,
+        changedManifestPreview.confirmation.confirmation_token,
+      ),
+    ).rejects.toThrow(/exact confirmed local preview token/u);
+
+    const changedRevisionDirectory = await projectFixture();
+    const changedRevisionPreview = await previewSignedManifest(
+      changedRevisionDirectory,
+      envelope(),
+      undefined,
+      { runner: mediaRunner },
+    );
+    const opened = await openCreatorCutProject(changedRevisionDirectory);
+    await commitLocalRevision(changedRevisionDirectory, {
+      baseRevision: opened.project.revision,
+      nextTimeline: opened.timeline,
+      operationIds: ["operation-unrelated"],
+    });
+    await expect(
+      applyPreviewedManifest(
+        changedRevisionDirectory,
+        envelope(),
+        changedRevisionPreview.confirmation.confirmation_token,
+      ),
+    ).rejects.toThrow(/stale or belongs to another project/u);
+  });
+
+  it("never overwrites an existing export without explicit confirmation", async () => {
+    const directory = await projectFixture();
+    const output = join(directory, "exports", "existing.mp4");
+    await mkdir(join(directory, "exports"), { recursive: true });
+    await writeFile(output, "existing-output");
+
+    const rejected = await startExportTask(directory, output, {
+      runner: mediaRunner,
+    });
+    expect(rejected).toMatchObject({
+      state: "failed",
+      error: {
+        code: "export_failed",
+        message: expect.stringMatching(/will not overwrite/u),
+      },
+    });
+    expect(await readFile(output, "utf8")).toBe("existing-output");
+
+    const confirmed = await startExportTask(directory, output, {
+      overwrite: true,
+      runner: mediaRunner,
+    });
+    expect(confirmed.state).toBe("completed");
+    expect(await readFile(output, "utf8")).toBe("rendered-media");
   });
 });

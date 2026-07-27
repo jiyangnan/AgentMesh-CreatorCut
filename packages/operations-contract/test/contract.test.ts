@@ -69,4 +69,67 @@ describe("creatorcut-operations/1.0", () => {
       }
     }
   });
+
+  it("rejects a wrong field type for every advertised operation", () => {
+    const wrongTypeFieldByOperation: Record<
+      string,
+      { field: string; value: unknown } | undefined
+    > = {
+      trim: { field: "source_start_us", value: "0" },
+      split: { field: "at_timeline_us", value: "1000000" },
+      remove_range: { field: "ripple_all", value: "true" },
+      concat: { field: "clip_refs", value: "clip-main" },
+      set_gain: { field: "gain_millibels", value: "-6000" },
+      add_caption: { field: "text", value: 7 },
+      set_canvas: { field: "width", value: "1080" },
+      apply_lut: { field: "intensity_millis", value: "500" },
+      move_clip: { field: "track_ref", value: 7 },
+      add_clip: { field: "timeline_start_us", value: "2000000" },
+      clear_track: { field: "track_ref", value: 7 },
+      clear_captions: undefined,
+      clear_lut: { field: "clip_ref", value: 7 },
+    };
+    for (const valid of OPERATION_CONTRACT_VECTORS.valid) {
+      const wrongType = clone(valid) as Record<string, unknown>;
+      const mutation = wrongTypeFieldByOperation[valid.operation_type];
+      if (mutation) {
+        (wrongType.parameters as Record<string, unknown>)[mutation.field] =
+          mutation.value;
+      } else {
+        wrongType.base_revision = "4";
+      }
+      expect(
+        validateCreatorCutOperation(wrongType),
+        `${valid.operation_type} wrong type`,
+      ).toMatchObject({ valid: false });
+    }
+  });
+
+  it("rejects every operation-specific reversed range", () => {
+    const rangeFieldsByOperation: Record<string, [string, string][]> = {
+      trim: [["source_start_us", "source_end_us"]],
+      remove_range: [
+        ["timeline_start_us", "timeline_end_us"],
+        ["source_start_us", "source_end_us"],
+      ],
+      add_caption: [["start_us", "end_us"]],
+      add_clip: [
+        ["source_start_us", "source_end_us"],
+        ["timeline_start_us", "timeline_end_us"],
+      ],
+    };
+    for (const valid of OPERATION_CONTRACT_VECTORS.valid) {
+      for (const [startField, endField] of rangeFieldsByOperation[
+        valid.operation_type
+      ] ?? []) {
+        const reversed = clone(valid) as Record<string, unknown>;
+        const parameters = reversed.parameters as Record<string, unknown>;
+        parameters[startField] = parameters[endField];
+        expect(
+          validateCreatorCutOperation(reversed),
+          `${valid.operation_type} reversed ${startField}/${endField}`,
+        ).toMatchObject({ valid: false });
+      }
+    }
+  });
 });

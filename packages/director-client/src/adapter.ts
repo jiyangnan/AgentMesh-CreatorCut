@@ -202,7 +202,7 @@ export class CloudDirectorAdapter {
           body: context,
           ...(input.signal === undefined ? {} : { signal: input.signal }),
         });
-    this.#assertSession(session, context);
+    this.#assertSession(session, context, state.session_id);
     const currentCard = session.current_card_envelope
       ? this.#verifyEnvelope<SemanticDecisionCardSet>({
           value: session.current_card_envelope,
@@ -294,7 +294,7 @@ export class CloudDirectorAdapter {
       authenticated: true,
       body: answerSet,
     });
-    this.#assertSession(session, context);
+    this.#assertSession(session, context, state.session_id);
     const nextCard = session.current_card_envelope
       ? this.#verifyEnvelope<SemanticDecisionCardSet>({
           value: session.current_card_envelope,
@@ -385,6 +385,13 @@ export class CloudDirectorAdapter {
       throw new Error("CreatorCut Director quote is missing");
     }
     const generationId = state.generation_id ?? this.#uuid();
+    if (state.generation_id === undefined) {
+      await writeDirectorState(opened, {
+        ...state,
+        generation_id: generationId,
+        updated_at: this.#now().toISOString(),
+      });
+    }
     const generation = await this.#request<DirectorGenerationView>({
       method: "POST",
       path: `/v1/director/sessions/${encodeURIComponent(state.session_id)}/generations`,
@@ -407,7 +414,11 @@ export class CloudDirectorAdapter {
         throw error;
       }
     });
-    this.#assertGeneration(generation, context);
+    this.#assertGeneration(generation, context, {
+      generationId,
+      sessionId: state.session_id,
+      quoteId: state.quote_envelope.payload.quote_id,
+    });
     await writeDirectorState(opened, {
       ...state,
       generation_id: generationId,
@@ -432,7 +443,15 @@ export class CloudDirectorAdapter {
         path: `/v1/director/generations/${encodeURIComponent(state.generation_id)}`,
         authenticated: true,
       });
-      this.#assertGeneration(generation, context);
+      this.#assertGeneration(generation, context, {
+        generationId: state.generation_id,
+        ...(state.session_id === undefined
+          ? {}
+          : { sessionId: state.session_id }),
+        ...(state.quote_envelope === undefined
+          ? {}
+          : { quoteId: state.quote_envelope.payload.quote_id }),
+      });
       await writeDirectorState(opened, {
         ...state,
         generation_state: generation.state,
@@ -447,7 +466,7 @@ export class CloudDirectorAdapter {
       path: `/v1/director/sessions/${encodeURIComponent(state.session_id)}`,
       authenticated: true,
     });
-    this.#assertSession(session, context);
+    this.#assertSession(session, context, state.session_id);
     return { kind: "session", value: session };
   }
 
@@ -465,7 +484,13 @@ export class CloudDirectorAdapter {
       path: `/v1/director/generations/${encodeURIComponent(state.generation_id)}`,
       authenticated: true,
     });
-    this.#assertGeneration(generation, context);
+    this.#assertGeneration(generation, context, {
+      generationId: state.generation_id,
+      ...(state.session_id === undefined
+        ? {}
+        : { sessionId: state.session_id }),
+      quoteId: state.quote_envelope.payload.quote_id,
+    });
     const review = this.#verifyEnvelope<EditReviewPlan>({
       value: generation.review_envelope,
       context,
@@ -537,7 +562,13 @@ export class CloudDirectorAdapter {
         authenticated: true,
       });
     }
-    this.#assertGeneration(generation, context);
+    this.#assertGeneration(generation, context, {
+      generationId: state.generation_id,
+      ...(state.session_id === undefined
+        ? {}
+        : { sessionId: state.session_id }),
+      quoteId: state.quote_envelope.payload.quote_id,
+    });
     const manifest = this.#verifyEnvelope<EditDecisionManifest>({
       value: generation.manifest_envelope,
       context,
@@ -675,8 +706,14 @@ export class CloudDirectorAdapter {
     return envelope;
   }
 
-  #assertSession(session: DirectorSessionView, context: DirectorContext): void {
+  #assertSession(
+    session: DirectorSessionView,
+    context: DirectorContext,
+    expectedSessionId?: string,
+  ): void {
     if (
+      (expectedSessionId !== undefined &&
+        session.session_id !== expectedSessionId) ||
       session.project_id !== context.project_id ||
       session.base_revision !== context.base_revision ||
       session.planning_input_digest !== digestJcs(context) ||
@@ -689,8 +726,19 @@ export class CloudDirectorAdapter {
   #assertGeneration(
     generation: DirectorGenerationView,
     context: DirectorContext,
+    expected: {
+      generationId?: string;
+      sessionId?: string;
+      quoteId?: string;
+    } = {},
   ): void {
     if (
+      (expected.generationId !== undefined &&
+        generation.generation_id !== expected.generationId) ||
+      (expected.sessionId !== undefined &&
+        generation.session_id !== expected.sessionId) ||
+      (expected.quoteId !== undefined &&
+        generation.quote_id !== expected.quoteId) ||
       generation.project_id !== context.project_id ||
       generation.base_revision !== context.base_revision ||
       generation.planning_input_digest !== digestJcs(context)

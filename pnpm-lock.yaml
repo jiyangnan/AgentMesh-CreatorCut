@@ -71,6 +71,12 @@ importers:
         specifier: 4.4.3
         version: 4.4.3
 
+  packages/client-capabilities:
+    dependencies:
+      "@agentmesh/creatorcut-protocol":
+        specifier: workspace:*
+        version: link:../protocol
+
   packages/credentials: {}
 
   packages/director-client:
@@ -87,6 +93,9 @@ importers:
 
   packages/host-adapters:
     dependencies:
+      "@agentmesh/creatorcut-client-capabilities":
+        specifier: workspace:*
+        version: link:../client-capabilities
       "@agentmesh/creatorcut-protocol":
         specifier: workspace:*
         version: link:../protocol
@@ -117,6 +126,9 @@ importers:
 
   packages/runtime:
     dependencies:
+      "@agentmesh/creatorcut-client-capabilities":
+        specifier: workspace:*
+        version: link:../client-capabilities
       "@agentmesh/creatorcut-protocol":
         specifier: workspace:*
         version: link:../protocol

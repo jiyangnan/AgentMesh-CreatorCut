@@ -2,6 +2,8 @@ import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+import type { CloudDirectorAdapter } from "@agentmesh/creatorcut-director-client";
+import { digestJcs } from "@agentmesh/creatorcut-protocol";
 import { describe, expect, it } from "vitest";
 
 import { CreatorCutMcpService } from "../src/index.js";
@@ -107,5 +109,36 @@ describe("CreatorCut public MCP service", () => {
     const context = await service.inspectContext();
     expect(JSON.stringify(context)).not.toContain(project);
     expect(JSON.stringify(context)).toContain("Hello");
+  });
+
+  it("reports distinct signed-envelope and host-presentation digests", async () => {
+    const envelope = {
+      artifact_id: "cards-1",
+      payload: { card_set_id: "cards-1" },
+      signature: {
+        algorithm: "Ed25519",
+        key_id: "director-test",
+        value: "signature",
+      },
+    };
+    const presentation = {
+      presentation_id: "presentation-1",
+      presentation_digest: `sha256:${"2".repeat(64)}`,
+      text_fallback: "CreatorCut card",
+    };
+    const adapter = {
+      getCards: async () => ({ envelope, presentation }),
+    } as unknown as CloudDirectorAdapter;
+    const service = new CreatorCutMcpService(
+      "/unused/project",
+      async () => adapter,
+    );
+
+    await expect(service.getCards()).resolves.toMatchObject({
+      envelope_id: "cards-1",
+      envelope_digest: digestJcs(envelope),
+      presentation_digest: presentation.presentation_digest,
+      presentation,
+    });
   });
 });

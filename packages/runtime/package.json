@@ -21,6 +21,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@agentmesh/creatorcut-client-capabilities": "workspace:*",
     "@agentmesh/creatorcut-protocol": "workspace:*"
   }
 }

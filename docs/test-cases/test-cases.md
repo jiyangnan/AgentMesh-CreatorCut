@@ -69,8 +69,9 @@
 - [x] Session, quote, ReviewPlan and Manifest verification binds project,
       revision, planning input, transcript, timeline, EditBrief, capabilities,
       sequence, previous digest and stable identifiers.
-- [ ] Response-loss retry must prove reuse of the locally persisted
-      `generation_id`; the implementation exists but has no named test yet.
+- [x] Response-loss retry reuses the locally persisted `generation_id` after a
+      lost POST response and failed recovery GET; a mismatched returned
+      Generation ID is rejected.
 
 ## TC-PUBLIC-MCP-001: public runtime boundary
 
@@ -110,15 +111,15 @@
 
 - [x] The local executor contains branches for every Protocol v1 declarative
       operation and validates common preconditions.
-- [ ] Per-operation strict parameter schemas and deterministic
-      apply/fail-closed tests exist only for a subset; all 13 advertised
-      operations require named coverage in Cycle 3 / Batch 3.
+- [x] All 13 advertised operations have strict parameters, a deterministic
+      apply golden case, per-type missing/extra/wrong-type rejection where
+      applicable, range rejection and ref-resolution failure coverage.
 - [x] Preview renders locally and records Manifest, planned-timeline and preview
       digests plus a single exact confirmation token.
 - [x] Apply rejects a missing/stale confirmation token and commits one new
       revision on the tested success path.
-- [ ] Named tests must cover on-disk preview SHA-256 tampering, changed
-      revision/signed Manifest and unconfirmed export overwrite.
+- [x] Named tests cover on-disk preview SHA-256 tampering, changed signed
+      Manifest, changed project revision and unconfirmed export overwrite.
 - [x] Export start/status/resume/cancel persist state, preserve original audio by
       default, render through shell-free FFmpeg invocation and verify the output.
 - [x] A real local FFmpeg import/proxy/export smoke produced a valid MP4 with
@@ -133,32 +134,33 @@
 - [x] Preserve the signed `track_ref`, `clip_ref` and `source_asset_ref`
       vocabulary; resolve them deterministically from the Manifest
       `base_revision` snapshot.
-- [ ] Reject unresolved, ambiguous or stale refs and any keyset, envelope chain,
-      revision, input or identifier tampering.
+- [x] Reject unresolved, ambiguous or stale refs and keyset, signature,
+      envelope chain, revision, input, project/Generation identifier or
+      operation tampering.
 
 ## TC-PUBLIC-OPERATIONS-001: operations v1 contract
 
 - [x] Pin one `creatorcut-operations/1.0` adjunct contract digest in the public
       client and private Server while preserving the existing Protocol v1
       bundle digest.
-- [ ] Give all 13 advertised operations strict parameter/precondition schemas,
-      one deterministic apply golden case and at least one fail-closed case.
-- [ ] Remove any operation from advertised capabilities if the execution
-      contract cannot be completed in M1.
+- [x] Give all 13 advertised operations strict parameter/precondition schemas,
+      one deterministic apply golden case and named fail-closed coverage.
+- [x] All 13 execution contracts passed, so no advertised operation required
+      removal; private Server policy remains limited to `remove_range`.
 
 ## TC-PUBLIC-DIRECTOR-002: chain and recovery
 
-- [ ] Directly test recovery-root keyset, sequence/previous-envelope digest,
+- [x] Directly test recovery-root keyset, sequence/previous-envelope digest,
       artifact/identifier/input binding and response-loss Generation recovery.
-- [ ] A lost create response reuses the persisted `generation_id` and does not
-      create a second paid task.
+- [x] A lost create response reuses the persisted `generation_id`; repeated
+      attempts send the same ID and a mismatched response is rejected.
 
 ## TC-PUBLIC-PATH-REVISION-001: transcription safety
 
-- [ ] Transcription source resolution enforces canonical/realpath project
-      boundaries and rejects symlink escape.
-- [ ] Transcription resume rejects task/project `base_revision` drift in the
-      same way as export resume.
+- [x] Transcription source resolution enforces lexical and canonical/realpath
+      project boundaries and rejects symlink escape.
+- [x] Transcription resume validates project ID, source digest and task/project
+      `base_revision` before even returning a completed checkpoint.
 
 ## TC-PUBLIC-HOST-001: four-host fixed fixture
 

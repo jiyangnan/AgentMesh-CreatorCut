@@ -29,14 +29,22 @@ import type {
 const TASK_PATH = "tasks/transcription.json";
 const LOCATOR_PATH = "tasks/transcription-locator.json";
 
-function safeAssetPath(projectDirectory: string, relativePath: string): string {
-  const root = resolve(projectDirectory);
-  const path = resolve(root, relativePath);
-  const fromRoot = relative(root, path);
-  if (fromRoot.startsWith("..") || isAbsolute(fromRoot)) {
+async function safeAssetPath(
+  projectDirectory: string,
+  relativePath: string,
+): Promise<string> {
+  const root = await realpath(resolve(projectDirectory));
+  const requested = resolve(root, relativePath);
+  const lexicalFromRoot = relative(root, requested);
+  if (lexicalFromRoot.startsWith("..") || isAbsolute(lexicalFromRoot)) {
     throw new Error("CreatorCut transcription source escapes the project");
   }
-  return path;
+  const canonicalPath = await realpath(requested);
+  const canonicalFromRoot = relative(root, canonicalPath);
+  if (canonicalFromRoot.startsWith("..") || isAbsolute(canonicalFromRoot)) {
+    throw new Error("CreatorCut transcription source escapes the project");
+  }
+  return canonicalPath;
 }
 
 function parseSilence(
@@ -178,7 +186,10 @@ export async function transcribeProject(
     opened.project.assets.find((asset) => asset.kind === "video") ??
     opened.project.assets.find((asset) => asset.kind === "audio");
   if (!source) throw new Error("CreatorCut project has no transcribable asset");
-  const sourcePath = safeAssetPath(opened.directory, source.relative_path);
+  const sourcePath = await safeAssetPath(
+    opened.directory,
+    source.relative_path,
+  );
   const modelPath = await realpath(resolve(options.modelPath));
   const runner = options.runner ?? runProcess;
   const now = new Date().toISOString();
@@ -399,6 +410,20 @@ export async function resumeTranscriptionTask(
   const task = await readTranscriptionTask(projectDirectory);
   if (!locator || !task)
     throw new Error("CreatorCut transcription recovery state is missing");
+  const opened = await openCreatorCutProject(projectDirectory);
+  const source = opened.project.assets.find(
+    (asset) => asset.asset_id === task.source_asset_id,
+  );
+  if (
+    task.project_id !== opened.project.project_id ||
+    task.base_revision !== opened.project.revision ||
+    !source ||
+    source.sha256 !== task.source_sha256
+  ) {
+    throw new Error(
+      "CreatorCut transcription recovery state is stale for the current revision",
+    );
+  }
   if (task.state === "completed") return task;
   return transcribeProject({
     projectDirectory,

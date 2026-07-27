@@ -1,17 +1,41 @@
-import { generateKeyPairSync, sign } from "node:crypto";
+import { generateKeyPairSync, sign, type KeyObject } from "node:crypto";
+import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
 import {
+  digestJcs,
+  envelopeSigningBytes,
   keysetSigningBytes,
+  type CostQuote,
+  type DirectorContext,
+  type DirectorEnvelope,
+  type EditDecisionManifest,
+  type EditReviewPlan,
   type SignedArtifactKeyset,
 } from "@agentmesh/creatorcut-protocol";
+import {
+  approveDirectorContext,
+  buildDirectorContext,
+  createCreatorCutProject,
+  openCreatorCutProject,
+  readDirectorState,
+  writeDirectorState,
+  type CreateLocalProjectInput,
+} from "@agentmesh/creatorcut-runtime";
 
-import { CloudDirectorAdapter } from "../src/index.js";
+import {
+  CloudDirectorAdapter,
+  type DirectorGenerationView,
+  type PublicDirectorState,
+} from "../src/index.js";
 
 function signingFixture(): {
   keyset: SignedArtifactKeyset;
   roots: ReadonlyMap<string, string>;
+  directorPrivateKey: KeyObject;
 } {
   const root = generateKeyPairSync("ed25519");
   const director = generateKeyPairSync("ed25519");
@@ -48,12 +72,112 @@ function signingFixture(): {
   };
   return {
     keyset,
+    directorPrivateKey: director.privateKey,
     roots: new Map([
       [
         "recovery-root-1",
         root.publicKey.export({ format: "pem", type: "spki" }).toString(),
       ],
     ]),
+  };
+}
+
+interface Cycle3Fixture {
+  fixed_clock: { manifest: string };
+  director_context: DirectorContext;
+  local_snapshot: {
+    project: CreateLocalProjectInput["project"];
+    timeline: CreateLocalProjectInput["timeline"];
+    transcript: NonNullable<CreateLocalProjectInput["transcript"]>;
+    edit_brief: NonNullable<CreateLocalProjectInput["editBrief"]>;
+    synthetic_media_stub_utf8: string;
+  };
+  envelope_chain: {
+    quote: DirectorEnvelope<CostQuote>;
+    review_plan: DirectorEnvelope<EditReviewPlan>;
+    manifest: DirectorEnvelope<EditDecisionManifest>;
+  };
+}
+
+async function readCycle3Fixture(): Promise<Cycle3Fixture> {
+  return JSON.parse(
+    await readFile(
+      new URL(
+        "../../../tests/fixtures/cycle3-closeout-v1/cycle3-closeout-v1.json",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  ) as Cycle3Fixture;
+}
+
+async function cycle3Project(): Promise<{
+  directory: string;
+  context: DirectorContext;
+  fixture: Cycle3Fixture;
+}> {
+  const fixture = await readCycle3Fixture();
+  const root = await mkdtemp(join(tmpdir(), "creatorcut-director-a4-"));
+  const directory = join(root, "fixture.creatorcut");
+  await createCreatorCutProject(directory, {
+    project: fixture.local_snapshot.project,
+    timeline: fixture.local_snapshot.timeline,
+    transcript: fixture.local_snapshot.transcript,
+    editBrief: fixture.local_snapshot.edit_brief,
+  });
+  await mkdir(join(directory, "media"), { recursive: true });
+  await writeFile(
+    join(directory, "media", "source.mp4"),
+    fixture.local_snapshot.synthetic_media_stub_utf8,
+  );
+  const opened = await openCreatorCutProject(directory);
+  const context = buildDirectorContext(opened, { hostType: "text" });
+  expect(context).toEqual(fixture.director_context);
+  await approveDirectorContext(opened, context);
+  return { directory, context, fixture };
+}
+
+function resignEnvelope<T>(
+  value: DirectorEnvelope<T>,
+  privateKey: KeyObject,
+): DirectorEnvelope<T> {
+  const unsigned = structuredClone(value);
+  unsigned.signature = {
+    algorithm: "Ed25519",
+    key_id: "director-current-1",
+    value: "",
+  };
+  const signature = sign(null, envelopeSigningBytes(unsigned), privateKey);
+  return {
+    ...unsigned,
+    signature: {
+      ...unsigned.signature,
+      value: signature.toString("base64"),
+    },
+  };
+}
+
+function directorState(
+  context: DirectorContext,
+  fixture: Cycle3Fixture,
+  reviewEnvelope: DirectorEnvelope<EditReviewPlan>,
+  manifestEnvelope: DirectorEnvelope<EditDecisionManifest>,
+): PublicDirectorState {
+  if (!manifestEnvelope.generation_id) {
+    throw new Error("Cycle 3 fixture Manifest is missing generation_id");
+  }
+  return {
+    schema_version: "creatorcut-public-director-state/1.0",
+    project_id: context.project_id,
+    base_revision: context.base_revision,
+    planning_input_digest: digestJcs(context),
+    session_id: manifestEnvelope.session_id,
+    account_ref: manifestEnvelope.account_ref,
+    quote_envelope: fixture.envelope_chain.quote,
+    generation_id: manifestEnvelope.generation_id,
+    review_envelope: reviewEnvelope,
+    manifest_envelope: manifestEnvelope,
+    updated_at: fixture.fixed_clock.manifest,
   };
 }
 
@@ -112,5 +236,207 @@ describe("CloudDirectorAdapter", () => {
           now: () => new Date("2026-07-27T00:00:00.000Z"),
         }),
     ).toThrow(/HTTPS/u);
+  });
+
+  it("verifies the full Manifest chain and every signed input or identifier binding", async () => {
+    const signing = signingFixture();
+    const { directory, context, fixture } = await cycle3Project();
+    const opened = await openCreatorCutProject(directory);
+    const review = resignEnvelope(
+      fixture.envelope_chain.review_plan,
+      signing.directorPrivateKey,
+    );
+    const manifestValue = structuredClone(fixture.envelope_chain.manifest);
+    manifestValue.previous_envelope_digest = digestJcs(review);
+    manifestValue.sequence = review.sequence + 1;
+    const manifest = resignEnvelope(manifestValue, signing.directorPrivateKey);
+    const state = directorState(context, fixture, review, manifest);
+    const adapter = new CloudDirectorAdapter({
+      endpoint: "https://director.example.test",
+      apiKey: "am_test_key",
+      protocolBundleDigest: `sha256:${"a".repeat(64)}`,
+      signedKeyset: signing.keyset,
+      trustedRecoveryRoots: signing.roots,
+      now: () => new Date(fixture.fixed_clock.manifest),
+      transport: async () => {
+        throw new Error("Director transport must not be called");
+      },
+    });
+
+    await writeDirectorState(opened, state);
+    await expect(adapter.getVerifiedManifest(directory)).resolves.toEqual(
+      manifest,
+    );
+
+    const mismatches: Array<
+      [string, (value: DirectorEnvelope<EditDecisionManifest>) => void]
+    > = [
+      ["sequence", (value) => (value.sequence += 1)],
+      [
+        "previous envelope",
+        (value) =>
+          (value.previous_envelope_digest = `sha256:${"0".repeat(64)}`),
+      ],
+      ["project", (value) => (value.project_id = "project-other")],
+      ["revision", (value) => (value.base_revision += 1)],
+      [
+        "planning input",
+        (value) => (value.planning_input_digest = `sha256:${"1".repeat(64)}`),
+      ],
+      [
+        "transcript",
+        (value) => (value.transcript_digest = `sha256:${"2".repeat(64)}`),
+      ],
+      [
+        "timeline",
+        (value) => (value.timeline_digest = `sha256:${"3".repeat(64)}`),
+      ],
+      [
+        "edit brief",
+        (value) => (value.edit_brief_digest = `sha256:${"4".repeat(64)}`),
+      ],
+      [
+        "capabilities",
+        (value) => (value.capabilities_digest = `sha256:${"5".repeat(64)}`),
+      ],
+      ["session", (value) => (value.session_id = "session-other")],
+      ["generation", (value) => (value.generation_id = "generation-other")],
+      ["quote", (value) => (value.quote_id = "quote-other")],
+      ["account", (value) => (value.account_ref = "account-other")],
+    ];
+    for (const [name, mutate] of mismatches) {
+      const changed = structuredClone(manifestValue);
+      mutate(changed);
+      const signedChanged = resignEnvelope(changed, signing.directorPrivateKey);
+      await writeDirectorState(opened, {
+        ...state,
+        manifest_envelope: signedChanged,
+      });
+      await expect(
+        adapter.getVerifiedManifest(directory),
+        name,
+      ).rejects.toThrow(/binding mismatch/u);
+    }
+  });
+
+  it("persists and reuses the Generation ID across a lost create response", async () => {
+    const signing = signingFixture();
+    const { directory, context, fixture } = await cycle3Project();
+    const opened = await openCreatorCutProject(directory);
+    const quote = fixture.envelope_chain.quote;
+    const generationId = "generation-response-loss-a4";
+    const state: PublicDirectorState = {
+      schema_version: "creatorcut-public-director-state/1.0",
+      project_id: context.project_id,
+      base_revision: context.base_revision,
+      planning_input_digest: digestJcs(context),
+      session_id: quote.session_id,
+      account_ref: quote.account_ref,
+      quote_envelope: quote,
+      updated_at: fixture.fixed_clock.manifest,
+    };
+    await writeDirectorState(opened, state);
+    const postIds: string[] = [];
+    let getAttempts = 0;
+    const generation: DirectorGenerationView = {
+      generation_id: generationId,
+      session_id: quote.session_id,
+      project_id: context.project_id,
+      base_revision: context.base_revision,
+      planning_input_digest: digestJcs(context),
+      quote_id: quote.payload.quote_id,
+      state: "queued",
+      attempt: 0,
+    };
+    const adapter = new CloudDirectorAdapter({
+      endpoint: "https://director.example.test",
+      apiKey: "am_test_key",
+      protocolBundleDigest: `sha256:${"a".repeat(64)}`,
+      signedKeyset: signing.keyset,
+      trustedRecoveryRoots: signing.roots,
+      now: () => new Date(fixture.fixed_clock.manifest),
+      uuid: () => generationId,
+      transport: async (request) => {
+        if (
+          request.method === "POST" &&
+          request.path.endsWith("/generations")
+        ) {
+          const body = request.body as { generation_id: string };
+          postIds.push(body.generation_id);
+          if (postIds.length === 1) throw new Error("response lost");
+          return generation;
+        }
+        if (
+          request.method === "GET" &&
+          request.path === `/v1/director/generations/${generationId}`
+        ) {
+          getAttempts += 1;
+          throw new Error("Generation is not visible yet");
+        }
+        throw new Error(`Unexpected Director request: ${request.path}`);
+      },
+    });
+
+    await expect(
+      adapter.generate({
+        projectDirectory: directory,
+        confirmationId: "confirmation-a4",
+      }),
+    ).rejects.toThrow(/response lost/u);
+    expect(
+      (await readDirectorState<PublicDirectorState>(opened))?.generation_id,
+    ).toBe(generationId);
+
+    await expect(
+      adapter.generate({
+        projectDirectory: directory,
+        confirmationId: "confirmation-a4",
+      }),
+    ).resolves.toEqual(generation);
+    expect(postIds).toEqual([generationId, generationId]);
+    expect(getAttempts).toBe(1);
+  });
+
+  it("rejects a Generation response with a different stable identifier", async () => {
+    const signing = signingFixture();
+    const { directory, context, fixture } = await cycle3Project();
+    const opened = await openCreatorCutProject(directory);
+    const quote = fixture.envelope_chain.quote;
+    await writeDirectorState(opened, {
+      schema_version: "creatorcut-public-director-state/1.0",
+      project_id: context.project_id,
+      base_revision: context.base_revision,
+      planning_input_digest: digestJcs(context),
+      session_id: quote.session_id,
+      account_ref: quote.account_ref,
+      quote_envelope: quote,
+      updated_at: fixture.fixed_clock.manifest,
+    } satisfies PublicDirectorState);
+    const adapter = new CloudDirectorAdapter({
+      endpoint: "https://director.example.test",
+      apiKey: "am_test_key",
+      protocolBundleDigest: `sha256:${"a".repeat(64)}`,
+      signedKeyset: signing.keyset,
+      trustedRecoveryRoots: signing.roots,
+      now: () => new Date(fixture.fixed_clock.manifest),
+      uuid: () => "generation-expected",
+      transport: async () => ({
+        generation_id: "generation-other",
+        session_id: quote.session_id,
+        project_id: context.project_id,
+        base_revision: context.base_revision,
+        planning_input_digest: digestJcs(context),
+        quote_id: quote.payload.quote_id,
+        state: "queued",
+        attempt: 0,
+      }),
+    });
+
+    await expect(
+      adapter.generate({
+        projectDirectory: directory,
+        confirmationId: "confirmation-a4",
+      }),
+    ).rejects.toThrow(/Generation binding mismatch/u);
   });
 });

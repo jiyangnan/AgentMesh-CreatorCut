@@ -1,6 +1,8 @@
 import type { CloudDirectorAdapter } from "@agentmesh/creatorcut-director-client";
 import {
+  answerSetIdForPresentation,
   capabilitiesForHost,
+  type HostCardPresentation,
   type HostCardSubmission,
 } from "@agentmesh/creatorcut-host-adapters";
 import {
@@ -32,6 +34,18 @@ import {
   type LanguageMode,
 } from "@agentmesh/creatorcut-transcription";
 
+export interface McpCardPayload {
+  envelope_id: string;
+  envelope_digest: string;
+  presentation_digest: string;
+  render_digest: string;
+  presentation: HostCardPresentation;
+}
+
+export interface McpCardWidgetPayload extends McpCardPayload {
+  answer_set_id: string;
+}
+
 export class CreatorCutMcpService {
   constructor(
     readonly projectDirectory: string,
@@ -56,7 +70,7 @@ export class CreatorCutMcpService {
     const opened = await openCreatorCutProject(this.projectDirectory);
     return {
       inspection: inspectDirectorContext(
-        buildDirectorContext(opened, { hostType: this.hostType }),
+        buildDirectorContext(opened, { hostType: "text" }),
       ),
     };
   }
@@ -64,7 +78,7 @@ export class CreatorCutMcpService {
   async approveContext(): Promise<Record<string, unknown>> {
     const opened = await openCreatorCutProject(this.projectDirectory);
     const context = buildDirectorContext(opened, {
-      hostType: this.hostType,
+      hostType: "text",
     });
     return {
       consent: await approveDirectorContext(opened, context),
@@ -78,7 +92,7 @@ export class CreatorCutMcpService {
     return { state };
   }
 
-  async getCards(): Promise<Record<string, unknown>> {
+  async getCards(): Promise<McpCardPayload> {
     const capabilities = capabilitiesForHost(this.hostType);
     const cards = await (
       await this.getAdapter()
@@ -90,7 +104,44 @@ export class CreatorCutMcpService {
       envelope_id: cards.envelope.artifact_id,
       envelope_digest: digestJcs(cards.envelope),
       presentation_digest: cards.presentation.presentation_digest,
+      render_digest: cards.presentation.render_digest,
       presentation: cards.presentation,
+    };
+  }
+
+  async renderCards(expected: {
+    envelopeDigest?: string;
+    presentationDigest?: string;
+    renderDigest?: string;
+  }): Promise<McpCardWidgetPayload> {
+    const current = await this.getCards();
+    if (
+      expected.envelopeDigest !== undefined &&
+      expected.envelopeDigest !== current.envelope_digest
+    ) {
+      throw new TypeError(
+        "CreatorCut card envelope changed; read the current cards again",
+      );
+    }
+    if (
+      expected.presentationDigest !== undefined &&
+      expected.presentationDigest !== current.presentation_digest
+    ) {
+      throw new TypeError(
+        "CreatorCut card presentation changed; read the current cards again",
+      );
+    }
+    if (
+      expected.renderDigest !== undefined &&
+      expected.renderDigest !== current.render_digest
+    ) {
+      throw new TypeError(
+        "CreatorCut host rendering changed; read the current cards again",
+      );
+    }
+    return {
+      ...current,
+      answer_set_id: answerSetIdForPresentation(current.presentation_digest),
     };
   }
 

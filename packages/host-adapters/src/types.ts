@@ -37,10 +37,27 @@ export interface PresentedCard {
   fallback_text: string;
 }
 
+export interface CanonicalPresentedCard {
+  card_id: string;
+  type: SemanticDecisionCardSet["cards"][number]["type"];
+  option_ids: string[];
+}
+
+export interface CanonicalCardPresentation {
+  schema_version: "creatorcut-canonical-presentation/1.0";
+  presentation_id: string;
+  presentation_digest: string;
+  card_set_id: string;
+  state_revision: number;
+  stage: SemanticDecisionCardSet["stage"];
+  cards: CanonicalPresentedCard[];
+}
+
 export interface HostCardPresentation {
   schema_version: "creatorcut-host-presentation/1.0";
   presentation_id: string;
   presentation_digest: string;
+  render_digest: string;
   host_type: PublicClientCapabilities["host_type"];
   card_set_id: string;
   state_revision: number;
@@ -61,6 +78,10 @@ export interface HostCardSubmission {
   presentation_id: string;
   presentation_digest: string;
   responses: HostCardResponse[];
+}
+
+export interface PresentSemanticCardsOptions {
+  presentationId?: string;
 }
 
 export type NormalizedAnswers = DecisionCardAnswerSet["answers"];

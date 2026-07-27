@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { MemoryCredentialStore } from "@agentmesh/creatorcut-credentials";
+import type { CloudDirectorAdapter } from "@agentmesh/creatorcut-director-client";
 
 import { executeCli } from "../src/index.js";
 
@@ -156,5 +157,35 @@ describe("creatorcut CLI", () => {
       { credentials: new MemoryCredentialStore() },
     );
     expect(approved.ok).toBe(true);
+  });
+
+  it("returns the stable answer id with every card presentation", async () => {
+    const presentationDigest = `sha256:${"d".repeat(64)}`;
+    const adapter = {
+      getCards: async () => ({
+        envelope: { artifact_id: "cards-cli" },
+        presentation: {
+          presentation_digest: presentationDigest,
+          text_fallback: "[pace] Choose a pace",
+        },
+      }),
+    } as unknown as CloudDirectorAdapter;
+    const result = await executeCli(
+      ["cards", "get", "--project", "/synthetic/project"],
+      io(),
+      {
+        adapterFactory: async () => adapter,
+        credentials: new MemoryCredentialStore(),
+      },
+    );
+    expect(result).toMatchObject({
+      ok: true,
+      requires_user_action: true,
+      next_suggested: "cards submit",
+      data: {
+        answer_set_id: `answers:${"d".repeat(32)}`,
+        presentation: { presentation_digest: presentationDigest },
+      },
+    });
   });
 });

@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "creatorcut",
+  "displayName": "CreatorCut",
+  "version": "0.1.0",
+  "description": "Public Claude Code workflow for CreatorCut talking-head and product-screen post-production.",
+  "author": {
+    "name": "AgentMesh360"
+  },
+  "license": "Apache-2.0",
+  "keywords": ["video", "post-production", "creatorcut", "agentmesh"]
+}

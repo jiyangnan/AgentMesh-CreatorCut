@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import {
   normalizeHostSubmission,
+  presentationIdForProject,
   presentSemanticCards,
   type HostCardPresentation,
   type HostCardSubmission,
@@ -243,6 +244,11 @@ export class CloudDirectorAdapter {
     const presentation = presentSemanticCards(
       state.current_card_envelope.payload,
       input.capabilities ?? context.capabilities,
+      {
+        presentationId: presentationIdForProject(
+          state.current_card_envelope.project_id,
+        ),
+      },
     );
     return { envelope: state.current_card_envelope, presentation };
   }
@@ -264,6 +270,11 @@ export class CloudDirectorAdapter {
       presentSemanticCards(
         state.current_card_envelope.payload,
         context.capabilities,
+        {
+          presentationId: presentationIdForProject(
+            state.current_card_envelope.project_id,
+          ),
+        },
       );
     const answers = normalizeHostSubmission(
       state.current_card_envelope.payload,

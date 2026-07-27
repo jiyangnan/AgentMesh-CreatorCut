@@ -15,26 +15,36 @@ const fixtureDirectory = resolve(
 );
 const fixturePath = resolve(fixtureDirectory, "cycle3-closeout-v1.json");
 const lockPath = resolve(fixtureDirectory, "cycle3-closeout-v1.lock.json");
-const [protocol, operations, runtime, mediaEngine, fixtureText, lockText] =
-  await Promise.all([
-    import(
-      pathToFileURL(resolve(root, "packages/protocol/dist/src/index.js")).href
-    ),
-    import(
-      pathToFileURL(
-        resolve(root, "packages/operations-contract/dist/src/index.js"),
-      ).href
-    ),
-    import(
-      pathToFileURL(resolve(root, "packages/runtime/dist/src/index.js")).href
-    ),
-    import(
-      pathToFileURL(resolve(root, "packages/media-engine/dist/src/index.js"))
-        .href
-    ),
-    readFile(fixturePath, "utf8"),
-    readFile(lockPath, "utf8"),
-  ]);
+const [
+  protocol,
+  operations,
+  runtime,
+  mediaEngine,
+  hostAdapters,
+  fixtureText,
+  lockText,
+] = await Promise.all([
+  import(
+    pathToFileURL(resolve(root, "packages/protocol/dist/src/index.js")).href
+  ),
+  import(
+    pathToFileURL(
+      resolve(root, "packages/operations-contract/dist/src/index.js"),
+    ).href
+  ),
+  import(
+    pathToFileURL(resolve(root, "packages/runtime/dist/src/index.js")).href
+  ),
+  import(
+    pathToFileURL(resolve(root, "packages/media-engine/dist/src/index.js")).href
+  ),
+  import(
+    pathToFileURL(resolve(root, "packages/host-adapters/dist/src/index.js"))
+      .href
+  ),
+  readFile(fixturePath, "utf8"),
+  readFile(lockPath, "utf8"),
+]);
 
 const fixture = JSON.parse(fixtureText);
 const fixtureLock = JSON.parse(lockText);
@@ -204,6 +214,50 @@ test("fixture snapshot rebuilds the exact DirectorContext without Server code", 
     runtime.buildDirectorContext(opened, { hostType: "text" }),
     fixture.director_context,
   );
+});
+
+test("every host preserves the fixed presentation and AnswerSet digest", () => {
+  const envelope = fixture.envelope_chain.direction_card;
+  const expectedPresentation = fixture.host_interaction.canonical_presentation;
+  const presentationId = hostAdapters.presentationIdForProject(
+    envelope.project_id,
+  );
+  const renderDigests = new Set();
+  for (const hostType of ["codex", "claude_code", "openclaw", "text"]) {
+    const presentation = hostAdapters.presentSemanticCards(
+      envelope.payload,
+      hostAdapters.capabilitiesForHost(hostType),
+      { presentationId },
+    );
+    assert.equal(
+      presentation.presentation_id,
+      expectedPresentation.presentation_id,
+    );
+    assert.equal(
+      presentation.presentation_digest,
+      expectedPresentation.presentation_digest,
+    );
+    const answers = hostAdapters.normalizeHostSubmission(
+      envelope.payload,
+      presentation,
+      {
+        ...fixture.host_interaction.submission,
+        presentation_id: presentation.presentation_id,
+        presentation_digest: presentation.presentation_digest,
+      },
+    );
+    const answerSet = {
+      ...fixture.host_interaction.expected_answer_set,
+      answers,
+      presentation_digest: presentation.presentation_digest,
+    };
+    assert.equal(
+      protocol.digestJcs(answerSet),
+      fixtureLock.expected_answer_set_digest,
+    );
+    renderDigests.add(presentation.render_digest);
+  }
+  assert.ok(renderDigests.size > 1);
 });
 
 test("verified remove_range fixture previews and applies transactionally", async () => {

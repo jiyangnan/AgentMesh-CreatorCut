@@ -9,6 +9,7 @@ import {
   CloudDirectorAdapter,
   loadVerifiedDirectorKeyset,
 } from "@agentmesh/creatorcut-director-client";
+import { answerSetIdForPresentation } from "@agentmesh/creatorcut-host-adapters";
 import {
   applyPreviewedManifest,
   cancelExportTask,
@@ -454,11 +455,20 @@ export async function executeCli(
 
     if (commandName === "cards get") {
       const value = await (await adapter()).getCards({ projectDirectory });
-      return success(commandName, value, {
-        next: "cards submit",
-        requiresUserAction: true,
-        userPrompt: value.presentation.text_fallback,
-      });
+      return success(
+        commandName,
+        {
+          answer_set_id: answerSetIdForPresentation(
+            value.presentation.presentation_digest,
+          ),
+          ...value,
+        },
+        {
+          next: "cards submit",
+          requiresUserAction: true,
+          userPrompt: value.presentation.text_fallback,
+        },
+      );
     }
     if (commandName === "cards submit") {
       const submission = JSON.parse(await io.stdin()) as never;

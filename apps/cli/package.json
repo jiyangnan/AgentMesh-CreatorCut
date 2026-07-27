@@ -20,6 +20,7 @@
   "dependencies": {
     "@agentmesh/creatorcut-credentials": "workspace:*",
     "@agentmesh/creatorcut-director-client": "workspace:*",
+    "@agentmesh/creatorcut-host-adapters": "workspace:*",
     "@agentmesh/creatorcut-media-engine": "workspace:*",
     "@agentmesh/creatorcut-protocol": "workspace:*",
     "@agentmesh/creatorcut-runtime": "workspace:*",

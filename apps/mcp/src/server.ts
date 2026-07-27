@@ -1,11 +1,16 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
+import {
+  CREATORCUT_CARD_WIDGET_HTML,
+  CREATORCUT_CARD_WIDGET_URI,
+  MCP_APP_MIME_TYPE,
+} from "./card-widget.js";
 import { CreatorCutMcpService } from "./service.js";
 
-const response = (value: Record<string, unknown>, summary: string) => ({
+const response = (value: object, summary: string) => ({
   content: [{ type: "text" as const, text: summary }],
-  structuredContent: value,
+  structuredContent: { ...value } as Record<string, unknown>,
 });
 const errorResponse = (error: unknown) => ({
   isError: true as const,
@@ -28,6 +33,35 @@ export function createCreatorCutMcpServer(
       instructions:
         "CreatorCut is bound to one local project. Start with creatorcut_project_status, then inspect the exact DirectorContext. Only signed Server-driven cards may request user answers. Preserve stable IDs, use the host text fallback when native controls are unavailable, and never invent a local strategy when Director is offline.",
     },
+  );
+
+  server.registerResource(
+    "creatorcut-decision-cards",
+    CREATORCUT_CARD_WIDGET_URI,
+    {
+      title: "CreatorCut Decision Cards",
+      description:
+        "Inline, revision-bound CreatorCut decision cards. The widget keeps only temporary form state and submits through the public MCP tool.",
+      mimeType: MCP_APP_MIME_TYPE,
+    },
+    async () => ({
+      contents: [
+        {
+          uri: CREATORCUT_CARD_WIDGET_URI,
+          mimeType: MCP_APP_MIME_TYPE,
+          text: CREATORCUT_CARD_WIDGET_HTML,
+          _meta: {
+            ui: {
+              prefersBorder: true,
+              csp: {
+                connectDomains: [],
+                resourceDomains: [],
+              },
+            },
+          },
+        },
+      ],
+    }),
   );
 
   server.registerTool(
@@ -153,6 +187,7 @@ export function createCreatorCutMcpServer(
         envelope_id: z.string(),
         envelope_digest: z.string(),
         presentation_digest: z.string(),
+        render_digest: z.string(),
         presentation: z.record(z.string(), z.unknown()),
       },
       annotations: {
@@ -168,8 +203,69 @@ export function createCreatorCutMcpServer(
         return response(
           output,
           String(
-            (output.presentation as Record<string, unknown>).text_fallback ??
-              "CreatorCut cards ready.",
+            output.presentation.text_fallback ?? "CreatorCut cards ready.",
+          ),
+        );
+      } catch (error) {
+        return errorResponse(error);
+      }
+    },
+  );
+
+  server.registerTool(
+    "creatorcut_director_cards_render",
+    {
+      title: "Render CreatorCut Decision Cards",
+      description:
+        "Render the authoritative current signed card set as an MCP App. Call creatorcut_director_cards_get first when chaining, then pass its digests to reject any intervening state change. Text fallback remains available when UI is unsupported.",
+      inputSchema: {
+        expected_envelope_digest: z.string().min(1).max(128).optional(),
+        expected_presentation_digest: z.string().min(1).max(128).optional(),
+        expected_render_digest: z.string().min(1).max(128).optional(),
+      },
+      outputSchema: {
+        answer_set_id: z.string(),
+        envelope_id: z.string(),
+        envelope_digest: z.string(),
+        presentation_digest: z.string(),
+        render_digest: z.string(),
+        presentation: z.record(z.string(), z.unknown()),
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+      _meta: {
+        ui: { resourceUri: CREATORCUT_CARD_WIDGET_URI },
+        "openai/outputTemplate": CREATORCUT_CARD_WIDGET_URI,
+        "openai/toolInvocation/invoking": "Loading CreatorCut decision cards…",
+        "openai/toolInvocation/invoked": "CreatorCut decision cards are ready.",
+      },
+    },
+    async ({
+      expected_envelope_digest,
+      expected_presentation_digest,
+      expected_render_digest,
+    }) => {
+      try {
+        const output = await service.renderCards({
+          ...(expected_envelope_digest === undefined
+            ? {}
+            : { envelopeDigest: expected_envelope_digest }),
+          ...(expected_presentation_digest === undefined
+            ? {}
+            : { presentationDigest: expected_presentation_digest }),
+          ...(expected_render_digest === undefined
+            ? {}
+            : { renderDigest: expected_render_digest }),
+        });
+        return response(
+          output,
+          String(
+            output.presentation.text_fallback ??
+              "CreatorCut decision cards are ready.",
           ),
         );
       } catch (error) {

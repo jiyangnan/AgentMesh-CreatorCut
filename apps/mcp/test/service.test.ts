@@ -111,7 +111,7 @@ describe("CreatorCut public MCP service", () => {
     expect(JSON.stringify(context)).toContain("Hello");
   });
 
-  it("reports distinct signed-envelope and host-presentation digests", async () => {
+  it("reports distinct envelope, canonical-presentation and render digests", async () => {
     const envelope = {
       artifact_id: "cards-1",
       payload: { card_set_id: "cards-1" },
@@ -124,6 +124,7 @@ describe("CreatorCut public MCP service", () => {
     const presentation = {
       presentation_id: "presentation-1",
       presentation_digest: `sha256:${"2".repeat(64)}`,
+      render_digest: `sha256:${"3".repeat(64)}`,
       text_fallback: "CreatorCut card",
     };
     const adapter = {
@@ -138,7 +139,24 @@ describe("CreatorCut public MCP service", () => {
       envelope_id: "cards-1",
       envelope_digest: digestJcs(envelope),
       presentation_digest: presentation.presentation_digest,
+      render_digest: presentation.render_digest,
       presentation,
     });
+    await expect(
+      service.renderCards({
+        envelopeDigest: digestJcs(envelope),
+        presentationDigest: presentation.presentation_digest,
+        renderDigest: presentation.render_digest,
+      }),
+    ).resolves.toMatchObject({
+      answer_set_id: `answers:${"2".repeat(32)}`,
+      envelope_id: "cards-1",
+      presentation,
+    });
+    await expect(
+      service.renderCards({
+        presentationDigest: `sha256:${"9".repeat(64)}`,
+      }),
+    ).rejects.toThrow("presentation changed");
   });
 });

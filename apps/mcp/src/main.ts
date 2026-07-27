@@ -59,7 +59,7 @@ function getAdapter(): Promise<CloudDirectorAdapter> {
       ),
       signedKeyset: trust.keyset,
       trustedRecoveryRoots: trust.roots,
-      hostType,
+      hostType: "text",
       ...(minimumVersion === undefined
         ? {}
         : { minimumKeysetVersion: minimumVersion }),

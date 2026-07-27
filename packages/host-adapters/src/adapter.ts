@@ -6,9 +6,11 @@ import {
 import { buildPublicClientCapabilities } from "@agentmesh/creatorcut-client-capabilities";
 
 import type {
+  CanonicalCardPresentation,
   HostCardPresentation,
   HostCardSubmission,
   NormalizedAnswers,
+  PresentSemanticCardsOptions,
   PresentedCard,
   PresentedOption,
 } from "./types.js";
@@ -79,10 +81,53 @@ function cardFallback(card: Omit<PresentedCard, "fallback_text">): string {
   return lines.join("\n");
 }
 
+export function presentationIdForProject(projectId: string): string {
+  const value = projectId.startsWith("project-")
+    ? projectId.slice("project-".length)
+    : projectId;
+  if (!value) {
+    throw new TypeError("CreatorCut project ID cannot produce a presentation");
+  }
+  return `presentation-${value}`;
+}
+
+export function answerSetIdForPresentation(presentationDigest: string): string {
+  const match = /^sha256:([a-f0-9]{64})$/.exec(presentationDigest);
+  if (!match) {
+    throw new TypeError("CreatorCut presentation digest is invalid");
+  }
+  return `answers:${match[1]!.slice(0, 32)}`;
+}
+
+export function buildCanonicalPresentation(
+  cardSet: SemanticDecisionCardSet,
+  presentationId: string,
+): CanonicalCardPresentation {
+  const unsigned = {
+    schema_version: "creatorcut-canonical-presentation/1.0" as const,
+    presentation_id: presentationId,
+    card_set_id: cardSet.card_set_id,
+    state_revision: cardSet.state_revision,
+    stage: cardSet.stage,
+    cards: cardSet.cards.map((card) => ({
+      card_id: card.card_id,
+      type: card.type,
+      option_ids: card.options?.map((option) => option.option_id) ?? [],
+    })),
+  };
+  return { ...unsigned, presentation_digest: digestJcs(unsigned) };
+}
+
 export function presentSemanticCards(
   cardSet: SemanticDecisionCardSet,
   capabilities: PublicClientCapabilities,
+  options: PresentSemanticCardsOptions = {},
 ): HostCardPresentation {
+  const canonical = buildCanonicalPresentation(
+    cardSet,
+    options.presentationId ??
+      `presentation-${cardSet.card_set_id}-${cardSet.state_revision}`,
+  );
   const cards: PresentedCard[] = cardSet.cards.map((card) => {
     const options = card.options?.map((option, index) => ({
       option_id: option.option_id,
@@ -124,8 +169,10 @@ export function presentSemanticCards(
     };
     return { ...base, fallback_text: cardFallback(base) };
   });
-  const unsigned = {
+  const render = {
     schema_version: "creatorcut-host-presentation/1.0" as const,
+    presentation_id: canonical.presentation_id,
+    presentation_digest: canonical.presentation_digest,
     host_type: capabilities.host_type,
     card_set_id: cardSet.card_set_id,
     state_revision: cardSet.state_revision,
@@ -133,11 +180,9 @@ export function presentSemanticCards(
     cards,
     text_fallback: cards.map((card) => card.fallback_text).join("\n\n"),
   };
-  const presentationDigest = digestJcs(unsigned);
   return {
-    ...unsigned,
-    presentation_id: `${cardSet.card_set_id}:${capabilities.host_type}:${presentationDigest.slice(-16)}`,
-    presentation_digest: presentationDigest,
+    ...render,
+    render_digest: digestJcs(render),
   };
 }
 

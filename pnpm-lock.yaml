@@ -28,6 +28,9 @@ importers:
       "@agentmesh/creatorcut-director-client":
         specifier: workspace:*
         version: link:../../packages/director-client
+      "@agentmesh/creatorcut-host-adapters":
+        specifier: workspace:*
+        version: link:../../packages/host-adapters
       "@agentmesh/creatorcut-media-engine":
         specifier: workspace:*
         version: link:../../packages/media-engine

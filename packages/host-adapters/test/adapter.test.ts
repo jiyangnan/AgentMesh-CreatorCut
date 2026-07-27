@@ -7,6 +7,7 @@ import {
 import { buildPublicClientCapabilities } from "@agentmesh/creatorcut-client-capabilities";
 
 import {
+  answerSetIdForPresentation,
   capabilitiesForHost,
   normalizeHostSubmission,
   presentSemanticCards,
@@ -58,6 +59,15 @@ function capabilities(
 }
 
 describe("cross-host card adapters", () => {
+  it("derives one stable answer id from the canonical presentation digest", () => {
+    expect(answerSetIdForPresentation(`sha256:${"a".repeat(64)}`)).toBe(
+      `answers:${"a".repeat(32)}`,
+    );
+    expect(() => answerSetIdForPresentation("sha256:stale")).toThrow(
+      /presentation digest is invalid/u,
+    );
+  });
+
   it("uses the single public capabilities builder for every host", () => {
     for (const hostType of [
       "codex",
@@ -95,6 +105,9 @@ describe("cross-host card adapters", () => {
     expect(
       text.cards.every((card) => card.render_mode === "text-fallback"),
     ).toBe(true);
+    expect(codex.presentation_id).toBe(text.presentation_id);
+    expect(codex.presentation_digest).toBe(text.presentation_digest);
+    expect(codex.render_digest).not.toBe(text.render_digest);
     expect(textAnswers).toEqual(nativeAnswers);
   });
 

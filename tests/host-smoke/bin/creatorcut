@@ -1,0 +1,147 @@
+#!/usr/bin/env node
+import { createCycle3FixtureService } from "../cycle3-fixture-service.mjs";
+
+function parsedArguments(argv) {
+  const command = [];
+  const options = new Map();
+  for (let index = 0; index < argv.length; index += 1) {
+    const token = argv[index];
+    if (token.startsWith("--")) {
+      const next = argv[index + 1];
+      if (next && !next.startsWith("--")) {
+        options.set(token.slice(2), next);
+        index += 1;
+      } else {
+        options.set(token.slice(2), true);
+      }
+    } else {
+      command.push(token);
+    }
+  }
+  return { command: command.join(" "), options };
+}
+
+function envelope(command, data, options = {}) {
+  return {
+    schema_version: "creatorcut-cli/1.0",
+    ok: true,
+    command,
+    requires_user_action: options.requiresUserAction ?? false,
+    retryable: false,
+    ...(options.next ? { next_suggested: options.next } : {}),
+    ...(options.userPrompt ? { user_prompt: options.userPrompt } : {}),
+    data,
+  };
+}
+
+async function stdinText() {
+  const chunks = [];
+  for await (const chunk of process.stdin) chunks.push(Buffer.from(chunk));
+  return Buffer.concat(chunks).toString("utf8");
+}
+
+const parsed = parsedArguments(process.argv.slice(2));
+const service = await createCycle3FixtureService({
+  hostType: process.env.CREATORCUT_HOST_TYPE ?? "text",
+  evidencePath: process.env.CREATORCUT_HOST_SMOKE_EVIDENCE,
+});
+
+try {
+  let output;
+  if (parsed.command === "doctor") {
+    output = envelope("doctor", {
+      node: process.version,
+      fixture_id: "cycle3-closeout-v1",
+      synthetic: true,
+    });
+  } else if (parsed.command === "project status") {
+    output = envelope("project status", await service.projectStatus(), {
+      next: "director status",
+    });
+  } else if (parsed.command === "director context inspect") {
+    const inspection = await service.inspectContext();
+    output = envelope("director context inspect", inspection.inspection, {
+      next: "director context consent --confirm-upload",
+      requiresUserAction: true,
+      userPrompt:
+        "Review the complete synthetic DirectorContext before approval.",
+    });
+  } else if (parsed.command === "director context consent") {
+    if (parsed.options.get("confirm-upload") !== true) {
+      throw new TypeError("Explicit --confirm-upload is required");
+    }
+    output = envelope(
+      "director context consent",
+      await service.approveContext(),
+      { next: "director start" },
+    );
+  } else if (parsed.command === "director start") {
+    output = envelope("director start", await service.startDirector(), {
+      next: "cards get",
+    });
+  } else if (parsed.command === "director status") {
+    output = envelope("director status", await service.status(), {
+      next: "cards get",
+    });
+  } else if (parsed.command === "cards get") {
+    const cards = await service.getCards();
+    const rendered = await service.renderCards({});
+    output = envelope(
+      "cards get",
+      {
+        answer_set_id: rendered.answer_set_id,
+        envelope: {
+          artifact_id: cards.envelope_id,
+          envelope_digest: cards.envelope_digest,
+        },
+        presentation: cards.presentation,
+      },
+      {
+        next: "cards submit",
+        requiresUserAction: true,
+        userPrompt: cards.presentation.text_fallback,
+      },
+    );
+  } else if (parsed.command === "cards submit") {
+    const submission = JSON.parse(await stdinText());
+    output = envelope(
+      "cards submit",
+      await service.submitCards({ submission }),
+      { next: "edit quote" },
+    );
+  } else if (parsed.command === "edit status") {
+    output = envelope("edit status", await service.status(), {
+      next: "edit review",
+    });
+  } else if (parsed.command === "export status") {
+    output = envelope("export status", {
+      fixture_id: "cycle3-closeout-v1",
+      state: "not_started",
+      synthetic: true,
+    });
+  } else {
+    throw new TypeError(`Unsupported host smoke command: ${parsed.command}`);
+  }
+  process.stdout.write(`${JSON.stringify(output, null, 2)}\n`);
+} catch (error) {
+  const message = error instanceof Error ? error.message : String(error);
+  process.stdout.write(
+    `${JSON.stringify(
+      {
+        schema_version: "creatorcut-cli/1.0",
+        ok: false,
+        command: parsed.command,
+        requires_user_action: false,
+        retryable: false,
+        error: {
+          code:
+            error instanceof TypeError ? "invalid_input" : "operation_failed",
+          message,
+        },
+      },
+      null,
+      2,
+    )}\n`,
+  );
+  process.exitCode = 1;
+}

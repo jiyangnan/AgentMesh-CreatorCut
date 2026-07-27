@@ -108,15 +108,44 @@ function verifySignature(bytes, signature, publicKeyPem, label) {
 }
 
 function semanticVersion(value, label) {
-  const match = /^(\d+)\.(\d+)\.(\d+)$/u.exec(value);
+  const match =
+    /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/u.exec(
+      value,
+    );
   if (!match) fail(`${label} is not semantic version`);
-  return match.slice(1).map((part) => Number.parseInt(part, 10));
+  return {
+    core: match.slice(1, 4).map((part) => Number.parseInt(part, 10)),
+    prerelease:
+      match[4] === undefined
+        ? []
+        : match[4]
+            .split(".")
+            .map((part) =>
+              /^\d+$/u.test(part) ? Number.parseInt(part, 10) : part,
+            ),
+  };
 }
 
 function compareVersion(left, right) {
   for (let index = 0; index < 3; index += 1) {
-    const difference = left[index] - right[index];
+    const difference = left.core[index] - right.core[index];
     if (difference !== 0) return difference;
+  }
+  if (left.prerelease.length === 0) {
+    return right.prerelease.length === 0 ? 0 : 1;
+  }
+  if (right.prerelease.length === 0) return -1;
+  const length = Math.max(left.prerelease.length, right.prerelease.length);
+  for (let index = 0; index < length; index += 1) {
+    const leftPart = left.prerelease[index];
+    const rightPart = right.prerelease[index];
+    if (leftPart === undefined) return -1;
+    if (rightPart === undefined) return 1;
+    if (leftPart === rightPart) continue;
+    if (typeof leftPart === "number" && typeof rightPart === "string")
+      return -1;
+    if (typeof leftPart === "string" && typeof rightPart === "number") return 1;
+    return leftPart < rightPart ? -1 : 1;
   }
   return 0;
 }

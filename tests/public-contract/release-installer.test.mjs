@@ -21,7 +21,12 @@ function publicPem(key) {
   return key.export({ format: "pem", type: "spki" }).toString();
 }
 
-function releaseTrust(archiveSha256, commit) {
+function releaseTrust(
+  archiveSha256,
+  commit,
+  version = "0.1.0",
+  minimumVersion = version,
+) {
   const recovery = generateKeyPairSync("ed25519");
   const release = generateKeyPairSync("ed25519");
   const unsignedKeyset = {
@@ -58,16 +63,15 @@ function releaseTrust(archiveSha256, commit) {
   const unsignedManifest = {
     product: "creatorcut",
     channel: "stable",
-    latest_client_version: "0.1.0",
-    minimum_supported_version: "0.1.0",
+    latest_client_version: version,
+    minimum_supported_version: minimumVersion,
     protocol_version: "1.0",
-    git_tag: "v0.1.0",
+    git_tag: `v${version}`,
     git_commit: commit,
     artifact_sha256: archiveSha256,
     published_at: "2026-07-27T00:00:00.000Z",
     required: false,
-    notes_url:
-      "https://github.com/jiyangnan/AgentMesh-CreatorCut/releases/tag/v0.1.0",
+    notes_url: `https://github.com/jiyangnan/AgentMesh-CreatorCut/releases/tag/v${version}`,
     key_id: "creatorcut-release-test",
     signature_algorithm: "Ed25519",
     signature: "",
@@ -204,6 +208,38 @@ test("standalone verifier rejects a tampered release before checkout", async () 
     ]),
     /ReleaseManifest identity is invalid/u,
   );
+});
+
+test("standalone verifier accepts an immutable release candidate", async () => {
+  const root = await mkdtemp(join(tmpdir(), "creatorcut-rc-verifier-"));
+  const trust = releaseTrust(
+    "b".repeat(64),
+    "a".repeat(40),
+    "0.1.0-rc.2",
+    "0.1.0-rc.1",
+  );
+  const manifestPath = join(root, "manifest.json");
+  const keysetPath = join(root, "keyset.json");
+  const rootsPath = join(root, "roots.json");
+  await Promise.all([
+    writeFile(manifestPath, JSON.stringify(trust.manifest)),
+    writeFile(keysetPath, JSON.stringify(trust.keyset)),
+    writeFile(rootsPath, JSON.stringify(trust.roots)),
+  ]);
+
+  const result = await execFileAsync(process.execPath, [
+    join(repositoryRoot, "scripts", "verify-release.mjs"),
+    "--manifest",
+    manifestPath,
+    "--keyset",
+    keysetPath,
+    "--recovery-roots",
+    rootsPath,
+    "--now",
+    "2026-07-27T00:01:00.000Z",
+  ]);
+
+  assert.equal(JSON.parse(result.stdout).version, "0.1.0-rc.2");
 });
 
 test("clean macOS fixture installs only the signed tag, commit and archive", async () => {

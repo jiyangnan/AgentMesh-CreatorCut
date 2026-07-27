@@ -39,27 +39,55 @@ function stringField(value: Record<string, unknown>, name: string): string {
   return field;
 }
 
-function semanticVersion(
-  value: string,
-  label: string,
-): [number, number, number] {
-  const match = /^(\d+)\.(\d+)\.(\d+)$/u.exec(value);
-  if (!match)
-    throw new TypeError(`CreatorCut ${label} is not semantic version`);
-  return [
-    Number.parseInt(match[1]!, 10),
-    Number.parseInt(match[2]!, 10),
-    Number.parseInt(match[3]!, 10),
-  ];
+interface SemanticVersion {
+  core: [number, number, number];
+  prerelease: Array<number | string>;
 }
 
-function compareVersion(
-  left: [number, number, number],
-  right: [number, number, number],
-): number {
+function semanticVersion(value: string, label: string): SemanticVersion {
+  const match =
+    /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/u.exec(
+      value,
+    );
+  if (!match)
+    throw new TypeError(`CreatorCut ${label} is not semantic version`);
+  return {
+    core: [
+      Number.parseInt(match[1]!, 10),
+      Number.parseInt(match[2]!, 10),
+      Number.parseInt(match[3]!, 10),
+    ],
+    prerelease:
+      match[4] === undefined
+        ? []
+        : match[4]
+            .split(".")
+            .map((part) =>
+              /^\d+$/u.test(part) ? Number.parseInt(part, 10) : part,
+            ),
+  };
+}
+
+function compareVersion(left: SemanticVersion, right: SemanticVersion): number {
   for (let index = 0; index < 3; index += 1) {
-    const difference = left[index]! - right[index]!;
+    const difference = left.core[index]! - right.core[index]!;
     if (difference !== 0) return difference;
+  }
+  if (left.prerelease.length === 0) {
+    return right.prerelease.length === 0 ? 0 : 1;
+  }
+  if (right.prerelease.length === 0) return -1;
+  const length = Math.max(left.prerelease.length, right.prerelease.length);
+  for (let index = 0; index < length; index += 1) {
+    const leftPart = left.prerelease[index];
+    const rightPart = right.prerelease[index];
+    if (leftPart === undefined) return -1;
+    if (rightPart === undefined) return 1;
+    if (leftPart === rightPart) continue;
+    if (typeof leftPart === "number" && typeof rightPart === "string")
+      return -1;
+    if (typeof leftPart === "string" && typeof rightPart === "number") return 1;
+    return leftPart < rightPart ? -1 : 1;
   }
   return 0;
 }

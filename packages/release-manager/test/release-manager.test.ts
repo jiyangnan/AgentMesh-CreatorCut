@@ -105,7 +105,7 @@ function signedFixture(archive = Buffer.from("creatorcut-release-archive")) {
       release.privateKey,
     ).toString("base64url"),
   };
-  return { archive, keyset, manifest, trust };
+  return { archive, keyset, manifest, release, trust };
 }
 
 describe("CreatorCut release verification", () => {
@@ -153,6 +153,31 @@ describe("CreatorCut release verification", () => {
       }),
     ).rejects.toThrow("HTTP 503");
     expect(calls).toBe(1);
+  });
+
+  it("accepts and orders immutable SemVer release candidates", () => {
+    const fixture = signedFixture();
+    const unsignedManifest: ReleaseManifest = {
+      ...fixture.manifest,
+      latest_client_version: "0.1.0-rc.2",
+      minimum_supported_version: "0.1.0-rc.1",
+      git_tag: "v0.1.0-rc.2",
+      signature: "",
+    };
+    const manifest: ReleaseManifest = {
+      ...unsignedManifest,
+      signature: sign(
+        null,
+        releaseManifestSigningBytes(unsignedManifest),
+        fixture.release.privateKey,
+      ).toString("base64url"),
+    };
+    const verified = verifyReleaseManifest(manifest, fixture.trust);
+
+    expect(releaseCheck("0.1.0-rc.1", verified).status).toBe(
+      "update_available",
+    );
+    expect(releaseCheck("0.1.0", verified).status).toBe("current");
   });
 });
 

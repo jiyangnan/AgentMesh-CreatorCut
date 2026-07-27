@@ -353,17 +353,15 @@ export async function executeCli(
         metadata?.release_keyset_version,
       );
       const { manifest } = release;
+      const check = releaseCheck(CURRENT_CLIENT_VERSION, manifest);
       return success(
         commandName,
         {
-          ...releaseCheck(CURRENT_CLIENT_VERSION, manifest),
+          ...check,
           managed: metadata !== undefined,
         },
         {
-          next:
-            manifest.latest_client_version === CURRENT_CLIENT_VERSION
-              ? "project status"
-              : "update apply",
+          next: check.status === "current" ? "project status" : "update apply",
         },
       );
     }

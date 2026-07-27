@@ -1,5 +1,10 @@
 # CreatorCut for Claude Code
 
+> Experimental, post-M1 preview. Claude Code is not an M1 supported or
+> release-tested host. Do not advertise or install this plugin as part of the
+> M1 supported-host matrix until a separate real-host compatibility gate
+> passes.
+
 This directory is a Claude Code plugin containing the public CreatorCut Skill.
 During source development, validate it with:
 

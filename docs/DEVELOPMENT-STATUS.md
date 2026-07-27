@@ -29,17 +29,21 @@
 - [x] Real `creatorcut-server` generated signed `remove_range` fixture and
       deterministic operation `*_ref` resolution.
 - [x] Complete named 13-operation apply/fail-closed test matrix.
-- [ ] Codex MCP App card UI and real Claude Code/OpenClaw host smoke.
-- [ ] Public Skills and end-to-end agent onboarding verification.
+- [x] Codex MCP App card UI, real OpenClaw Skill smoke, and generic-text
+      fallback smoke.
+- [x] M1 host onboarding verification for Codex, OpenClaw and generic text.
+- [x] Claude Code compatibility is explicitly deferred to post-M1 and is not
+      part of the M1 supported-host or release-test matrix.
 - [ ] Managed installer and signed release verification.
 - [ ] Real public-product dogfood.
 
-Cycle 3 remains in progress. Batch 2 is a local implementation checkpoint: it
+Cycle 3 is complete. Batch 2 was only a local implementation checkpoint: it
 did not use a Manifest produced and signed by the real `creatorcut-server`
 policy/finalize path, so it is not evidence of a completed Server-to-client
-operation contract. The only remaining Cycle 3 batch is Batch 3: first close
-the operations/ref/fixture/test gaps, then deliver the Codex MCP App, public
-Skills and real four-host interruption-recovery evidence. It is not a remote
+operation contract. Batch 3 closed those gaps with the real signed fixture,
+Codex MCP App, OpenClaw Skill, generic-text fallback and the four-point
+interruption-recovery matrix. The user-approved plan delta defers Claude Code
+to post-M1 and removes it from M1 completion claims. This is not a remote
 release, tag, public installer, deployed public client, or production endpoint.
 
 ## Cycle 3 / Batch 3 closeout
@@ -63,9 +67,11 @@ release, tag, public installer, deployed public client, or production endpoint.
 - [x] A6: one capabilities builder, correct MCP envelope/presentation digests,
       realpath-safe transcription and revision-bound resume.
 - [x] B: Codex MCP App native card UI.
-- [ ] C: public Claude Code and OpenClaw Skills.
-- [ ] D: one signed fixture across Codex, Claude Code, OpenClaw and generic
-      text, including interruption recovery.
+- [x] C: public OpenClaw Skill completed the real fixed-fixture smoke.
+- [x] D: one signed fixture across the M1 supported host matrix—Codex,
+      OpenClaw and generic text—plus Director session, Generation, preview and
+      export interruption recovery.
+- [x] Claude Code: post-M1 experimental compatibility only; not an M1 gate.
 
 No further Cycle 3 batch may be added without a user-approved plan delta.
 
@@ -87,10 +93,11 @@ No further Cycle 3 batch may be added without a user-approved plan delta.
 - OpenClaw `2026.6.9` installed and invoked the Skill, submitted the fixed
   AnswerSet successfully, and stopped before quote/edit.
 - Claude Code `2.1.220` plugin validation passed, but its real host call failed
-  before tool execution because the local OAuth token was revoked; C remains
-  open.
-- Kimi CLI returned `B/C CODE PASS` with no blocking code finding and explicitly
-  kept B, C, D, and Cycle 3 open.
+  before tool execution because the local OAuth token was revoked. The user
+  subsequently deferred Claude Code beyond M1; no real-host support is claimed.
+- Kimi CLI returned `B/C CODE PASS` with no blocking code finding at the code
+  checkpoint. The later user-approved plan delta narrowed the M1 host gate
+  without changing the public protocol or host-adapter code.
 - Exact bounded evidence:
   [Cycle 3 B-C host surfaces](operations/2026-07-27-cycle3-b-c-host-surfaces.md).
 
@@ -111,8 +118,9 @@ No further Cycle 3 batch may be added without a user-approved plan delta.
 - Exact bounded evidence:
   [Cycle 3 D recovery code](operations/2026-07-27-cycle3-d-recovery-code-evidence.md).
 
-D remains open because authenticated Claude Code real-host evidence is still
-missing. This checkpoint is not Cycle 3 closeout.
+D is closed under the user-approved M1 host matrix. The combined closeout
+evidence is recorded in
+[Cycle 3 closeout](operations/2026-07-27-cycle3-closeout-evidence.md).
 
 ### A3 evidence
 
@@ -126,8 +134,8 @@ missing. This checkpoint is not Cycle 3 closeout.
   and commits revision 4 with duration reduced from 8,000,000 to 7,070,000
   microseconds.
 - The fixed host interaction in this A3 fixture is the direction-card round.
-  Before B starts, the canonical presentation digest algorithm must be aligned
-  with the public host adapter; B-D remain incomplete.
+  The canonical presentation digest algorithm was aligned with the public host
+  adapter before B, and B-D are now complete under the M1 host matrix.
 - Kimi CLI session `session_94175357-6db9-4064-8dcd-f86c6536362e` returned
   `A3 PASS`. The tested renderer is a shell-free mocked media runner, so this
   contract result does not replace a real FFmpeg smoke.
@@ -147,5 +155,5 @@ missing. This checkpoint is not Cycle 3 closeout.
   after the builder moved to a non-protocol package and the Node 24 gate
   passed.
 - A4-A6 did not run a new real FFmpeg or real-host smoke. The earlier Batch 2
-  FFmpeg smoke remains the media evidence; Codex/Claude Code/OpenClaw/generic
-  host evidence remains B-D.
+  FFmpeg smoke remains the media evidence; subsequent Codex/OpenClaw/generic
+  evidence closes B-D. Claude Code remains post-M1 experimental.

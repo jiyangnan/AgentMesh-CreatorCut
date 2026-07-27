@@ -7,6 +7,9 @@ user-invocable: true
 
 # CreatorCut
 
+This Skill is an experimental post-M1 compatibility preview. Its presence in
+source does not mean Claude Code is an M1 supported or release-tested host.
+
 Operate only the public `creatorcut` CLI on `PATH`. Do not read another
 CreatorCut repository, a private service checkout, prompts, policies, evals,
 signing material, or billing internals. The signed Director response and the

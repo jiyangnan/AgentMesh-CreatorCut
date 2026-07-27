@@ -56,9 +56,11 @@
       required answer fail closed.
 - [x] Codex, Claude Code, OpenClaw and generic text capability profiles are
       represented independently from Server card ordering and defaults.
-- [ ] Real Codex, Claude Code, OpenClaw and generic text hosts have not yet
-      consumed one signed fixture and produced the fixed expected AnswerSet
-      digest; that is a Cycle 3 / Batch 3 gate.
+- [x] The M1 supported host matrix—real Codex, real OpenClaw and generic
+      text—consumed one signed fixture and produced the fixed expected
+      AnswerSet digest.
+- [x] Claude Code remains an independently represented experimental capability
+      profile, but real-host support is deferred beyond M1.
 
 ## TC-PUBLIC-DIRECTOR-001: verified public Director client
 
@@ -162,16 +164,19 @@
 - [x] Transcription resume validates project ID, source digest and task/project
       `base_revision` before even returning a completed checkpoint.
 
-## TC-PUBLIC-HOST-001: four-host fixed fixture
+## TC-PUBLIC-HOST-001: M1 supported-host fixed fixture
 
-- [ ] Codex, Claude Code, OpenClaw and generic text consume one signed card
-      fixture with identical card, option and presentation digests.
-- [ ] Every host result equals the fixture's fixed expected AnswerSet digest.
-- [ ] Director session, Generation, preview and export interruption points
+- [x] Codex, OpenClaw and generic text consume one signed card fixture with
+      identical card, option and canonical presentation digests.
+- [x] Every M1 supported-host result equals the fixture's fixed expected
+      AnswerSet digest.
+- [x] Director session, Generation, preview and export interruption points
       recover without duplicate Generation, apply or output overwrite.
+- [x] Claude Code is deferred to a post-M1 compatibility gate and is not
+      covered by this M1 completion result.
 
 ## Cycle 3 closeout gate
 
-Complete the operations/ref/real-Server fixture gates first, then build the
-Codex MCP App UI and public Skills and run the real four-host recovery matrix.
-Cycle 3 remains in progress; Batch 3 is its only closeout batch.
+The operations/ref/real-Server fixture gates, Codex MCP App UI, OpenClaw Skill,
+generic-text fallback and recovery matrix passed. Cycle 3 is closed under the
+user-approved M1 supported-host matrix; no additional Cycle 3 batch was added.

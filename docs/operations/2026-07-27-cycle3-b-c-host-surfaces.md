@@ -7,6 +7,11 @@
   real-host direction-card smoke
 - Status: B passed after the real Codex submit follow-up; C and D remain open
 
+> Superseded completion note: the user-approved M1 plan delta on 2026-07-27
+> deferred Claude Code to post-M1. This document remains the historical B-C
+> checkpoint; final M1 status is recorded in
+> [Cycle 3 closeout](2026-07-27-cycle3-closeout-evidence.md).
+
 ## Fixed contract
 
 - Protocol v1 bundle digest:
@@ -102,8 +107,8 @@ Server, media, billing, or production evidence.
   Claude Code returned `401 OAuth access token has been revoked` before any
   model or tool call.
 
-Plugin validation is not a real-host fixture smoke. C remains open until a
-valid Claude Code login completes the same fixture and recovery flow.
+Plugin validation is not a real-host fixture smoke. Claude Code therefore has
+no M1 support claim and is deferred to a separate post-M1 compatibility gate.
 
 ## Verification and review
 
@@ -124,13 +129,12 @@ finding is that the test-only `creatorcut` shim manually mirrors the public CLI
 envelope; therefore evidence must continue to label it as a synthetic fixture
 adapter rather than the product CLI.
 
-## Remaining gates
+## Superseded remaining gates
 
-1. Complete a real Claude Code fixture smoke after restoring host
-   authentication.
-2. Close D by combining the completed Codex, OpenClaw and generic-text evidence
-   with the authenticated Claude result and the four-point recovery matrix.
-3. Re-run the joint Node 24, Server fixture, boundary, and Kimi review gates.
+The original authenticated-Claude gate was removed from M1 by explicit user
+plan delta. The M1 closeout combines Codex, OpenClaw and generic-text evidence
+with the completed four-point recovery matrix. Claude Code remains a post-M1
+gate and must not be reported as supported.
 
 This checkpoint did not push, tag, publish a package, modify staging or
 production, call Core billing, or deploy any public or private component.

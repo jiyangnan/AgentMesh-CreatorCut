@@ -21,14 +21,19 @@ transcription, local Manifest preview/apply/undo/redo, and resumable export.
 Batch 3 now includes the independent `creatorcut-operations/1.0` contract,
 immutable `*_ref` resolution, a real Server-generated signed `remove_range`
 fixture, the complete advertised-operation test matrix, Codex MCP App code,
-public Claude Code/OpenClaw Skills, generic-text fixture submission, and named
+the public OpenClaw Skill, generic-text fixture submission, and named
 session/Generation/preview/export recovery tests.
 
-This is still a development checkpoint. The real Codex native presentation and
-submit gate passed; an authenticated Claude Code run remains open, so C, D and
-Cycle 3 are not closed. Managed installation, remote release metadata and full
-public-product dogfood also remain unfinished. There is no public release, tag,
-installation command, or production Director endpoint yet.
+Cycle 3 is closed for the M1 support matrix: the real Codex native presentation
+and submit gate, the real OpenClaw Skill run, generic-text fallback, and the
+four-point recovery matrix passed with one fixed fixture and AnswerSet digest.
+Claude Code is deferred to a post-M1 compatibility iteration and is not an M1
+supported or release-tested host. Its source preview remains under
+`skills/claude-code` but is excluded from support claims.
+
+This is still a development checkpoint. Managed installation, remote release
+metadata and full public-product dogfood remain unfinished. There is no public
+release, tag, installation command, or production Director endpoint yet.
 
 ## Product boundary
 

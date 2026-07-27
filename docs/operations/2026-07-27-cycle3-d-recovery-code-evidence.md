@@ -7,6 +7,11 @@
 - Status: D code and named recovery tests passed; B passed in the subsequent
   real Codex submit; C, D and Cycle 3 remain open
 
+> Superseded completion note: the explicit 2026-07-27 user plan delta deferred
+> Claude Code beyond M1. This document remains the historical D code
+> checkpoint; final M1 status is recorded in
+> [Cycle 3 closeout](2026-07-27-cycle3-closeout-evidence.md).
+
 ## Frozen identities
 
 - Protocol v1 bundle digest:
@@ -71,12 +76,12 @@ shown by the text fallback and reaches the fixed expected AnswerSet digest.
 
 Current real-host status remains:
 
-| Host         | Current evidence                                                                                           | Completion state                                                                        |
-| ------------ | ---------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| Codex        | Real CLI host re-read, native-rendered and submitted all eight cards; the fixed answer digest was accepted | B passed; desktop screenshot automation remains unavailable by product safety policy    |
-| Claude Code  | Plugin validation passed                                                                                   | C remains open because the local OAuth token was revoked before model or tool execution |
-| OpenClaw     | Real `2026.6.9` Skill run submitted the fixed AnswerSet and stopped before quote/edit                      | Real direction-round checkpoint passed                                                  |
-| Generic text | Locked synthetic fixture completed with displayed numbered tokens                                          | Code-level fixture smoke passed                                                         |
+| Host         | Current evidence                                                                                           | Completion state                                                                     |
+| ------------ | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| Codex        | Real CLI host re-read, native-rendered and submitted all eight cards; the fixed answer digest was accepted | B passed; desktop screenshot automation remains unavailable by product safety policy |
+| Claude Code  | Plugin validation passed                                                                                   | Deferred beyond M1; no real-host support claim                                       |
+| OpenClaw     | Real `2026.6.9` Skill run submitted the fixed AnswerSet and stopped before quote/edit                      | Real direction-round checkpoint passed                                               |
+| Generic text | Locked synthetic fixture completed with displayed numbered tokens                                          | Code-level fixture smoke passed                                                      |
 
 The synthetic fixture adapter hard-fails media, billing, preview, apply,
 transcription and export commands. It is not production, Core, Server or real

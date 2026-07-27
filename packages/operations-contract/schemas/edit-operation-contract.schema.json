@@ -1,0 +1,411 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.creatorcut.agentmesh360.com/operations/v1/edit-operation-contract.schema.json",
+  "title": "CreatorCut strict EditOperation contract v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "operation_id",
+    "operation_type",
+    "base_revision",
+    "preconditions",
+    "parameters",
+    "inverse"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "operation_id": { "$ref": "#/$defs/id" },
+    "operation_type": {
+      "enum": [
+        "trim",
+        "split",
+        "remove_range",
+        "concat",
+        "set_gain",
+        "add_caption",
+        "set_canvas",
+        "apply_lut",
+        "move_clip",
+        "add_clip",
+        "clear_track",
+        "clear_captions",
+        "clear_lut"
+      ]
+    },
+    "base_revision": { "$ref": "#/$defs/nonNegativeInteger" },
+    "preconditions": {
+      "type": "array",
+      "maxItems": 32,
+      "items": {
+        "oneOf": [
+          { "$ref": "#/$defs/revisionEquals" },
+          { "$ref": "#/$defs/clipExists" },
+          { "$ref": "#/$defs/assetExists" },
+          { "$ref": "#/$defs/rangeWithin" },
+          { "$ref": "#/$defs/clipMappingEquals" }
+        ]
+      }
+    },
+    "parameters": { "type": "object" },
+    "inverse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "revision"],
+      "properties": {
+        "kind": { "const": "restore_snapshot" },
+        "revision": { "$ref": "#/$defs/nonNegativeInteger" }
+      }
+    },
+    "reason": { "type": "string", "maxLength": 8192 }
+  },
+  "allOf": [
+    {
+      "oneOf": [
+        {
+          "properties": {
+            "operation_type": { "const": "trim" },
+            "parameters": { "$ref": "#/$defs/trimParameters" }
+          }
+        },
+        {
+          "properties": {
+            "operation_type": { "const": "split" },
+            "parameters": { "$ref": "#/$defs/splitParameters" }
+          }
+        },
+        {
+          "properties": {
+            "operation_type": { "const": "remove_range" },
+            "parameters": { "$ref": "#/$defs/removeRangeParameters" }
+          }
+        },
+        {
+          "properties": {
+            "operation_type": { "const": "concat" },
+            "parameters": { "$ref": "#/$defs/concatParameters" }
+          }
+        },
+        {
+          "properties": {
+            "operation_type": { "const": "set_gain" },
+            "parameters": { "$ref": "#/$defs/setGainParameters" }
+          }
+        },
+        {
+          "properties": {
+            "operation_type": { "const": "add_caption" },
+            "parameters": { "$ref": "#/$defs/addCaptionParameters" }
+          }
+        },
+        {
+          "properties": {
+            "operation_type": { "const": "set_canvas" },
+            "parameters": { "$ref": "#/$defs/setCanvasParameters" }
+          }
+        },
+        {
+          "properties": {
+            "operation_type": { "const": "apply_lut" },
+            "parameters": { "$ref": "#/$defs/applyLutParameters" }
+          }
+        },
+        {
+          "properties": {
+            "operation_type": { "const": "move_clip" },
+            "parameters": { "$ref": "#/$defs/moveClipParameters" }
+          }
+        },
+        {
+          "properties": {
+            "operation_type": { "const": "add_clip" },
+            "parameters": { "$ref": "#/$defs/addClipParameters" }
+          }
+        },
+        {
+          "properties": {
+            "operation_type": { "const": "clear_track" },
+            "parameters": { "$ref": "#/$defs/clearTrackParameters" }
+          }
+        },
+        {
+          "properties": {
+            "operation_type": { "const": "clear_captions" },
+            "parameters": { "$ref": "#/$defs/clearCaptionsParameters" }
+          }
+        },
+        {
+          "properties": {
+            "operation_type": { "const": "clear_lut" },
+            "parameters": { "$ref": "#/$defs/clearLutParameters" }
+          }
+        }
+      ]
+    }
+  ],
+  "$defs": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "nonNegativeInteger": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "positiveInteger": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "revisionEquals": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "expected_revision"],
+      "properties": {
+        "kind": { "const": "revision_equals" },
+        "expected_revision": { "$ref": "#/$defs/nonNegativeInteger" }
+      }
+    },
+    "clipExists": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "clip_ref"],
+      "properties": {
+        "kind": { "const": "clip_exists" },
+        "clip_ref": { "$ref": "#/$defs/id" }
+      }
+    },
+    "assetExists": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "source_asset_ref"],
+      "properties": {
+        "kind": { "const": "asset_exists" },
+        "source_asset_ref": { "$ref": "#/$defs/id" }
+      }
+    },
+    "rangeWithin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "track_ref", "start_us", "end_us"],
+      "properties": {
+        "kind": { "const": "range_within" },
+        "track_ref": { "$ref": "#/$defs/id" },
+        "start_us": { "$ref": "#/$defs/nonNegativeInteger" },
+        "end_us": { "$ref": "#/$defs/positiveInteger" }
+      }
+    },
+    "clipMappingEquals": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "clip_ref",
+        "source_asset_ref",
+        "source_start_us",
+        "source_end_us"
+      ],
+      "properties": {
+        "kind": { "const": "clip_mapping_equals" },
+        "clip_ref": { "$ref": "#/$defs/id" },
+        "source_asset_ref": { "$ref": "#/$defs/id" },
+        "source_start_us": { "$ref": "#/$defs/nonNegativeInteger" },
+        "source_end_us": { "$ref": "#/$defs/positiveInteger" }
+      }
+    },
+    "trimParameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["clip_ref", "source_start_us", "source_end_us"],
+      "properties": {
+        "clip_ref": { "$ref": "#/$defs/id" },
+        "source_start_us": { "$ref": "#/$defs/nonNegativeInteger" },
+        "source_end_us": { "$ref": "#/$defs/positiveInteger" }
+      }
+    },
+    "splitParameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "clip_ref",
+        "at_timeline_us",
+        "left_clip_ref",
+        "right_clip_ref"
+      ],
+      "properties": {
+        "clip_ref": { "$ref": "#/$defs/id" },
+        "at_timeline_us": { "$ref": "#/$defs/positiveInteger" },
+        "left_clip_ref": { "$ref": "#/$defs/id" },
+        "right_clip_ref": { "$ref": "#/$defs/id" }
+      }
+    },
+    "removeRangeParameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "track_ref",
+        "clip_ref",
+        "timeline_start_us",
+        "timeline_end_us",
+        "ripple_all"
+      ],
+      "properties": {
+        "track_ref": { "$ref": "#/$defs/id" },
+        "clip_ref": { "$ref": "#/$defs/id" },
+        "timeline_start_us": { "$ref": "#/$defs/nonNegativeInteger" },
+        "timeline_end_us": { "$ref": "#/$defs/positiveInteger" },
+        "ripple_all": { "type": "boolean" },
+        "source_asset_ref": { "$ref": "#/$defs/id" },
+        "source_start_us": { "$ref": "#/$defs/nonNegativeInteger" },
+        "source_end_us": { "$ref": "#/$defs/positiveInteger" },
+        "review_plan_ref": { "$ref": "#/$defs/id" },
+        "suggestion_ref": { "$ref": "#/$defs/id" },
+        "segment_refs": {
+          "type": "array",
+          "maxItems": 50000,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/id" }
+        },
+        "token_refs": {
+          "type": "array",
+          "maxItems": 250000,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/id" }
+        }
+      }
+    },
+    "concatParameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["track_ref", "clip_refs"],
+      "properties": {
+        "track_ref": { "$ref": "#/$defs/id" },
+        "clip_refs": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 2000,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/id" }
+        }
+      }
+    },
+    "setGainParameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["track_ref", "gain_millibels"],
+      "properties": {
+        "track_ref": { "$ref": "#/$defs/id" },
+        "gain_millibels": {
+          "type": "integer",
+          "minimum": -60000,
+          "maximum": 12000
+        }
+      }
+    },
+    "addCaptionParameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["caption_ref", "start_us", "end_us", "text"],
+      "properties": {
+        "caption_ref": { "$ref": "#/$defs/id" },
+        "start_us": { "$ref": "#/$defs/nonNegativeInteger" },
+        "end_us": { "$ref": "#/$defs/positiveInteger" },
+        "text": { "type": "string", "minLength": 1, "maxLength": 8192 },
+        "style_ref": { "$ref": "#/$defs/id" }
+      }
+    },
+    "setCanvasParameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["width", "height"],
+      "properties": {
+        "width": {
+          "type": "integer",
+          "minimum": 16,
+          "maximum": 7680,
+          "multipleOf": 2
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 16,
+          "maximum": 7680,
+          "multipleOf": 2
+        }
+      }
+    },
+    "applyLutParameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["clip_ref", "lut_asset_ref", "intensity_millis"],
+      "properties": {
+        "clip_ref": { "$ref": "#/$defs/id" },
+        "lut_asset_ref": { "$ref": "#/$defs/id" },
+        "intensity_millis": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000
+        }
+      }
+    },
+    "moveClipParameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["clip_ref", "track_ref"],
+      "properties": {
+        "clip_ref": { "$ref": "#/$defs/id" },
+        "track_ref": { "$ref": "#/$defs/id" },
+        "before_clip_ref": { "$ref": "#/$defs/id" }
+      }
+    },
+    "addClipParameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "track_ref",
+        "clip_ref",
+        "source_asset_ref",
+        "source_start_us",
+        "source_end_us",
+        "timeline_start_us",
+        "timeline_end_us"
+      ],
+      "properties": {
+        "track_ref": { "$ref": "#/$defs/id" },
+        "clip_ref": { "$ref": "#/$defs/id" },
+        "source_asset_ref": { "$ref": "#/$defs/id" },
+        "source_start_us": { "$ref": "#/$defs/nonNegativeInteger" },
+        "source_end_us": { "$ref": "#/$defs/positiveInteger" },
+        "timeline_start_us": { "$ref": "#/$defs/nonNegativeInteger" },
+        "timeline_end_us": { "$ref": "#/$defs/positiveInteger" },
+        "gain_millibels": {
+          "type": "integer",
+          "minimum": -60000,
+          "maximum": 12000
+        }
+      }
+    },
+    "clearTrackParameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["track_ref"],
+      "properties": {
+        "track_ref": { "$ref": "#/$defs/id" }
+      }
+    },
+    "clearCaptionsParameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "maxProperties": 0
+    },
+    "clearLutParameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "clip_ref": { "$ref": "#/$defs/id" }
+      }
+    }
+  }
+}

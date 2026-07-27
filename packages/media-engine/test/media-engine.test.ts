@@ -63,6 +63,49 @@ function canvasOperation(baseRevision = 0): EditOperation {
   };
 }
 
+function removeRangeOperation(
+  overrides: Partial<EditOperation> = {},
+): EditOperation {
+  return {
+    schema_version: "1.0",
+    operation_id: "operation-remove-range",
+    operation_type: "remove_range",
+    base_revision: 0,
+    preconditions: [
+      { kind: "revision_equals", expected_revision: 0 },
+      {
+        kind: "clip_mapping_equals",
+        clip_ref: "clip-source",
+        source_asset_ref: "asset-source",
+        source_start_us: 0,
+        source_end_us: 5_000_000,
+      },
+      {
+        kind: "range_within",
+        track_ref: "track-video",
+        start_us: 1_000_000,
+        end_us: 2_000_000,
+      },
+    ],
+    parameters: {
+      track_ref: "track-video",
+      clip_ref: "clip-source",
+      timeline_start_us: 1_000_000,
+      timeline_end_us: 2_000_000,
+      ripple_all: true,
+      source_asset_ref: "asset-source",
+      source_start_us: 1_000_000,
+      source_end_us: 2_000_000,
+      review_plan_ref: "review-plan-1",
+      suggestion_ref: "suggestion-1",
+      segment_refs: ["segment-1"],
+      token_refs: ["token-1"],
+    },
+    inverse: { kind: "restore_snapshot", revision: 0 },
+    ...overrides,
+  };
+}
+
 async function projectFixture(): Promise<string> {
   const root = await mkdtemp(join(tmpdir(), "creatorcut-media-test-"));
   const directory = join(root, "project.creatorcut");
@@ -188,6 +231,161 @@ describe("public local media execution", () => {
         operations: [canvasOperation(1)],
       }),
     ).toThrow(/revision/u);
+  });
+
+  it("resolves a Server-style remove_range only against the immutable base refs", async () => {
+    const opened = await openCreatorCutProject(await projectFixture());
+    const timeline = applyEditOperations({
+      project: opened.project,
+      timeline: opened.timeline,
+      operations: [removeRangeOperation()],
+    });
+    expect(timeline.duration_us).toBe(4_000_000);
+    expect(timeline.tracks[0]?.clips).toHaveLength(2);
+    expect(timeline.tracks[0]?.clips.map((clip) => clip.clip_id)).toEqual([
+      expect.stringMatching(/^clip-source:left:/u),
+      expect.stringMatching(/^clip-source:right:/u),
+    ]);
+  });
+
+  it("resolves explicit output refs deterministically without adding implicit refs", async () => {
+    const opened = await openCreatorCutProject(await projectFixture());
+    const operations: EditOperation[] = [
+      {
+        schema_version: "1.0",
+        operation_id: "operation-split-output",
+        operation_type: "split",
+        base_revision: 0,
+        preconditions: [{ kind: "clip_exists", clip_ref: "clip-source" }],
+        parameters: {
+          clip_ref: "clip-source",
+          at_timeline_us: 2_500_000,
+          left_clip_ref: "clip-left-output",
+          right_clip_ref: "clip-right-output",
+        },
+        inverse: { kind: "restore_snapshot", revision: 0 },
+      },
+      {
+        schema_version: "1.0",
+        operation_id: "operation-trim-output",
+        operation_type: "trim",
+        base_revision: 0,
+        preconditions: [],
+        parameters: {
+          clip_ref: "clip-right-output",
+          source_start_us: 3_000_000,
+          source_end_us: 4_000_000,
+        },
+        inverse: { kind: "restore_snapshot", revision: 0 },
+      },
+    ];
+    const first = applyEditOperations({
+      project: opened.project,
+      timeline: opened.timeline,
+      operations,
+    });
+    const second = applyEditOperations({
+      project: opened.project,
+      timeline: opened.timeline,
+      operations,
+    });
+    expect(first).toEqual(second);
+    expect(first.tracks[0]?.clips).toEqual([
+      expect.objectContaining({
+        clip_id: expect.stringMatching(/^clip:wire:/u),
+        source_start_us: 0,
+        source_end_us: 2_500_000,
+      }),
+      expect.objectContaining({
+        clip_id: expect.stringMatching(/^clip:wire:/u),
+        source_start_us: 3_000_000,
+        source_end_us: 4_000_000,
+      }),
+    ]);
+  });
+
+  it("fails closed on unresolved, cross-type, output-precondition and stale refs", async () => {
+    const opened = await openCreatorCutProject(await projectFixture());
+    expect(() =>
+      applyEditOperations({
+        project: opened.project,
+        timeline: opened.timeline,
+        operations: [
+          {
+            ...canvasOperation(),
+            operation_id: "operation-unresolved",
+            operation_type: "trim",
+            parameters: {
+              clip_ref: "clip-missing",
+              source_start_us: 0,
+              source_end_us: 1_000_000,
+            },
+          },
+        ],
+      }),
+    ).toThrow(/unresolved clip_ref/u);
+
+    const ambiguousProject = structuredClone(opened.project);
+    const ambiguousAsset = ambiguousProject.assets[0];
+    if (!ambiguousAsset) throw new Error("Fixture asset missing");
+    ambiguousAsset.asset_id = "track-video";
+    expect(() =>
+      applyEditOperations({
+        project: ambiguousProject,
+        timeline: opened.timeline,
+        operations: [canvasOperation()],
+      }),
+    ).toThrow(/reused across asset and track/u);
+
+    expect(() =>
+      applyEditOperations({
+        project: opened.project,
+        timeline: opened.timeline,
+        operations: [
+          {
+            schema_version: "1.0",
+            operation_id: "operation-split-precondition",
+            operation_type: "split",
+            base_revision: 0,
+            preconditions: [],
+            parameters: {
+              clip_ref: "clip-source",
+              at_timeline_us: 2_500_000,
+              left_clip_ref: "clip-left-new",
+              right_clip_ref: "clip-right-new",
+            },
+            inverse: { kind: "restore_snapshot", revision: 0 },
+          },
+          {
+            schema_version: "1.0",
+            operation_id: "operation-output-precondition",
+            operation_type: "trim",
+            base_revision: 0,
+            preconditions: [
+              { kind: "clip_exists", clip_ref: "clip-right-new" },
+            ],
+            parameters: {
+              clip_ref: "clip-right-new",
+              source_start_us: 3_000_000,
+              source_end_us: 4_000_000,
+            },
+            inverse: { kind: "restore_snapshot", revision: 0 },
+          },
+        ],
+      }),
+    ).toThrow(/unresolved base clip_ref/u);
+
+    expect(() =>
+      applyEditOperations({
+        project: opened.project,
+        timeline: opened.timeline,
+        operations: [
+          removeRangeOperation({
+            inverse: { kind: "restore_snapshot", revision: 1 },
+          }),
+        ],
+      }),
+    ).toThrow(/operation revision/u);
   });
 
   it("requires an unchanged rendered preview before committing a Manifest", async () => {

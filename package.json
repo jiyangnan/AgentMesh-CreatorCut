@@ -14,6 +14,8 @@
     "typecheck": "pnpm -r --if-present typecheck",
     "build": "pnpm -r --if-present build",
     "test": "pnpm build && pnpm -r --if-present test && node --test tests/public-contract/*.test.mjs",
+    "operations:digest": "node scripts/operations-bundle.mjs",
+    "pack:operations": "pnpm --filter @agentmesh/creatorcut-operations-contract pack",
     "pack:protocol": "pnpm --filter @agentmesh/creatorcut-protocol pack",
     "protocol:digest": "node scripts/protocol-bundle.mjs",
     "verify": "pnpm lint && pnpm typecheck && pnpm test"

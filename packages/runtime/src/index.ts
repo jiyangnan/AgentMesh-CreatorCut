@@ -17,4 +17,9 @@ export {
   writeLocalArtifact,
   writeDirectorState,
 } from "./project.js";
+export {
+  localAssetWireRef,
+  localClipWireRef,
+  localTrackWireRef,
+} from "./references.js";
 export type * from "./types.js";

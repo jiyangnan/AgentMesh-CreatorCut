@@ -93,12 +93,21 @@ importers:
 
   packages/media-engine:
     dependencies:
+      "@agentmesh/creatorcut-operations-contract":
+        specifier: workspace:*
+        version: link:../operations-contract
       "@agentmesh/creatorcut-protocol":
         specifier: workspace:*
         version: link:../protocol
       "@agentmesh/creatorcut-runtime":
         specifier: workspace:*
         version: link:../runtime
+
+  packages/operations-contract:
+    dependencies:
+      ajv:
+        specifier: ^8.20.0
+        version: 8.20.0
 
   packages/protocol:
     dependencies:

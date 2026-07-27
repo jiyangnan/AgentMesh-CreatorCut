@@ -2,7 +2,8 @@
 
 Date: 2026-07-27
 
-Status: local implementation checkpoint complete; Cycle 3 remains in progress.
+Status: local implementation checkpoint recorded; real Server-to-client signed
+operation contract remains unverified and Cycle 3 remains in progress.
 
 ## Plan
 
@@ -25,8 +26,10 @@ strategy, Service Tokens or signing private keys.
   timeline tracks, immutable snapshots, monotonic undo/redo history, task state
   and a stale-process-recoverable project lock.
 - Added a local media engine for streaming source verification, ffprobe,
-  proxy generation, all public Protocol v1 operations, revision-bound preview
-  and apply, and resumable FFmpeg export.
+  proxy generation, executor branches for all public Protocol v1 operations,
+  revision-bound preview/apply, and resumable FFmpeg export. Batch 2 did not
+  establish a strict per-operation parameter schema or a 13-operation
+  deterministic apply/fail-closed test matrix.
 - Added a local whisper.cpp adapter with `zh`, `en`, `auto` and `mixed` modes.
   Mixed mode runs and checkpoints three candidates before selecting the best
   bilingual result.
@@ -39,8 +42,9 @@ strategy, Service Tokens or signing private keys.
 
 ## Check
 
-- Node 24 formatting, typecheck, build, public boundary checks and 30 automated
-  tests passed.
+- Node 24 formatting, typecheck, build, public boundary checks, 27 Vitest cases
+  and 3 Node contract tests passed. This count did not include a real
+  Server-generated signed Manifest or real four-host smoke.
 - A synthetic two-second source completed real FFmpeg import, proxy generation
   and export. ffprobe confirmed H.264 video, AAC audio and a two-second MP4.
 - A real 12-second mixed-language product recording completed verified import
@@ -52,10 +56,13 @@ strategy, Service Tokens or signing private keys.
 
 ## Act
 
-- Treat local media/transcription and signed-Manifest execution as completed
-  Cycle 3 / Batch 2 capability.
-- Keep Cycle 3 open. The next fixed batch is the Codex MCP App UI, public
-  Claude Code/OpenClaw Skills, generic fallback and real cross-host
-  interruption-recovery smoke.
+- Treat local media/transcription and Manifest execution only as a Batch 2 local
+  implementation checkpoint. The signed artifact used here was not generated
+  by the real `creatorcut-server` policy/finalize/signing path.
+- Keep Cycle 3 open. Its only closeout Batch 3 first freezes and implements the
+  operations parameter contract, `*_ref` resolution, a real Server-generated
+  `remove_range` fixture and named safety/recovery tests; it then completes the
+  Codex MCP App, public Claude Code/OpenClaw Skills, generic fallback and real
+  cross-host interruption-recovery smoke.
 - Do not begin Cycle 4 installation/release governance, push, tag, deploy or
   production canary based on this checkpoint.

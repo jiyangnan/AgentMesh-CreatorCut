@@ -1,0 +1,244 @@
+{
+  "schema_version": "creatorcut-operations-vectors/1.0",
+  "valid": [
+    {
+      "schema_version": "1.0",
+      "operation_id": "operation-trim",
+      "operation_type": "trim",
+      "base_revision": 4,
+      "preconditions": [{ "kind": "clip_exists", "clip_ref": "clip-main" }],
+      "parameters": {
+        "clip_ref": "clip-main",
+        "source_start_us": 100000,
+        "source_end_us": 900000
+      },
+      "inverse": { "kind": "restore_snapshot", "revision": 4 }
+    },
+    {
+      "schema_version": "1.0",
+      "operation_id": "operation-split",
+      "operation_type": "split",
+      "base_revision": 4,
+      "preconditions": [{ "kind": "clip_exists", "clip_ref": "clip-main" }],
+      "parameters": {
+        "clip_ref": "clip-main",
+        "at_timeline_us": 500000,
+        "left_clip_ref": "clip-left",
+        "right_clip_ref": "clip-right"
+      },
+      "inverse": { "kind": "restore_snapshot", "revision": 4 }
+    },
+    {
+      "schema_version": "1.0",
+      "operation_id": "operation-remove",
+      "operation_type": "remove_range",
+      "base_revision": 4,
+      "preconditions": [
+        { "kind": "revision_equals", "expected_revision": 4 },
+        {
+          "kind": "clip_mapping_equals",
+          "clip_ref": "clip-main",
+          "source_asset_ref": "asset-main",
+          "source_start_us": 0,
+          "source_end_us": 2000000
+        }
+      ],
+      "parameters": {
+        "track_ref": "track-main",
+        "clip_ref": "clip-main",
+        "timeline_start_us": 500000,
+        "timeline_end_us": 700000,
+        "ripple_all": true,
+        "source_asset_ref": "asset-main",
+        "source_start_us": 500000,
+        "source_end_us": 700000,
+        "review_plan_ref": "review-plan-1",
+        "suggestion_ref": "suggestion-1",
+        "segment_refs": ["segment-1"],
+        "token_refs": ["token-1"]
+      },
+      "inverse": { "kind": "restore_snapshot", "revision": 4 }
+    },
+    {
+      "schema_version": "1.0",
+      "operation_id": "operation-concat",
+      "operation_type": "concat",
+      "base_revision": 4,
+      "preconditions": [],
+      "parameters": {
+        "track_ref": "track-main",
+        "clip_refs": ["clip-left", "clip-right"]
+      },
+      "inverse": { "kind": "restore_snapshot", "revision": 4 }
+    },
+    {
+      "schema_version": "1.0",
+      "operation_id": "operation-gain",
+      "operation_type": "set_gain",
+      "base_revision": 4,
+      "preconditions": [],
+      "parameters": {
+        "track_ref": "track-main",
+        "gain_millibels": -6000
+      },
+      "inverse": { "kind": "restore_snapshot", "revision": 4 }
+    },
+    {
+      "schema_version": "1.0",
+      "operation_id": "operation-caption",
+      "operation_type": "add_caption",
+      "base_revision": 4,
+      "preconditions": [],
+      "parameters": {
+        "caption_ref": "caption-1",
+        "start_us": 0,
+        "end_us": 1000000,
+        "text": "CreatorCut",
+        "style_ref": "caption-clean"
+      },
+      "inverse": { "kind": "restore_snapshot", "revision": 4 }
+    },
+    {
+      "schema_version": "1.0",
+      "operation_id": "operation-canvas",
+      "operation_type": "set_canvas",
+      "base_revision": 4,
+      "preconditions": [],
+      "parameters": { "width": 1080, "height": 1920 },
+      "inverse": { "kind": "restore_snapshot", "revision": 4 }
+    },
+    {
+      "schema_version": "1.0",
+      "operation_id": "operation-lut",
+      "operation_type": "apply_lut",
+      "base_revision": 4,
+      "preconditions": [],
+      "parameters": {
+        "clip_ref": "clip-main",
+        "lut_asset_ref": "lut-clean",
+        "intensity_millis": 500
+      },
+      "inverse": { "kind": "restore_snapshot", "revision": 4 }
+    },
+    {
+      "schema_version": "1.0",
+      "operation_id": "operation-move",
+      "operation_type": "move_clip",
+      "base_revision": 4,
+      "preconditions": [],
+      "parameters": {
+        "clip_ref": "clip-main",
+        "track_ref": "track-b",
+        "before_clip_ref": "clip-b"
+      },
+      "inverse": { "kind": "restore_snapshot", "revision": 4 }
+    },
+    {
+      "schema_version": "1.0",
+      "operation_id": "operation-add",
+      "operation_type": "add_clip",
+      "base_revision": 4,
+      "preconditions": [
+        { "kind": "asset_exists", "source_asset_ref": "asset-main" }
+      ],
+      "parameters": {
+        "track_ref": "track-main",
+        "clip_ref": "clip-added",
+        "source_asset_ref": "asset-main",
+        "source_start_us": 0,
+        "source_end_us": 1000000,
+        "timeline_start_us": 2000000,
+        "timeline_end_us": 3000000,
+        "gain_millibels": 0
+      },
+      "inverse": { "kind": "restore_snapshot", "revision": 4 }
+    },
+    {
+      "schema_version": "1.0",
+      "operation_id": "operation-clear-track",
+      "operation_type": "clear_track",
+      "base_revision": 4,
+      "preconditions": [],
+      "parameters": { "track_ref": "track-main" },
+      "inverse": { "kind": "restore_snapshot", "revision": 4 }
+    },
+    {
+      "schema_version": "1.0",
+      "operation_id": "operation-clear-captions",
+      "operation_type": "clear_captions",
+      "base_revision": 4,
+      "preconditions": [],
+      "parameters": {},
+      "inverse": { "kind": "restore_snapshot", "revision": 4 }
+    },
+    {
+      "schema_version": "1.0",
+      "operation_id": "operation-clear-lut",
+      "operation_type": "clear_lut",
+      "base_revision": 4,
+      "preconditions": [],
+      "parameters": { "clip_ref": "clip-main" },
+      "inverse": { "kind": "restore_snapshot", "revision": 4 }
+    }
+  ],
+  "invalid": [
+    {
+      "name": "rejects local ID vocabulary",
+      "operation": {
+        "schema_version": "1.0",
+        "operation_id": "invalid-id-vocabulary",
+        "operation_type": "remove_range",
+        "base_revision": 4,
+        "preconditions": [],
+        "parameters": {
+          "track_id": "track-main",
+          "clip_id": "clip-main",
+          "timeline_start_us": 1,
+          "timeline_end_us": 2,
+          "ripple_all": true
+        },
+        "inverse": { "kind": "restore_snapshot", "revision": 4 }
+      }
+    },
+    {
+      "name": "rejects unknown parameter",
+      "operation": {
+        "schema_version": "1.0",
+        "operation_id": "invalid-extra",
+        "operation_type": "set_canvas",
+        "base_revision": 4,
+        "preconditions": [],
+        "parameters": { "width": 1080, "height": 1920, "command": "ffmpeg" },
+        "inverse": { "kind": "restore_snapshot", "revision": 4 }
+      }
+    },
+    {
+      "name": "rejects reversed range",
+      "operation": {
+        "schema_version": "1.0",
+        "operation_id": "invalid-range",
+        "operation_type": "trim",
+        "base_revision": 4,
+        "preconditions": [],
+        "parameters": {
+          "clip_ref": "clip-main",
+          "source_start_us": 900000,
+          "source_end_us": 100000
+        },
+        "inverse": { "kind": "restore_snapshot", "revision": 4 }
+      }
+    },
+    {
+      "name": "rejects unknown precondition",
+      "operation": {
+        "schema_version": "1.0",
+        "operation_id": "invalid-precondition",
+        "operation_type": "clear_captions",
+        "base_revision": 4,
+        "preconditions": [{ "kind": "shell_equals", "command": "rm" }],
+        "parameters": {},
+        "inverse": { "kind": "restore_snapshot", "revision": 4 }
+      }
+    }
+  ]
+}

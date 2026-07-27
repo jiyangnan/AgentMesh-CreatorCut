@@ -19,6 +19,11 @@ import {
   type PublicClientCapabilities,
 } from "@agentmesh/creatorcut-protocol";
 
+import {
+  localAssetWireRef,
+  localClipWireRef,
+  localTrackWireRef,
+} from "./references.js";
 import type {
   BuildDirectorContextOptions,
   CommitLocalRevisionInput,
@@ -224,11 +229,11 @@ export function buildDirectorContext(
       height: opened.timeline.canvas.height,
     },
     tracks: opened.timeline.tracks.map((track) => ({
-      track_ref: track.track_id,
+      track_ref: localTrackWireRef(track),
       kind: track.kind,
       clips: track.clips.map((clip) => ({
-        clip_ref: clip.clip_id,
-        source_asset_ref: clip.asset_id,
+        clip_ref: localClipWireRef(clip),
+        source_asset_ref: localAssetWireRef(clip.asset_id),
         source_start_us: clip.source_start_us,
         source_end_us: clip.source_end_us,
         timeline_start_us: clip.timeline_start_us,

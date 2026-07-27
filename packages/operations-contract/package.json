@@ -1,0 +1,33 @@
+{
+  "name": "@agentmesh/creatorcut-operations-contract",
+  "version": "0.1.0",
+  "description": "Strict CreatorCut operation parameters, preconditions, validators, and vectors",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "import": "./dist/src/index.js"
+    },
+    "./schema": "./dist/schemas/edit-operation-contract.schema.json",
+    "./vectors": "./dist/vectors/operation-vectors.json"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc --project tsconfig.build.json",
+    "typecheck": "tsc --project tsconfig.json",
+    "test": "vitest run",
+    "prepack": "pnpm build"
+  },
+  "dependencies": {
+    "ajv": "^8.20.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

@@ -12,6 +12,7 @@ import type {
   LocalTimelineTrack,
 } from "@agentmesh/creatorcut-runtime";
 
+import { createCreatorCutOperationResolver } from "./reference-resolver.js";
 import type { ApplyOperationsInput } from "./types.js";
 
 function operationError(operation: EditOperation, message: string): never {
@@ -577,12 +578,14 @@ export function applyEditOperations(
   input: ApplyOperationsInput,
 ): LocalTimeline {
   const timeline = structuredClone(input.timeline);
+  const resolver = createCreatorCutOperationResolver(
+    input.project,
+    input.timeline,
+  );
   const seen = new Set<string>();
   for (const raw of input.operations) {
-    const operation = assertPublicProtocol<EditOperation>(
-      "edit-operation",
-      raw,
-    );
+    assertPublicProtocol<EditOperation>("edit-operation", raw);
+    const operation = resolver.resolve(raw);
     if (seen.has(operation.operation_id)) {
       operationError(operation, "duplicate operation ID");
     }

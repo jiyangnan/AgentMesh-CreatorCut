@@ -5,7 +5,7 @@
 - Fixture: `cycle3-closeout-v1`
 - Scope: Codex MCP App code, Claude Code/OpenClaw public Skills, and bounded
   real-host direction-card smoke
-- Status: code checkpoint passed; B, C, D remain open
+- Status: B passed after the real Codex submit follow-up; C and D remain open
 
 ## Fixed contract
 
@@ -38,8 +38,8 @@ The checkpoint adds:
 
 The built stdio MCP server completed a full render-and-submit contract test and
 returned the fixed expected AnswerSet digest. A real Codex CLI host loaded the
-registered `creatorcut-cycle3-smoke` MCP server and called the render tool in
-thread `019fa34a-60fe-76c0-bcf7-cdc5dcc18d3c`, recording:
+registered `creatorcut-cycle3-smoke` MCP server in thread
+`019fa34a-60fe-76c0-bcf7-cdc5dcc18d3c`, recording:
 
 - host type `codex`;
 - answer set ID `answers-direction-cycle3-closeout-v1`;
@@ -48,10 +48,22 @@ thread `019fa34a-60fe-76c0-bcf7-cdc5dcc18d3c`, recording:
   `sha256:54257e5d1b34796a4107ecd1ab9da5f6b74548d0dcd1739073d8b3d9717bf691`;
 - eight cards.
 
-The thread was opened in the Codex desktop client. Independent desktop visual
-inspection and a real Codex-host submission were not available to the
-automation surface, so B remains open. The stdio contract test must not be
-reported as proof that the native desktop card UI was visually accepted.
+The same real Codex thread then re-read the authoritative cards, rendered with
+all three expected digests, and submitted all eight responses. The returned
+state was `accepted: true`, `host_type: codex`, and the AnswerSet digest matched
+the fixed expected digest. It stopped before quote, Generation, preview, apply,
+export or billing. The 0600 evidence records `cards_get`, `cards_render` and
+`cards_submit`.
+
+The Codex desktop application forbids automated accessibility inspection, so
+there is no independent screenshot assertion. That UI-security limitation is
+not disguised as a visual test. The frozen B completion definition requires a
+real Codex capability/presentation record and fixed-digest submit; both are now
+present, so B is complete.
+
+The same Kimi CLI session inspected the raw 0600 evidence and these completion
+claims against frozen plan sections 18.5 B and 18.6 B, then returned `B PASS`
+with no blocking finding. It kept C, D and Cycle 3 open.
 
 ## C: public Skills
 
@@ -116,11 +128,9 @@ adapter rather than the product CLI.
 
 1. Complete a real Claude Code fixture smoke after restoring host
    authentication.
-2. Visually verify and submit the native Codex MCP App card round.
-3. Run the generic text host with the same fixture.
-4. Complete D's Director session, Generation, preview, and export interruption
-   recovery matrix without duplicate charge, Generation, apply, or overwrite.
-5. Re-run the joint Node 24, Server fixture, boundary, and Kimi review gates.
+2. Close D by combining the completed Codex, OpenClaw and generic-text evidence
+   with the authenticated Claude result and the four-point recovery matrix.
+3. Re-run the joint Node 24, Server fixture, boundary, and Kimi review gates.
 
 This checkpoint did not push, tag, publish a package, modify staging or
 production, call Core billing, or deploy any public or private component.

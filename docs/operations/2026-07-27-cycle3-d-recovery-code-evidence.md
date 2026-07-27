@@ -4,8 +4,8 @@
 - Public checkpoint: `AgentMesh-CreatorCut main@e6ccf27`
 - Private checkpoint: `creatorcut-server main@a796487`
 - Fixture: `cycle3-closeout-v1`
-- Status: D code and named recovery tests passed; B, C, D and Cycle 3 remain
-  open pending the frozen real-host evidence
+- Status: D code and named recovery tests passed; B passed in the subsequent
+  real Codex submit; C, D and Cycle 3 remain open
 
 ## Frozen identities
 
@@ -71,12 +71,12 @@ shown by the text fallback and reaches the fixed expected AnswerSet digest.
 
 Current real-host status remains:
 
-| Host         | Current evidence                                                                                         | Completion state                                                                                    |
-| ------------ | -------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| Codex        | Real CLI host rendered the eight-card native presentation; built MCP contract submitted the fixed answer | B remains open because independent native-widget visual acceptance and real-host submit are missing |
-| Claude Code  | Plugin validation passed                                                                                 | C remains open because the local OAuth token was revoked before model or tool execution             |
-| OpenClaw     | Real `2026.6.9` Skill run submitted the fixed AnswerSet and stopped before quote/edit                    | Real direction-round checkpoint passed                                                              |
-| Generic text | Locked synthetic fixture completed with displayed numbered tokens                                        | Code-level fixture smoke passed                                                                     |
+| Host         | Current evidence                                                                                           | Completion state                                                                        |
+| ------------ | ---------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| Codex        | Real CLI host re-read, native-rendered and submitted all eight cards; the fixed answer digest was accepted | B passed; desktop screenshot automation remains unavailable by product safety policy    |
+| Claude Code  | Plugin validation passed                                                                                   | C remains open because the local OAuth token was revoked before model or tool execution |
+| OpenClaw     | Real `2026.6.9` Skill run submitted the fixed AnswerSet and stopped before quote/edit                      | Real direction-round checkpoint passed                                                  |
+| Generic text | Locked synthetic fixture completed with displayed numbered tokens                                          | Code-level fixture smoke passed                                                         |
 
 The synthetic fixture adapter hard-fails media, billing, preview, apply,
 transcription and export commands. It is not production, Core, Server or real
@@ -97,7 +97,8 @@ Using Node `24.18.0`:
 
 Kimi CLI session `session_94175357-6db9-4064-8dcd-f86c6536362e` inspected both
 repository diffs and returned `D CODE PASS` with no blocking finding. It
-explicitly kept B, C, D and Cycle 3 open.
+kept B, C, D and Cycle 3 open at that code checkpoint; the subsequent real
+Codex submit closed B.
 
 This checkpoint did not push, tag, publish, modify Core, touch staging or
 production, call a live ledger, or deploy any component.

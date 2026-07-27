@@ -24,11 +24,11 @@ fixture, the complete advertised-operation test matrix, Codex MCP App code,
 public Claude Code/OpenClaw Skills, generic-text fixture submission, and named
 session/Generation/preview/export recovery tests.
 
-This is still a development checkpoint. Real Codex native submission and an
-authenticated Claude Code run remain open, so B-D and Cycle 3 are not closed.
-Managed installation, remote release metadata and full public-product dogfood
-also remain unfinished. There is no public release, tag, installation command,
-or production Director endpoint yet.
+This is still a development checkpoint. The real Codex native presentation and
+submit gate passed; an authenticated Claude Code run remains open, so C, D and
+Cycle 3 are not closed. Managed installation, remote release metadata and full
+public-product dogfood also remain unfinished. There is no public release, tag,
+installation command, or production Director endpoint yet.
 
 ## Product boundary
 

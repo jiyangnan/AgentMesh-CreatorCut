@@ -62,7 +62,7 @@ release, tag, public installer, deployed public client, or production endpoint.
       exact smoke scope recorded below.
 - [x] A6: one capabilities builder, correct MCP envelope/presentation digests,
       realpath-safe transcription and revision-bound resume.
-- [ ] B: Codex MCP App native card UI.
+- [x] B: Codex MCP App native card UI.
 - [ ] C: public Claude Code and OpenClaw Skills.
 - [ ] D: one signed fixture across Codex, Claude Code, OpenClaw and generic
       text, including interruption recovery.
@@ -78,9 +78,12 @@ No further Cycle 3 batch may be added without a user-approved plan delta.
   public-contract cases; Protocol v1 remains frozen.
 - The built MCP stdio contract rendered and submitted all eight fixture cards
   and matched the fixed expected AnswerSet digest.
-- A real Codex CLI host rendered all eight cards in a desktop-visible thread,
-  but independent native-widget visual inspection and host submission are
-  still missing; B remains open.
+- A real Codex CLI host re-read, native-rendered and submitted all eight cards
+  in thread `019fa34a-60fe-76c0-bcf7-cdc5dcc18d3c`; the fixed expected
+  AnswerSet digest was accepted. Codex blocks automated desktop accessibility
+  inspection, so no screenshot assertion is claimed. The frozen B real-host
+  completion definition is satisfied; the same Kimi CLI session independently
+  inspected the raw evidence and returned `B PASS`.
 - OpenClaw `2026.6.9` installed and invoked the Skill, submitted the fixed
   AnswerSet successfully, and stopped before quote/edit.
 - Claude Code `2.1.220` plugin validation passed, but its real host call failed
@@ -108,8 +111,8 @@ No further Cycle 3 batch may be added without a user-approved plan delta.
 - Exact bounded evidence:
   [Cycle 3 D recovery code](operations/2026-07-27-cycle3-d-recovery-code-evidence.md).
 
-D remains open because Codex native submit and authenticated Claude Code
-real-host evidence are still missing. This checkpoint is not Cycle 3 closeout.
+D remains open because authenticated Claude Code real-host evidence is still
+missing. This checkpoint is not Cycle 3 closeout.
 
 ### A3 evidence
 

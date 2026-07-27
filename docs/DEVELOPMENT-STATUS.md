@@ -34,17 +34,57 @@
 - [x] M1 host onboarding verification for Codex, OpenClaw and generic text.
 - [x] Claude Code compatibility is explicitly deferred to post-M1 and is not
       part of the M1 supported-host or release-test matrix.
-- [ ] Managed installer and signed release verification.
+- [x] macOS managed installer, recovery-root-signed ReleaseManifest
+      verification, update deferral, compatibility check and rollback.
 - [ ] Real public-product dogfood.
 
-Cycle 3 is complete. Batch 2 was only a local implementation checkpoint: it
+Cycle 3 is complete. Cycle 4 is also complete at the local release-engineering
+gate: the installer and updater were exercised against an isolated signed
+tag/commit/canonical-archive fixture without an internal CreatorCut checkout,
+and the Core endpoint remains deliberately unconfigured until Cycle 5 produces
+a real RC. Batch 2 was only a local implementation checkpoint: it
 did not use a Manifest produced and signed by the real `creatorcut-server`
 policy/finalize path, so it is not evidence of a completed Server-to-client
 operation contract. Batch 3 closed those gaps with the real signed fixture,
 Codex MCP App, OpenClaw Skill, generic-text fallback and the four-point
 interruption-recovery matrix. The user-approved plan delta defers Claude Code
 to post-M1 and removes it from M1 completion claims. This is not a remote
-release, tag, public installer, deployed public client, or production endpoint.
+release, tag, activated public installer, deployed public client, or production
+endpoint.
+
+## Cycle 4 closeout
+
+- [x] Core uses a product-keyed metadata registry plus a separate server-only
+      signing-key registry; the legacy Job Agent release fields remain a
+      backward-compatible fallback.
+- [x] `/v1/products/creatorcut/client-release` is present and returns 503 until
+      a real RC tag, commit, canonical archive digest, notes and signing key are
+      configured.
+- [x] `scripts/install.sh` supports macOS, installs to
+      `~/.local/share/creatorcut`, creates a `~/.local/bin/creatorcut` shim and
+      records managed version/commit/archive/keyset metadata.
+- [x] Installer prerequisite checks cover Node 24, FFmpeg, FFprobe,
+      whisper.cpp and the selected local model, with explicit recovery actions.
+- [x] Recovery-root-signed release keyset and signed Core ReleaseManifest are
+      verified before release code is checked out or executed.
+- [x] Product, channel, protocol, tag, commit, archive SHA-256, signing key
+      state and monotonic keyset floor all fail closed on mismatch.
+- [x] `creatorcut update check`, `update apply`, `upgrade-check` and `version`
+      use stable CLI envelopes.
+- [x] Queued/running/finalizing transcription or export defers update; project,
+      Director state, tasks, versions and choices live outside the managed
+      install and are preserved.
+- [x] Failed build/smoke restores the previous detached commit and dependencies.
+- [x] Core outage produces no unsigned GitHub-latest fallback; all other
+      installed local commands remain independent of the release endpoint.
+- [x] Clean macOS installer fixture used an isolated tagged public-source shape
+      with no internal CreatorCut checkout and verified the resulting shim and
+      metadata.
+
+Exact evidence:
+[Cycle 4 managed release closeout](operations/2026-07-27-cycle4-managed-release-closeout.md).
+The next and only fixed stage is Cycle 5; a real GitHub RC/tag/install remains
+part of that stage rather than being inferred from this local fixture.
 
 ## Cycle 3 / Batch 3 closeout
 

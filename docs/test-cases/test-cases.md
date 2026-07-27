@@ -175,8 +175,38 @@
 - [x] Claude Code is deferred to a post-M1 compatibility gate and is not
       covered by this M1 completion result.
 
+## TC-RELEASE-001: signed managed install and update
+
+- [x] Recovery roots verify a purpose=`release` keyset with validity window,
+      exactly one current key, current/previous/revoked lifecycle and monotonic
+      version floor.
+- [x] ReleaseManifest verification binds CreatorCut product, stable channel,
+      protocol 1.0, semantic versions, exact tag, 40-hex commit, canonical
+      archive SHA-256, notes URL, signing key and signature.
+- [x] Tampered product, channel, tag, commit, archive digest or signature fails
+      before checkout or release-code execution.
+- [x] Core HTTP failure is returned directly; the client makes no unsigned
+      GitHub-latest fallback request.
+- [x] Clean macOS fixture installs from an isolated signed tag/source archive
+      without an internal CreatorCut checkout and records the exact verified
+      commit, archive digest and version.
+- [x] Managed update refuses non-official origin, tracked local changes, active
+      transcription/export tasks, concurrent update lock and keyset rollback.
+- [x] Failed dependency build or smoke returns to the prior detached commit and
+      reinstalls the prior build without rewriting managed metadata.
+- [x] `upgrade-check` validates the current project and reports preserved state
+      plus any task that defers update.
+
 ## Cycle 3 closeout gate
 
 The operations/ref/real-Server fixture gates, Codex MCP App UI, OpenClaw Skill,
 generic-text fallback and recovery matrix passed. Cycle 3 is closed under the
 user-approved M1 supported-host matrix; no additional Cycle 3 batch was added.
+
+## Cycle 4 closeout gate
+
+Core product release registry tests, public ReleaseManifest/keyset tests,
+managed update rollback tests, shell/standalone verifier checks and the clean
+macOS installer fixture passed. This closes local Cycle 4 engineering only; it
+does not claim a real GitHub tag, activated Core manifest, push, deployment or
+public launch.

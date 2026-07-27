@@ -11,8 +11,8 @@ declarative reversible operations.
 
 ## Current status
 
-This repository has recorded the CreatorCut Cycle 3 / Batch 3 code checkpoint.
-It contains the frozen public Protocol v1 plus a
+This repository has recorded the CreatorCut Cycle 4 local release-engineering
+checkpoint. It contains the frozen public Protocol v1 plus a
 source-buildable local runtime, Director verification code, macOS Keychain
 credential adapter, stable JSON CLI, public MCP server, semantic card/text
 presentation adapters, local media import, Chinese/English/mixed whisper.cpp
@@ -31,9 +31,16 @@ Claude Code is deferred to a post-M1 compatibility iteration and is not an M1
 supported or release-tested host. Its source preview remains under
 `skills/claude-code` but is excluded from support claims.
 
-This is still a development checkpoint. Managed installation, remote release
-metadata and full public-product dogfood remain unfinished. There is no public
-release, tag, installation command, or production Director endpoint yet.
+Cycle 4 adds a macOS managed installer, recovery-root-signed release keyset and
+Core ReleaseManifest verification, exact tag/commit/canonical-archive checks,
+`update check`, deferred `update apply`, `upgrade-check`, and automatic checkout
+rollback. Core now has a product-keyed release registry and an unconfigured
+CreatorCut endpoint that fails closed until a real RC exists.
+
+This is still a local development checkpoint. The installer was exercised
+against an isolated signed tag fixture, not an actual GitHub CreatorCut release.
+There is no public RC/stable tag, activated Core release metadata, production
+Director endpoint, push, deployment, or public launch yet; those remain Cycle 5.
 
 ## Product boundary
 
@@ -106,7 +113,9 @@ not ship staging credentials or silently select a production endpoint.
 
 See [Agent onboarding](docs/agent-onboarding.md),
 [privacy contract](docs/privacy.md), and
-[Cycle 3 D recovery evidence](docs/operations/2026-07-27-cycle3-d-recovery-code-evidence.md).
+[managed release policy](docs/release-policy.md). Exact Cycle 4 scope and
+verification are recorded in
+[Cycle 4 closeout evidence](docs/operations/2026-07-27-cycle4-managed-release-closeout.md).
 
 ## License
 

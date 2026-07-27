@@ -48,7 +48,7 @@ import {
 
 import type { CliEnvelope, CliIo } from "./types.js";
 
-const CURRENT_CLIENT_VERSION = "0.1.0-rc.3";
+const CURRENT_CLIENT_VERSION = "0.1.0-rc.4";
 const DEFAULT_RELEASE_ENDPOINT =
   "https://api.agentmesh360.com/v1/products/creatorcut/client-release";
 
@@ -282,7 +282,12 @@ export async function executeCli(
     const parsed = parseArguments(argv);
     commandName = parsed.command.join(" ") || "help";
     const credentials =
-      dependencies.credentials ?? new KeychainCredentialStore();
+      dependencies.credentials ??
+      new KeychainCredentialStore({
+        ...(process.env.CREATORCUT_KEYCHAIN_PATH
+          ? { keychainPath: process.env.CREATORCUT_KEYCHAIN_PATH }
+          : {}),
+      });
     const projectDirectory = resolve(
       option(parsed, "project") ?? dependencies.cwd?.() ?? process.cwd(),
     );

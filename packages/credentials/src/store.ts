@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { isAbsolute } from "node:path";
 
 const DEFAULT_SERVICE = "com.agentmesh.creatorcut";
 const DEFAULT_ACCOUNT = "agentmesh-api-key";
@@ -22,12 +23,27 @@ export interface KeychainCommandRunner {
 
 function assertApiKey(apiKey: string): string {
   const normalized = apiKey.trim();
-  if (!normalized || /\s/u.test(normalized)) {
+  if (!normalized || !/^[A-Za-z0-9_-]+$/u.test(normalized)) {
     throw new TypeError(
-      "AgentMesh API key must be non-empty and contain no whitespace",
+      "AgentMesh API key must use the URL-safe Core key format",
     );
   }
   return normalized;
+}
+
+function assertKeychainIdentifier(value: string, label: string): string {
+  if (!/^[A-Za-z0-9._-]+$/u.test(value)) {
+    throw new TypeError(`CreatorCut Keychain ${label} is invalid`);
+  }
+  return value;
+}
+
+function assertKeychainPath(value: string | undefined): string | undefined {
+  if (value === undefined) return undefined;
+  if (!isAbsolute(value) || !/^\/[A-Za-z0-9/._-]+$/u.test(value)) {
+    throw new TypeError("CreatorCut Keychain path is invalid");
+  }
+  return value;
 }
 
 function defaultRunner(): KeychainCommandRunner {
@@ -73,44 +89,57 @@ function defaultRunner(): KeychainCommandRunner {
 export class KeychainCredentialStore implements CredentialStore {
   readonly #service: string;
   readonly #account: string;
+  readonly #keychainPath: string | undefined;
   readonly #runner: KeychainCommandRunner;
 
   constructor(
     options: {
       service?: string;
       account?: string;
+      keychainPath?: string;
       runner?: KeychainCommandRunner;
     } = {},
   ) {
     if (process.platform !== "darwin" && options.runner === undefined) {
       throw new Error("CreatorCut Keychain storage requires macOS");
     }
-    this.#service = options.service ?? DEFAULT_SERVICE;
-    this.#account = options.account ?? DEFAULT_ACCOUNT;
+    this.#service = assertKeychainIdentifier(
+      options.service ?? DEFAULT_SERVICE,
+      "service",
+    );
+    this.#account = assertKeychainIdentifier(
+      options.account ?? DEFAULT_ACCOUNT,
+      "account",
+    );
+    this.#keychainPath = assertKeychainPath(options.keychainPath);
     this.#runner = options.runner ?? defaultRunner();
   }
 
   async setApiKey(apiKey: string): Promise<void> {
     const secret = assertApiKey(apiKey);
-    // `-w` deliberately remains the last argument with no value. The security
-    // tool reads the password from stdin, so the API key never enters argv.
-    await this.#runner.run(
-      [
-        "add-generic-password",
-        "-a",
-        this.#account,
-        "-s",
-        this.#service,
-        "-U",
-        "-w",
-      ],
-      { stdin: secret },
-    );
+    // `security add-generic-password` has no direct stdin-password option:
+    // omitting `-w` stores an empty value, while a bare `-w` fails. Interactive
+    // mode accepts the entire command on stdin, keeping the API key out of argv,
+    // shell history and process listings. Core API keys and both identifiers
+    // are restricted to URL-safe command tokens above.
+    await this.#runner.run(["-i"], {
+      stdin: `add-generic-password -a ${this.#account} -s ${this.#service} -U -w ${secret}${
+        this.#keychainPath === undefined ? "" : ` ${this.#keychainPath}`
+      }`,
+    });
   }
 
   async getApiKey(): Promise<string | null> {
     const result = await this.#runner.run(
-      ["find-generic-password", "-a", this.#account, "-s", this.#service, "-w"],
+      [
+        "find-generic-password",
+        "-a",
+        this.#account,
+        "-s",
+        this.#service,
+        "-w",
+        ...(this.#keychainPath === undefined ? [] : [this.#keychainPath]),
+      ],
       { allowMissing: true },
     );
     if (result.exitCode !== 0) return null;
@@ -123,7 +152,14 @@ export class KeychainCredentialStore implements CredentialStore {
 
   async deleteApiKey(): Promise<boolean> {
     const result = await this.#runner.run(
-      ["delete-generic-password", "-a", this.#account, "-s", this.#service],
+      [
+        "delete-generic-password",
+        "-a",
+        this.#account,
+        "-s",
+        this.#service,
+        ...(this.#keychainPath === undefined ? [] : [this.#keychainPath]),
+      ],
       { allowMissing: true },
     );
     return result.exitCode === 0;

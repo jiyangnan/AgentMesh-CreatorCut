@@ -145,6 +145,7 @@ async function installAndBuild(run: RunCommand, root: string): Promise<void> {
 
 export async function applyManagedUpdate(input: {
   manifest: VerifiedReleaseManifest;
+  releaseKeysetVersion: number;
   metadataPath: string;
   projectDirectory?: string;
   run?: RunCommand;
@@ -159,6 +160,14 @@ export async function applyManagedUpdate(input: {
   }
   const metadataPath = resolve(input.metadataPath);
   const metadata = await readManagedInstallMetadata(metadataPath);
+  if (
+    !Number.isSafeInteger(input.releaseKeysetVersion) ||
+    input.releaseKeysetVersion < metadata.release_keyset_version
+  ) {
+    throw new ManagedUpdateError(
+      "CreatorCut release keyset rollback was rejected",
+    );
+  }
   const root = resolve(metadata.install_dir);
   if (dirname(metadataPath) !== root) {
     throw new ManagedUpdateError(
@@ -293,6 +302,7 @@ export async function applyManagedUpdate(input: {
       git_tag: input.manifest.git_tag,
       git_commit: input.manifest.git_commit,
       artifact_sha256: input.manifest.artifact_sha256,
+      release_keyset_version: input.releaseKeysetVersion,
       installed_at: (input.now ?? new Date()).toISOString(),
     };
     await writeMetadata(metadataPath, updated);

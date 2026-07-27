@@ -107,6 +107,20 @@ function verifySignature(bytes, signature, publicKeyPem, label) {
   }
 }
 
+function semanticVersion(value, label) {
+  const match = /^(\d+)\.(\d+)\.(\d+)$/u.exec(value);
+  if (!match) fail(`${label} is not semantic version`);
+  return match.slice(1).map((part) => Number.parseInt(part, 10));
+}
+
+function compareVersion(left, right) {
+  for (let index = 0; index < 3; index += 1) {
+    const difference = left[index] - right[index];
+    if (difference !== 0) return difference;
+  }
+  return 0;
+}
+
 const args = argumentsMap(process.argv.slice(2));
 const manifest = requireObject(
   await jsonFile(args.get("manifest"), "ReleaseManifest"),
@@ -150,6 +164,27 @@ if (
   keyset.keys.length === 0
 ) {
   fail("release keyset purpose, version, or keys are invalid");
+}
+const releaseKeyIds = new Set();
+let currentReleaseKeyCount = 0;
+for (const entry of keyset.keys) {
+  const releaseKey = requireObject(entry, "release key");
+  const keyId = requireString(releaseKey, "key_id", "release key");
+  if (
+    releaseKeyIds.has(keyId) ||
+    !["current", "previous", "revoked"].includes(releaseKey.status) ||
+    !Number.isFinite(Date.parse(releaseKey.not_before)) ||
+    !Number.isFinite(Date.parse(releaseKey.not_after)) ||
+    Date.parse(releaseKey.not_before) > Date.parse(releaseKey.not_after)
+  ) {
+    fail("release keyset contains an invalid key");
+  }
+  createPublicKey(requireString(releaseKey, "public_key_pem", "release key"));
+  releaseKeyIds.add(keyId);
+  if (releaseKey.status === "current") currentReleaseKeyCount += 1;
+}
+if (currentReleaseKeyCount !== 1) {
+  fail("release keyset must contain exactly one current key");
 }
 const keysetIssuedAt = Date.parse(requireString(keyset, "issued_at", "keyset"));
 const keysetExpiresAt = Date.parse(
@@ -222,14 +257,21 @@ const artifactSha256 = requireString(
   "artifact_sha256",
   "ReleaseManifest",
 );
+const latestSemanticVersion = semanticVersion(
+  latestVersion,
+  "ReleaseManifest.latest_client_version",
+);
+const minimumSemanticVersion = semanticVersion(
+  minimumVersion,
+  "ReleaseManifest.minimum_supported_version",
+);
 if (
   manifest.product !== "creatorcut" ||
   manifest.channel !== "stable" ||
   manifest.protocol_version !== "1.0" ||
   manifest.signature_algorithm !== "Ed25519" ||
   typeof manifest.required !== "boolean" ||
-  !/^\d+\.\d+\.\d+$/u.test(latestVersion) ||
-  !/^\d+\.\d+\.\d+$/u.test(minimumVersion) ||
+  compareVersion(minimumSemanticVersion, latestSemanticVersion) > 0 ||
   gitTag !== `v${latestVersion}` ||
   !/^[0-9a-f]{40}$/u.test(gitCommit) ||
   !/^[0-9a-f]{64}$/u.test(artifactSha256)

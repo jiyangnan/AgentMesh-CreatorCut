@@ -194,6 +194,15 @@ describe("CreatorCut managed updates", () => {
     };
     await writeFile(metadataPath, JSON.stringify(metadata), "utf8");
 
+    await expect(
+      applyManagedUpdate({
+        manifest,
+        releaseKeysetVersion: 2,
+        metadataPath,
+        platform: "darwin",
+      }),
+    ).rejects.toThrow("keyset rollback");
+
     const commands: string[] = [];
     let buildCount = 0;
     const run: RunCommand = async ({ command, args }) => {
@@ -254,6 +263,7 @@ describe("CreatorCut managed updates", () => {
     await expect(
       applyManagedUpdate({
         manifest,
+        releaseKeysetVersion: fixture.trust.keyset.keyset_version,
         metadataPath,
         run,
         platform: "darwin",

@@ -262,12 +262,14 @@ async function fetchRelease(
   parsed: ParsedArguments,
   minimumKeysetVersion?: number,
 ) {
-  return await fetchVerifiedReleaseManifest({
+  const trust = await releaseTrust(parsed, minimumKeysetVersion);
+  const manifest = await fetchVerifiedReleaseManifest({
     endpoint:
       option(parsed, "release-endpoint", "CREATORCUT_RELEASE_ENDPOINT") ??
       DEFAULT_RELEASE_ENDPOINT,
-    trust: await releaseTrust(parsed, minimumKeysetVersion),
+    trust,
   });
+  return { manifest, keysetVersion: trust.keyset.keyset_version };
 }
 
 export async function executeCli(
@@ -346,10 +348,11 @@ export async function executeCli(
       const metadata = metadataExists
         ? await readManagedInstallMetadata(metadataPath)
         : undefined;
-      const manifest = await fetchRelease(
+      const release = await fetchRelease(
         parsed,
         metadata?.release_keyset_version,
       );
+      const { manifest } = release;
       return success(
         commandName,
         {
@@ -391,16 +394,18 @@ export async function executeCli(
           );
         }
       }
-      const manifest = await fetchRelease(
+      const release = await fetchRelease(
         parsed,
         metadata.release_keyset_version,
       );
+      const { manifest } = release;
       const check = releaseCheck(CURRENT_CLIENT_VERSION, manifest);
       if (check.status === "current") {
         return success(commandName, check, { next: "project status" });
       }
       const updated = await applyManagedUpdate({
         manifest,
+        releaseKeysetVersion: release.keysetVersion,
         metadataPath,
         ...(projectExists ? { projectDirectory } : {}),
       });

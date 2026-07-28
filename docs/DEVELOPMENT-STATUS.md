@@ -39,21 +39,16 @@
       part of the M1 supported-host or release-test matrix.
 - [x] macOS managed installer, recovery-root-signed ReleaseManifest
       verification, update deferral, compatibility check and rollback.
-- [ ] Real public-product dogfood.
+- [x] Real RC11 public-product installation and three-material dogfood.
 
-Cycle 3 is complete. Cycle 4 is also complete at the local release-engineering
-gate: the installer and updater were exercised against an isolated signed
-tag/commit/canonical-archive fixture without an internal CreatorCut checkout,
-and the Core endpoint remains deliberately unconfigured until Cycle 5 produces
-a real RC. Batch 2 was only a local implementation checkpoint: it
-did not use a Manifest produced and signed by the real `creatorcut-server`
-policy/finalize path, so it is not evidence of a completed Server-to-client
-operation contract. Batch 3 closed those gaps with the real signed fixture,
-Codex MCP App, OpenClaw Skill, generic-text fallback and the four-point
-interruption-recovery matrix. The user-approved plan delta defers Claude Code
-to post-M1 and removes it from M1 completion claims. This is not a remote
-release, tag, activated public installer, deployed public client, or production
-endpoint.
+Cycle 3 and Cycle 4 are complete. Cycle 5 RC11 has passed the real public tag,
+canonical archive, staging-signed ReleaseManifest, isolated managed install,
+Node.js 24 runtime and three-material local execution gates. Batch 3 closed the
+real signed fixture, Codex MCP App, OpenClaw Skill, generic-text fallback and
+four-point interruption-recovery gaps. The user-approved plan delta defers
+Claude Code to post-M1 and removes it from M1 completion claims. Production
+dark deployment, paid canary/rollback and final Core stable Manifest activation
+remain separate gates.
 
 ## Cycle 4 closeout
 
@@ -86,8 +81,7 @@ endpoint.
 
 Exact evidence:
 [Cycle 4 managed release closeout](operations/2026-07-27-cycle4-managed-release-closeout.md).
-The next and only fixed stage is Cycle 5; a real GitHub RC/tag/install remains
-part of that stage rather than being inferred from this local fixture.
+[Cycle 5 RC11 staging acceptance](operations/2026-07-28-cycle5-rc11-staging-acceptance.md).
 
 ## Cycle 3 / Batch 3 closeout
 

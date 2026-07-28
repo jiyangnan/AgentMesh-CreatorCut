@@ -31,16 +31,16 @@ Claude Code is deferred to a post-M1 compatibility iteration and is not an M1
 supported or release-tested host. Its source preview remains under
 `skills/claude-code` but is excluded from support claims.
 
-Cycle 4 adds a macOS managed installer, recovery-root-signed release keyset and
-Core ReleaseManifest verification, exact tag/commit/canonical-archive checks,
-`update check`, deferred `update apply`, `upgrade-check`, and automatic checkout
-rollback. Core now has a product-keyed release registry and an unconfigured
-CreatorCut endpoint that fails closed until a real RC exists.
+Cycle 4 added the managed installer and signed release chain. Cycle 5 RC11 has
+now passed the real GitHub tag/archive install, staging signed Manifest,
+original-color media, Node.js 24 runtime and three-material public-product
+dogfood gates.
 
-This is still a local development checkpoint. The installer was exercised
-against an isolated signed tag fixture, not an actual GitHub CreatorCut release.
-There is no public RC/stable tag, activated Core release metadata, production
-Director endpoint, push, deployment, or public launch yet; those remain Cycle 5.
+The public repository is the release carrier, but availability remains
+controlled by AgentMesh Core. A stable tag does not itself activate public
+installation: production Server/Core/shared Caddy must first deploy dark, the
+approved paid canary and rollback must pass, and Core stable ReleaseManifest
+activation remains the final launch action.
 
 ## Product boundary
 

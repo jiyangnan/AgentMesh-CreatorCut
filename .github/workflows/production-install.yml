@@ -1,0 +1,138 @@
+name: Verify official AgentMesh-CreatorCut install channel
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "release/production-smoke-lock.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: creatorcut-production-install-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  install:
+    name: ${{ matrix.os }} official channel
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 50
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - macos-14
+          - ubuntu-24.04
+          - windows-2022
+
+    env:
+      CREATORCUT_INSTALL_DIR: ${{ runner.temp }}/creatorcut/app
+      CREATORCUT_DATA_DIR: ${{ runner.temp }}/creatorcut/data
+      CREATORCUT_BIN_DIR: ${{ runner.temp }}/creatorcut/bin
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate production smoke lock
+        shell: bash
+        run: |
+          set -euo pipefail
+          node -e '
+            const fs = require("fs");
+            const lock = JSON.parse(fs.readFileSync("release/production-smoke-lock.json", "utf8"));
+            if (lock.schema_version !== "creatorcut-production-smoke/1.0") process.exit(1);
+            if (lock.version !== "0.2.0" || lock.git_tag !== "v0.2.0") process.exit(1);
+            if (!/^[0-9a-f]{40}$/.test(lock.git_commit)) process.exit(1);
+            if (!/^[0-9a-f]{64}$/.test(lock.artifact_sha256)) process.exit(1);
+          '
+
+      - name: Install macOS or Ubuntu with the public command
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL \
+            https://raw.githubusercontent.com/jiyangnan/AgentMesh-CreatorCut/main/scripts/install.sh |
+            bash
+
+      - name: Install Windows with the public command
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          irm https://raw.githubusercontent.com/jiyangnan/AgentMesh-CreatorCut/main/scripts/install.ps1 |
+            iex
+
+      - name: Verify Unix installation and managed dependencies
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$CREATORCUT_BIN_DIR/creatorcut" version > version.json
+          "$CREATORCUT_BIN_DIR/creatorcut" doctor > doctor.json
+          "$CREATORCUT_BIN_DIR/creatorcut" update check > update.json
+          node -e '
+            const fs = require("fs");
+            const lock = JSON.parse(fs.readFileSync("release/production-smoke-lock.json", "utf8"));
+            const metadata = JSON.parse(fs.readFileSync(process.env.CREATORCUT_INSTALL_DIR + "/.creatorcut-install.json", "utf8"));
+            const version = JSON.parse(fs.readFileSync("version.json", "utf8"));
+            const doctor = JSON.parse(fs.readFileSync("doctor.json", "utf8"));
+            const update = JSON.parse(fs.readFileSync("update.json", "utf8"));
+            for (const key of ["version", "git_tag", "git_commit", "artifact_sha256"]) {
+              const lockKey = key === "version" ? "version" : key;
+              if (metadata[key] !== lock[lockKey]) process.exit(1);
+            }
+            if (!version.ok || version.data.version !== lock.version) process.exit(1);
+            if (!doctor.ok || doctor.data.product !== "AgentMesh-CreatorCut") process.exit(1);
+            if (doctor.data.dependencies_ready !== true) process.exit(1);
+            for (const name of ["node", "ffmpeg", "ffprobe", "whisper", "whisper_model"]) {
+              if (doctor.data.dependencies?.[name]?.ready !== true) process.exit(1);
+            }
+            if (!update.ok || update.data.status !== "current" || update.data.managed !== true) process.exit(1);
+          '
+
+      - name: Verify Windows installation and managed dependencies
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          $lock = Get-Content release/production-smoke-lock.json -Raw |
+            ConvertFrom-Json
+          $metadata = Get-Content `
+            (Join-Path $env:CREATORCUT_INSTALL_DIR ".creatorcut-install.json") `
+            -Raw | ConvertFrom-Json
+          $creatorcut = Join-Path $env:CREATORCUT_BIN_DIR "creatorcut.cmd"
+          $version = & $creatorcut version | ConvertFrom-Json
+          $doctor = & $creatorcut doctor | ConvertFrom-Json
+          $update = & $creatorcut update check | ConvertFrom-Json
+          if (
+            $metadata.version -ne $lock.version -or
+            $metadata.git_tag -ne $lock.git_tag -or
+            $metadata.git_commit -ne $lock.git_commit -or
+            $metadata.artifact_sha256 -ne $lock.artifact_sha256
+          ) {
+            throw "managed install metadata does not match the production lock"
+          }
+          if (-not $version.ok -or $version.data.version -ne $lock.version) {
+            throw "CreatorCut version smoke failed"
+          }
+          if (
+            -not $doctor.ok -or
+            $doctor.data.product -ne "AgentMesh-CreatorCut" -or
+            $doctor.data.credential_storage -ne "Windows DPAPI" -or
+            $doctor.data.dependencies_ready -ne $true -or
+            $doctor.data.dependencies.node.ready -ne $true -or
+            $doctor.data.dependencies.ffmpeg.ready -ne $true -or
+            $doctor.data.dependencies.ffprobe.ready -ne $true -or
+            $doctor.data.dependencies.whisper.ready -ne $true -or
+            $doctor.data.dependencies.whisper_model.ready -ne $true
+          ) {
+            throw "CreatorCut Windows dependency smoke failed"
+          }
+          if (
+            -not $update.ok -or
+            $update.data.status -ne "current" -or
+            $update.data.managed -ne $true
+          ) {
+            throw "CreatorCut Windows update check failed"
+          }

@@ -114,6 +114,53 @@ describe("creatorcut CLI", () => {
     });
   });
 
+  it("doctor verifies every managed media dependency", async () => {
+    const root = await mkdtemp(join(tmpdir(), "creatorcut-doctor-"));
+    const executable = join(root, "tool");
+    const model = join(root, "model.bin");
+    await writeFile(executable, "", { mode: 0o755 });
+    await writeFile(model, "model");
+    const names = [
+      "CREATORCUT_FFMPEG",
+      "CREATORCUT_FFPROBE",
+      "CREATORCUT_WHISPER",
+      "CREATORCUT_WHISPER_MODEL",
+    ] as const;
+    const previous = Object.fromEntries(
+      names.map((name) => [name, process.env[name]]),
+    );
+    try {
+      process.env.CREATORCUT_FFMPEG = executable;
+      process.env.CREATORCUT_FFPROBE = executable;
+      process.env.CREATORCUT_WHISPER = executable;
+      process.env.CREATORCUT_WHISPER_MODEL = model;
+      const result = await executeCli(["doctor"], io(), {
+        credentials: new MemoryCredentialStore(),
+      });
+      expect(result).toMatchObject({
+        ok: true,
+        command: "doctor",
+        data: {
+          product: "AgentMesh-CreatorCut",
+          dependencies_ready: true,
+          dependencies: {
+            node: { ready: true },
+            ffmpeg: { ready: true },
+            ffprobe: { ready: true },
+            whisper: { ready: true },
+            whisper_model: { ready: true },
+          },
+        },
+      });
+    } finally {
+      for (const name of names) {
+        const value = previous[name];
+        if (value === undefined) delete process.env[name];
+        else process.env[name] = value;
+      }
+    }
+  });
+
   it("defers upgrades while a resumable local task is active", async () => {
     const project = await projectFixture();
     await mkdir(join(project, ".creatorcut", "tasks"));

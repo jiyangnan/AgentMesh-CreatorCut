@@ -1,3 +1,4 @@
+import { constants } from "node:fs";
 import { access, readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
@@ -274,6 +275,13 @@ async function fetchRelease(
   return { manifest, keysetVersion: trust.keyset.keyset_version };
 }
 
+async function available(path: string | undefined, executable = true) {
+  if (!path) return false;
+  return await access(path, executable ? constants.X_OK : constants.F_OK)
+    .then(() => true)
+    .catch(() => false);
+}
+
 export async function executeCli(
   argv: string[],
   io: CliIo,
@@ -296,11 +304,45 @@ export async function executeCli(
     }
 
     if (commandName === "doctor") {
+      const dependencyPaths = {
+        node: process.execPath,
+        ffmpeg: process.env.CREATORCUT_FFMPEG,
+        ffprobe: process.env.CREATORCUT_FFPROBE,
+        whisper: process.env.CREATORCUT_WHISPER,
+        whisper_model: process.env.CREATORCUT_WHISPER_MODEL,
+      };
+      const dependencies = {
+        node: {
+          path: dependencyPaths.node,
+          version: process.versions.node,
+          ready: process.versions.node.split(".")[0] === "24",
+        },
+        ffmpeg: {
+          path: dependencyPaths.ffmpeg ?? null,
+          ready: await available(dependencyPaths.ffmpeg),
+        },
+        ffprobe: {
+          path: dependencyPaths.ffprobe ?? null,
+          ready: await available(dependencyPaths.ffprobe),
+        },
+        whisper: {
+          path: dependencyPaths.whisper ?? null,
+          ready: await available(dependencyPaths.whisper),
+        },
+        whisper_model: {
+          path: dependencyPaths.whisper_model ?? null,
+          ready: await available(dependencyPaths.whisper_model, false),
+        },
+      };
       const checks = {
         product: "AgentMesh-CreatorCut",
         platform: process.platform,
         node: process.versions.node,
         credential_storage: credentials.storage,
+        dependencies,
+        dependencies_ready: Object.values(dependencies).every(
+          (dependency) => dependency.ready,
+        ),
         authenticated: await credentials.hasApiKey(),
         project: await access(resolve(projectDirectory, ".creatorcut"))
           .then(() => true)

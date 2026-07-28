@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { resolve } from "node:path";
 
-import { KeychainCredentialStore } from "@agentmesh/creatorcut-credentials";
+import { createPlatformCredentialStore } from "@agentmesh/creatorcut-credentials";
 import {
   CloudDirectorAdapter,
   loadVerifiedDirectorKeyset,
@@ -31,7 +31,7 @@ if (!["codex", "claude_code", "openclaw", "text"].includes(hostTypeValue)) {
 const hostType = hostTypeValue as PublicClientCapabilities["host_type"];
 function getAdapter(): Promise<CloudDirectorAdapter> {
   adapterPromise ??= (async () => {
-    const apiKey = await new KeychainCredentialStore().getApiKey();
+    const apiKey = await createPlatformCredentialStore().getApiKey();
     if (!apiKey) throw new Error("Run creatorcut auth login first");
     const minimumVersionValue = process.env.CREATORCUT_MINIMUM_KEYSET_VERSION;
     const minimumVersion =

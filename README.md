@@ -5,17 +5,43 @@ for intelligent post-production of talking-head videos and product screen
 recordings.
 
 M1 is designed for Chinese, English, and mixed-language recordings. The public
-client will keep media processing local, render Director-driven interactive
-cards across hosts, verify signed edit plans, preview changes, and apply only
-declarative reversible operations.
+client keeps media processing local, renders Director-driven interactive
+cards across hosts, verifies signed edit plans, previews changes, and applies
+only declarative reversible operations.
+
+## Install
+
+macOS or Ubuntu:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/jiyangnan/AgentMesh-CreatorCut/main/scripts/install.sh | bash
+```
+
+Windows PowerShell:
+
+```powershell
+irm https://raw.githubusercontent.com/jiyangnan/AgentMesh-CreatorCut/main/scripts/install.ps1 | iex
+```
+
+The installers set up the pinned Node runtime, Git, FFmpeg, whisper.cpp,
+multilingual transcription model, secure credential backend, CLI shim, and
+signed managed-update channel. Then run:
+
+```bash
+creatorcut doctor
+creatorcut auth login
+```
+
+See [supported platforms](docs/SUPPORTED-PLATFORMS.md) for the exact macOS,
+Ubuntu, Windows, architecture, and dependency contract.
 
 ## Current status
 
-CreatorCut M1 Cycle 1–5 is complete and public stable `v0.1.0` is available
+AgentMesh-CreatorCut M1 Cycle 1–5 is complete and public stable `v0.1.0` is available
 through the signed managed-install channel. This repository contains the
 frozen public Protocol v1 plus a
-source-buildable local runtime, Director verification code, macOS Keychain
-credential adapter, stable JSON CLI, public MCP server, semantic card/text
+source-buildable local runtime, Director verification code, cross-platform
+secure credential adapters, stable JSON CLI, public MCP server, semantic card/text
 presentation adapters, local media import, Chinese/English/mixed whisper.cpp
 transcription, local Manifest preview/apply/undo/redo, and resumable export.
 
@@ -38,11 +64,8 @@ original-color three-material dogfood, production dark deployment, approved
 50-credit paid canary/rollback, persistent Core stable ReleaseManifest and a
 formal clean public-channel reinstall with real Server/Core preflight.
 
-The public repository is the release carrier, but availability remains
-controlled by AgentMesh Core. Public managed installation is active; paid new
-Director generations are still intentionally closed by both the Core and
-Server production gates. Stable client availability must not be interpreted as
-commercial workload admission.
+The public repository is the release carrier, while availability and the
+authoritative 50-credit Director price remain controlled by AgentMesh Core.
 
 ## Product boundary
 
@@ -109,7 +132,8 @@ requires the exact confirmation token returned by `edit preview`; exporting
 never overwrites an existing file unless `--confirm-overwrite` is present.
 
 Remote Director commands intentionally require an AgentMesh API key stored by
-`creatorcut auth login`, a trusted recovery-root-signed Director keyset, an
+`creatorcut auth login` in macOS Keychain, Windows DPAPI, or Linux Secret
+Service; a trusted recovery-root-signed Director keyset; an
 explicit endpoint, and the pinned protocol bundle digest. The repository does
 not ship staging credentials or silently select a production endpoint.
 

@@ -1,11 +1,19 @@
 import assert from "node:assert/strict";
 import { createHash, generateKeyPairSync, sign } from "node:crypto";
 import { execFile, execFileSync } from "node:child_process";
-import { mkdtemp, mkdir, readFile, stat, writeFile } from "node:fs/promises";
+import {
+  copyFile,
+  mkdtemp,
+  mkdir,
+  readFile,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { promisify } from "node:util";
+import { pathToFileURL } from "node:url";
 import test from "node:test";
 
 import { keysetSigningBytes } from "../../packages/protocol/dist/src/index.js";
@@ -136,7 +144,11 @@ process.stdout.write(JSON.stringify({
   command,
   requires_user_action: false,
   retryable: false,
-  data: command === "version" ? { version: "0.1.0" } : {}
+  data: command === "version"
+    ? { version: "0.1.0" }
+    : command === "doctor"
+      ? { credential_storage: process.platform === "win32" ? "Windows DPAPI" : "test" }
+      : {}
 }, null, 2) + "\\\\n");
 \`);
 `,
@@ -161,7 +173,7 @@ process.stdout.write(JSON.stringify({
       "-c",
       "tar.umask=002",
       "-c",
-      "core.attributesFile=/dev/null",
+      `core.attributesFile=${process.platform === "win32" ? "NUL" : "/dev/null"}`,
       "archive",
       "--format=tar",
       commit,
@@ -302,30 +314,44 @@ test("installer and managed updater pin the frozen pnpm runtime", async () => {
     join(repositoryRoot, "scripts", "install.sh"),
     "utf8",
   );
+  const windowsInstaller = await readFile(
+    join(repositoryRoot, "scripts", "install.ps1"),
+    "utf8",
+  );
   const updater = await readFile(
     join(repositoryRoot, "packages", "release-manager", "src", "update.ts"),
     "utf8",
   );
 
   assert.match(installer, /cd "\$NEXT_DIR"/u);
-  assert.match(installer, /NODE_PATH="\$\(node -p 'process\.execPath'\)"/u);
+  assert.match(installer, /NODE_VERSION="24\.18\.0"/u);
+  assert.match(installer, /NODE_SHA256="[a-f0-9]{64}"/u);
+  assert.match(installer, /MODEL_SHA256="[a-f0-9]{64}"/u);
   assert.match(installer, /export PATH=%q:"\$PATH"/u);
   assert.match(installer, /exec %q %q "\$@"/u);
   assert.doesNotMatch(installer, /exec node %q/u);
-  assert.match(installer, /corepack pnpm@10\.30\.3 install/u);
+  assert.match(installer, /"\$COREPACK_PATH" pnpm@10\.30\.3 install/u);
   assert.doesNotMatch(installer, /corepack pnpm --dir/u);
   assert.match(
     installer,
-    /corepack pnpm@10\.30\.3 --filter '!agentmesh-creatorcut' -r --if-present build/u,
+    /"\$COREPACK_PATH" pnpm@10\.30\.3 --filter '!agentmesh-creatorcut' -r --if-present build/u,
   );
   assert.doesNotMatch(installer, /corepack pnpm@10\.30\.3 build/u);
+  assert.match(windowsInstaller, /\$NodeVersion = "24\.18\.0"/u);
+  assert.match(windowsInstaller, /\$NodeSha256 = "[a-f0-9]{64}"/u);
+  assert.match(windowsInstaller, /\$WhisperSha256 = "[a-f0-9]{64}"/u);
+  assert.match(windowsInstaller, /"Windows DPAPI"/u);
+  assert.doesNotMatch(
+    windowsInstaller,
+    /CREATORCUT_(?:API_KEY|CORE_SERVICE_TOKEN)\s*=/u,
+  );
   assert.match(updater, /"pnpm@10\.30\.3"/u);
   assert.match(updater, /"!agentmesh-creatorcut"/u);
   assert.match(updater, /"--if-present"/u);
 });
 
-test("clean macOS fixture installs only the signed tag, commit and archive", async () => {
-  if (process.platform !== "darwin") return;
+test("clean Unix fixture installs only the signed tag, commit and archive", async () => {
+  if (process.platform === "win32") return;
   const root = await mkdtemp(join(tmpdir(), "creatorcut-clean-install-"));
   const source = join(root, "public-source");
   const home = join(root, "home");
@@ -394,6 +420,8 @@ test("clean macOS fixture installs only the signed tag, commit and archive", asy
           CREATORCUT_RELEASE_KEYSET_URL: `file://${keysetPath}`,
           CREATORCUT_WHISPER: whisperPath,
           CREATORCUT_WHISPER_MODEL: modelPath,
+          CREATORCUT_SKIP_DEPENDENCY_INSTALL: "1",
+          CREATORCUT_KEYCHAIN_PATH: join(root, "fixture.keychain-db"),
         },
         timeout: 30_000,
       },
@@ -422,4 +450,100 @@ test("clean macOS fixture installs only the signed tag, commit and archive", asy
     ).stdout,
   );
   assert.equal(version.data.version, "0.1.0");
+});
+
+test("clean Windows fixture installs only the signed tag, commit and archive", async () => {
+  if (process.platform !== "win32") return;
+  const root = await mkdtemp(join(tmpdir(), "creatorcut-clean-install-"));
+  const source = join(root, "public-source");
+  const home = join(root, "home");
+  const install = join(home, "app");
+  const data = join(home, "data");
+  const bin = join(home, "bin");
+  const fakeBin = join(root, "fake-bin");
+  const modelPath = join(home, "model", "ggml-base.bin");
+  const whisperPath = join(fakeBin, "whisper-cli.exe");
+  await Promise.all([
+    mkdir(source, { recursive: true }),
+    mkdir(fakeBin, { recursive: true }),
+    mkdir(dirname(modelPath), { recursive: true }),
+  ]);
+  const identity = await fixtureRepository(source);
+  const trust = releaseTrust(identity.archiveSha256, identity.commit);
+  const keysetPath = join(root, "keyset.json");
+  const rootsPath = join(root, "roots.json");
+  await Promise.all([
+    writeFile(keysetPath, JSON.stringify(trust.keyset)),
+    writeFile(rootsPath, JSON.stringify(trust.roots)),
+    writeFile(modelPath, "fixture model"),
+    copyFile(process.execPath, whisperPath),
+    copyFile(process.execPath, join(fakeBin, "ffmpeg.exe")),
+    copyFile(process.execPath, join(fakeBin, "ffprobe.exe")),
+  ]);
+
+  const server = createServer((request, response) => {
+    if (request.url === "/v1/products/creatorcut/client-release") {
+      response.setHeader("content-type", "application/json");
+      response.end(JSON.stringify(trust.manifest));
+      return;
+    }
+    response.statusCode = 404;
+    response.end("not found");
+  });
+  await new Promise((resolvePromise) =>
+    server.listen(0, "127.0.0.1", resolvePromise),
+  );
+  const address = server.address();
+  assert(address && typeof address === "object");
+
+  try {
+    await execFileAsync(
+      "powershell.exe",
+      [
+        "-NoProfile",
+        "-NonInteractive",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        join(repositoryRoot, "scripts", "install.ps1"),
+      ],
+      {
+        env: {
+          ...process.env,
+          HOME: home,
+          LOCALAPPDATA: home,
+          PATH: `${fakeBin};${dirname(process.execPath)};${process.env.PATH}`,
+          CREATORCUT_REPO_URL: source,
+          CREATORCUT_INSTALL_DIR: install,
+          CREATORCUT_DATA_DIR: data,
+          CREATORCUT_BIN_DIR: bin,
+          CREATORCUT_CORE_API_BASE: `http://127.0.0.1:${address.port}`,
+          CREATORCUT_RELEASE_VERIFIER_URL: pathToFileURL(
+            join(repositoryRoot, "scripts", "verify-release.mjs"),
+          ).href,
+          CREATORCUT_RELEASE_RECOVERY_ROOTS_URL: pathToFileURL(rootsPath).href,
+          CREATORCUT_RELEASE_KEYSET_URL: pathToFileURL(keysetPath).href,
+          CREATORCUT_WHISPER: whisperPath,
+          CREATORCUT_WHISPER_MODEL: modelPath,
+          CREATORCUT_SKIP_DEPENDENCY_INSTALL: "1",
+        },
+        timeout: 30_000,
+      },
+    );
+  } finally {
+    await new Promise((resolvePromise) => server.close(resolvePromise));
+  }
+
+  const metadata = JSON.parse(
+    await readFile(join(install, ".creatorcut-install.json"), "utf8"),
+  );
+  assert.equal(metadata.git_commit, identity.commit);
+  assert.equal(metadata.artifact_sha256, identity.archiveSha256);
+  assert.equal(metadata.version, "0.1.0");
+  const version = await execFileAsync(
+    "cmd.exe",
+    ["/d", "/s", "/c", `"${join(bin, "creatorcut.cmd")}" version`],
+    { env: process.env },
+  );
+  assert.equal(JSON.parse(version.stdout).data.version, "0.1.0");
 });

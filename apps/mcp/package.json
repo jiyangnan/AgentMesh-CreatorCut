@@ -1,7 +1,7 @@
 {
   "name": "@agentmesh/creatorcut-mcp",
-  "version": "0.1.0",
-  "description": "Public local MCP server for CreatorCut",
+  "version": "0.2.0",
+  "description": "Public local MCP server for AgentMesh-CreatorCut",
   "license": "Apache-2.0",
   "type": "module",
   "bin": {

@@ -47,7 +47,7 @@ function capabilities(
 ): PublicClientCapabilities {
   return {
     schema_version: "1.0",
-    client_version: "0.1.0",
+    client_version: "0.2.0",
     host_type,
     protocol_versions: ["1.0"],
     card_types: ["single", "multi", "text", "visual", "voice", "review"],

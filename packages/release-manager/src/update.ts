@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { open, readFile, rename, rm, writeFile } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { spawn } from "node:child_process";
 
 import { findActiveProjectTasks } from "./tasks.js";
@@ -134,13 +134,41 @@ async function writeMetadata(
   await rename(temporary, path);
 }
 
-async function installAndBuild(run: RunCommand, root: string): Promise<void> {
-  await runChecked(run, root, "corepack", [
+function corepackCommand(platform: NodeJS.Platform): {
+  command: string;
+  prefix: string[];
+} {
+  if (platform !== "win32") {
+    return { command: "corepack", prefix: [] };
+  }
+  return {
+    command: process.execPath,
+    prefix: [
+      join(
+        dirname(process.execPath),
+        "node_modules",
+        "corepack",
+        "dist",
+        "corepack.js",
+      ),
+    ],
+  };
+}
+
+async function installAndBuild(
+  run: RunCommand,
+  root: string,
+  platform: NodeJS.Platform,
+): Promise<void> {
+  const corepack = corepackCommand(platform);
+  await runChecked(run, root, corepack.command, [
+    ...corepack.prefix,
     "pnpm@10.30.3",
     "install",
     "--frozen-lockfile",
   ]);
-  await runChecked(run, root, "corepack", [
+  await runChecked(run, root, corepack.command, [
+    ...corepack.prefix,
     "pnpm@10.30.3",
     "--filter",
     "!agentmesh-creatorcut",
@@ -160,9 +188,10 @@ export async function applyManagedUpdate(input: {
   allowedRepositories?: ReadonlySet<string>;
   now?: Date;
 }): Promise<ManagedInstallMetadata> {
-  if ((input.platform ?? process.platform) !== "darwin") {
+  const platform = input.platform ?? process.platform;
+  if (!["darwin", "linux", "win32"].includes(platform)) {
     throw new ManagedUpdateError(
-      "CreatorCut M1 managed updates currently support macOS only",
+      `AgentMesh-CreatorCut managed updates do not support ${platform}`,
     );
   }
   const metadataPath = resolve(input.metadataPath);
@@ -284,9 +313,9 @@ export async function applyManagedUpdate(input: {
       input.manifest.git_commit,
     ]);
     checkoutChanged = true;
-    await installAndBuild(run, root);
+    await installAndBuild(run, root, platform);
     const smoke = decode(
-      await runChecked(run, root, "node", [
+      await runChecked(run, root, process.execPath, [
         "apps/cli/dist/src/main.js",
         "version",
       ]),
@@ -318,7 +347,7 @@ export async function applyManagedUpdate(input: {
     if (checkoutChanged && oldCommit) {
       try {
         await runChecked(run, root, "git", ["checkout", "--detach", oldCommit]);
-        await installAndBuild(run, root);
+        await installAndBuild(run, root, platform);
       } catch (rollbackError) {
         throw new ManagedUpdateError(
           `CreatorCut update failed and rollback also failed: ${

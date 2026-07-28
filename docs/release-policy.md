@@ -1,23 +1,28 @@
-# CreatorCut managed release policy
+# AgentMesh-CreatorCut managed release policy
 
 ## Current scope
 
-CreatorCut M1 managed installation supports macOS only. The frozen runtime is:
+AgentMesh-CreatorCut managed installation supports macOS, Ubuntu, and native
+Windows as defined in [SUPPORTED-PLATFORMS.md](SUPPORTED-PLATFORMS.md). The
+managed runtime is:
 
 - Node.js 24 and pnpm 10;
 - FFmpeg and FFprobe from the same auditable installation;
 - an executable whisper.cpp CLI;
-- a local whisper model selected by the user or deployment and recorded in
-  managed metadata.
+- a pinned multilingual Whisper base model verified by SHA-256 and recorded in
+  managed metadata;
+- macOS Keychain, Windows current-user DPAPI, or Linux Secret Service.
 
-The installer does not silently download an unpinned model. A missing component
-stops with a recoverable command or an explicit environment variable to set.
-Linux and Windows remain unsupported until equivalent media, keychain,
-installer, updater and voice-path validation exists.
+The installer downloads only pinned runtime and model artifacts or uses the
+supported operating-system package manager. A checksum mismatch, unsupported
+platform, missing credential service, or incomplete media toolchain fails
+closed.
 
-The default install root is `~/.local/share/creatorcut`. The executable shim is
-`~/.local/bin/creatorcut`. Project state remains in each project’s
-`.creatorcut` directory and is never placed inside the managed source checkout.
+The Unix install root is `~/.local/share/creatorcut` and its executable shim is
+`~/.local/bin/creatorcut`. Windows uses the current user's local AgentMesh
+application-data root and adds its `bin` directory to the user PATH. Project
+state remains in each project’s `.creatorcut` directory and is never placed
+inside the managed source checkout.
 
 ## Trust chain
 

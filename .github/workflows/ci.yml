@@ -1,0 +1,68 @@
+name: Verify AgentMesh-CreatorCut
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: creatorcut-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  product:
+    name: ${{ matrix.os }} / Node 24
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - macos-14
+          - ubuntu-24.04
+          - windows-2022
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.18.0"
+          cache: pnpm
+
+      - name: Enable pinned pnpm
+        shell: bash
+        run: corepack enable && corepack prepare pnpm@10.30.3 --activate
+
+      - name: Install
+        shell: bash
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify packages and public contracts
+        shell: bash
+        run: pnpm verify
+
+      - name: Validate shell installer
+        if: runner.os != 'Windows'
+        shell: bash
+        run: bash -n scripts/install.sh
+
+      - name: Validate PowerShell installer
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          $null = [scriptblock]::Create(
+            [IO.File]::ReadAllText(
+              (Resolve-Path "scripts/install.ps1"),
+              [Text.Encoding]::UTF8
+            )
+          )
+
+      - name: Confirm CLI platform credential contract
+        shell: bash
+        run: |
+          node apps/cli/dist/src/main.js version > version.json
+          node -e "const v=require('./version.json'); if(!v.ok||v.data.version!=='0.2.0')process.exit(1)"

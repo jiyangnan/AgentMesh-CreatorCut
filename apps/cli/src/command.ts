@@ -3,7 +3,7 @@ import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 
 import {
-  KeychainCredentialStore,
+  createPlatformCredentialStore,
   type CredentialStore,
 } from "@agentmesh/creatorcut-credentials";
 import {
@@ -50,7 +50,7 @@ import {
 
 import type { CliEnvelope, CliIo } from "./types.js";
 
-const CURRENT_CLIENT_VERSION = "0.1.0";
+const CURRENT_CLIENT_VERSION = "0.2.0";
 const DEFAULT_RELEASE_ENDPOINT =
   "https://api.agentmesh360.com/v1/products/creatorcut/client-release";
 
@@ -284,12 +284,7 @@ export async function executeCli(
     const parsed = parseArguments(argv);
     commandName = parsed.command.join(" ") || "help";
     const credentials =
-      dependencies.credentials ??
-      new KeychainCredentialStore({
-        ...(process.env.CREATORCUT_KEYCHAIN_PATH
-          ? { keychainPath: process.env.CREATORCUT_KEYCHAIN_PATH }
-          : {}),
-      });
+      dependencies.credentials ?? createPlatformCredentialStore();
     const projectDirectory = resolve(
       option(parsed, "project") ?? dependencies.cwd?.() ?? process.cwd(),
     );
@@ -302,9 +297,10 @@ export async function executeCli(
 
     if (commandName === "doctor") {
       const checks = {
+        product: "AgentMesh-CreatorCut",
         platform: process.platform,
         node: process.versions.node,
-        keychain: process.platform === "darwin",
+        credential_storage: credentials.storage,
         authenticated: await credentials.hasApiKey(),
         project: await access(resolve(projectDirectory, ".creatorcut"))
           .then(() => true)
@@ -434,14 +430,14 @@ export async function executeCli(
       await credentials.setApiKey(apiKey);
       return success(
         commandName,
-        { stored_in: "macOS Keychain", authenticated: true },
+        { stored_in: credentials.storage, authenticated: true },
         { next: "director context inspect" },
       );
     }
     if (commandName === "auth status") {
       return success(commandName, {
         authenticated: await credentials.hasApiKey(),
-        storage: "macOS Keychain",
+        storage: credentials.storage,
       });
     }
     if (commandName === "auth logout") {

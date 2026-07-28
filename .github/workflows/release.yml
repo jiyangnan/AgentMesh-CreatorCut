@@ -1,0 +1,67 @@
+name: Publish immutable AgentMesh-CreatorCut release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: creatorcut-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.18.0"
+          cache: pnpm
+
+      - name: Enable pinned pnpm
+        run: corepack enable && corepack prepare pnpm@10.30.3 --activate
+
+      - name: Verify release source
+        run: |
+          set -euo pipefail
+          pnpm install --frozen-lockfile
+          pnpm verify
+          version="${GITHUB_REF_NAME#v}"
+          actual="$(
+            node apps/cli/dist/src/main.js version |
+              node -e 'let v="";process.stdin.on("data",d=>v+=d).on("end",()=>process.stdout.write(JSON.parse(v).data.version))'
+          )"
+          test "$actual" = "$version"
+          release_commit="$(git rev-parse "${GITHUB_REF_NAME}^{commit}")"
+          test "$release_commit" = "$(git rev-parse HEAD)"
+          printf 'RELEASE_COMMIT=%s\n' "$release_commit" >> "$GITHUB_ENV"
+
+      - name: Build canonical release archive
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          archive="AgentMesh-CreatorCut-v${version}.tar"
+          GIT_CONFIG_NOSYSTEM=1 GIT_ATTR_NOSYSTEM=1 GIT_NO_REPLACE_OBJECTS=1 \
+            git -c tar.umask=002 -c core.attributesFile=/dev/null \
+            archive --format=tar --output "$archive" "$RELEASE_COMMIT"
+          sha256sum "$archive" > SHA256SUMS
+          printf 'ARCHIVE=%s\n' "$archive" >> "$GITHUB_ENV"
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            "$ARCHIVE" SHA256SUMS \
+            --verify-tag \
+            --generate-notes \
+            --title "AgentMesh-CreatorCut $GITHUB_REF_NAME"

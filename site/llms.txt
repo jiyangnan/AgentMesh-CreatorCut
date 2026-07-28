@@ -1,0 +1,27 @@
+# AgentMesh-CreatorCut
+
+AgentMesh-CreatorCut is the AgentMesh360 intelligent post-production product
+for existing talking-head recordings and product screen recordings.
+
+Product contract:
+
+- Public local client: media import, Chinese/English/mixed transcription,
+  preview, reversible edit execution, captions, music, and export.
+- Private cloud Director: interactive decision cards, semantic edit strategy,
+  review, signed declarative plans, idempotency, and recovery.
+- AgentMesh Core: identity, entitlement, the authoritative 50-credit price,
+  debit, and refund ledger.
+- Original media, voice, local transcript files, previews, and exports are not
+  uploaded to the Director.
+- One confirmed signed Director plan costs 50 AgentMesh credits.
+- Local execution consumes no cloud credits.
+
+Official install:
+
+- macOS or Ubuntu:
+  curl -fsSL https://raw.githubusercontent.com/jiyangnan/AgentMesh-CreatorCut/main/scripts/install.sh | bash
+- Windows PowerShell:
+  irm https://raw.githubusercontent.com/jiyangnan/AgentMesh-CreatorCut/main/scripts/install.ps1 | iex
+
+Official site: https://creatorcut.agentmesh360.com/
+Public repository: https://github.com/jiyangnan/AgentMesh-CreatorCut

@@ -28,7 +28,7 @@ export function createCreatorCutMcpServer(
   service: CreatorCutMcpService,
 ): McpServer {
   const server = new McpServer(
-    { name: "creatorcut-mcp", version: "0.1.0" },
+    { name: "creatorcut-mcp", version: "0.2.0" },
     {
       instructions:
         "CreatorCut is bound to one local project. Start with creatorcut_project_status, then inspect the exact DirectorContext. Only signed Server-driven cards may request user answers. Preserve stable IDs, use the host text fallback when native controls are unavailable, and never invent a local strategy when Director is offline.",

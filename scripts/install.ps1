@@ -1,0 +1,457 @@
+# AgentMesh-CreatorCut managed installer for Windows 10 22H2 and Windows 11.
+#
+# Usage:
+#   irm https://raw.githubusercontent.com/jiyangnan/AgentMesh-CreatorCut/main/scripts/install.ps1 | iex
+
+[CmdletBinding()]
+param()
+
+$ErrorActionPreference = "Stop"
+Set-StrictMode -Version Latest
+
+$ProductName = "AgentMesh-CreatorCut"
+$RepoUrl = if ($env:CREATORCUT_REPO_URL) {
+    $env:CREATORCUT_REPO_URL
+} else {
+    "https://github.com/jiyangnan/AgentMesh-CreatorCut.git"
+}
+$LocalAppData = if ($env:LOCALAPPDATA) {
+    $env:LOCALAPPDATA
+} else {
+    Join-Path $HOME "AppData\Local"
+}
+$InstallDir = if ($env:CREATORCUT_INSTALL_DIR) {
+    [IO.Path]::GetFullPath($env:CREATORCUT_INSTALL_DIR)
+} else {
+    Join-Path $LocalAppData "AgentMesh\CreatorCut\app"
+}
+$DataDir = if ($env:CREATORCUT_DATA_DIR) {
+    [IO.Path]::GetFullPath($env:CREATORCUT_DATA_DIR)
+} else {
+    Join-Path $LocalAppData "AgentMesh\CreatorCut\data"
+}
+$BinDir = if ($env:CREATORCUT_BIN_DIR) {
+    [IO.Path]::GetFullPath($env:CREATORCUT_BIN_DIR)
+} else {
+    Join-Path $LocalAppData "AgentMesh\CreatorCut\bin"
+}
+$CoreApiBase = if ($env:CREATORCUT_CORE_API_BASE) {
+    $env:CREATORCUT_CORE_API_BASE
+} else {
+    "https://api.agentmesh360.com"
+}
+$BootstrapBaseUrl = if ($env:CREATORCUT_BOOTSTRAP_BASE_URL) {
+    $env:CREATORCUT_BOOTSTRAP_BASE_URL
+} else {
+    "https://raw.githubusercontent.com/jiyangnan/AgentMesh-CreatorCut/main"
+}
+$VerifierUrl = if ($env:CREATORCUT_RELEASE_VERIFIER_URL) {
+    $env:CREATORCUT_RELEASE_VERIFIER_URL
+} else {
+    "$BootstrapBaseUrl/scripts/verify-release.mjs"
+}
+$RecoveryRootsUrl = if ($env:CREATORCUT_RELEASE_RECOVERY_ROOTS_URL) {
+    $env:CREATORCUT_RELEASE_RECOVERY_ROOTS_URL
+} else {
+    "$BootstrapBaseUrl/release/recovery-roots.json"
+}
+$KeysetUrl = if ($env:CREATORCUT_RELEASE_KEYSET_URL) {
+    $env:CREATORCUT_RELEASE_KEYSET_URL
+} else {
+    "$BootstrapBaseUrl/release/release-keyset.json"
+}
+$NodeVersion = "24.18.0"
+$NodeSha256 = "0ae68406b42d7725661da979b1403ec9926da205c6770827f33aac9d8f26e821"
+$WhisperVersion = "1.9.1"
+$WhisperSha256 = "7d8be46ecd31828e1eb7a2ecdd0d6b314feafd82163038ab6092594b0a063539"
+$ModelUrl = if ($env:CREATORCUT_WHISPER_MODEL_URL) {
+    $env:CREATORCUT_WHISPER_MODEL_URL
+} else {
+    "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin"
+}
+$ModelSha256 = "60ed5bc3dd14eea856493d334349b405782ddcaf0028d4b5df4088345fba2efe"
+$ModelPath = if ($env:CREATORCUT_WHISPER_MODEL) {
+    [IO.Path]::GetFullPath($env:CREATORCUT_WHISPER_MODEL)
+} else {
+    Join-Path $DataDir "models\ggml-base.bin"
+}
+$SkipDependencies = $env:CREATORCUT_SKIP_DEPENDENCY_INSTALL -eq "1"
+
+function Write-Info([string]$Message) {
+    Write-Host "▶ $Message" -ForegroundColor Cyan
+}
+
+function Write-Ok([string]$Message) {
+    Write-Host "✓ $Message" -ForegroundColor Green
+}
+
+function Fail([string]$Message) {
+    throw "$ProductName installer: $Message"
+}
+
+function Assert-LastExit([string]$Description) {
+    if ($LASTEXITCODE -ne 0) {
+        Fail "$Description failed with exit code $LASTEXITCODE"
+    }
+}
+
+function Download-File(
+    [string]$Url,
+    [string]$Destination
+) {
+    $parent = Split-Path -Parent $Destination
+    if ($parent) {
+        New-Item -ItemType Directory -Force -Path $parent | Out-Null
+    }
+    if ($Url.StartsWith("file://", [StringComparison]::OrdinalIgnoreCase)) {
+        $source = ([Uri]$Url).LocalPath
+        Copy-Item -Force -LiteralPath $source -Destination $Destination
+        return
+    }
+    Invoke-WebRequest -UseBasicParsing -Uri $Url -OutFile $Destination
+}
+
+function Assert-Sha256(
+    [string]$Path,
+    [string]$Expected
+) {
+    $actual = (Get-FileHash -Algorithm SHA256 -LiteralPath $Path).Hash.ToLowerInvariant()
+    if ($actual -ne $Expected) {
+        Fail "downloaded dependency checksum mismatch: $Path"
+    }
+}
+
+function Download-Verified(
+    [string]$Url,
+    [string]$Destination,
+    [string]$Expected
+) {
+    Download-File $Url $Destination
+    Assert-Sha256 $Destination $Expected
+}
+
+function Refresh-ProcessPath {
+    $machine = [Environment]::GetEnvironmentVariable("Path", "Machine")
+    $user = [Environment]::GetEnvironmentVariable("Path", "User")
+    $env:Path = "$machine;$user"
+}
+
+function Resolve-CommandPath([string]$Name) {
+    $command = Get-Command $Name -ErrorAction SilentlyContinue
+    if ($command) {
+        return $command.Source
+    }
+    return $null
+}
+
+function Install-WingetPackage(
+    [string]$Id,
+    [string]$Label
+) {
+    $winget = Resolve-CommandPath "winget.exe"
+    if (-not $winget) {
+        Fail "Windows Package Manager (winget) is required to install $Label."
+    }
+    Write-Info "Installing $Label"
+    & $winget install --id $Id --exact --silent `
+        --accept-package-agreements --accept-source-agreements `
+        --disable-interactivity
+    Assert-LastExit "$Label installation"
+    Refresh-ProcessPath
+}
+
+if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) {
+    Fail "install.ps1 supports native Windows only."
+}
+if ([Runtime.InteropServices.RuntimeInformation]::OSArchitecture -ne
+    [Runtime.InteropServices.Architecture]::X64) {
+    Fail "Windows GA support is limited to x64."
+}
+$WindowsVersion = [Environment]::OSVersion.Version
+if ($WindowsVersion.Major -lt 10 -or $WindowsVersion.Build -lt 19045) {
+    Fail "AgentMesh-CreatorCut requires Windows 10 22H2 or Windows 11."
+}
+
+$InstallRoot = [IO.Path]::GetPathRoot($InstallDir).TrimEnd("\")
+$HomeRoot = [IO.Path]::GetFullPath($HOME).TrimEnd("\")
+if ([string]::IsNullOrWhiteSpace($InstallDir) -or
+    $InstallDir.TrimEnd("\") -eq $InstallRoot -or
+    $InstallDir.TrimEnd("\") -eq $HomeRoot) {
+    Fail "unsafe CREATORCUT_INSTALL_DIR: $InstallDir"
+}
+
+$WorkDir = Join-Path ([IO.Path]::GetTempPath()) ("creatorcut-install-" + [Guid]::NewGuid())
+$NextDir = "$InstallDir.next-$PID"
+$BackupDir = "$InstallDir.previous-$PID"
+New-Item -ItemType Directory -Force -Path $WorkDir | Out-Null
+
+try {
+    if (-not $SkipDependencies) {
+        if (-not (Resolve-CommandPath "git.exe")) {
+            Install-WingetPackage "Git.Git" "Git for Windows"
+        }
+        if (-not (Resolve-CommandPath "ffmpeg.exe") -or
+            -not (Resolve-CommandPath "ffprobe.exe")) {
+            Install-WingetPackage "Gyan.FFmpeg" "FFmpeg"
+        }
+    }
+
+    $GitPath = Resolve-CommandPath "git.exe"
+    if (-not $GitPath) {
+        $GitPath = Resolve-CommandPath "git"
+    }
+    if (-not $GitPath) {
+        Fail "Git installation failed."
+    }
+
+    $FfmpegPath = Resolve-CommandPath "ffmpeg.exe"
+    $FfprobePath = Resolve-CommandPath "ffprobe.exe"
+    if (-not $FfmpegPath -or -not $FfprobePath) {
+        $wingetRoot = Join-Path $LocalAppData "Microsoft\WinGet\Packages"
+        if (Test-Path -LiteralPath $wingetRoot) {
+            $FfmpegPath = Get-ChildItem -LiteralPath $wingetRoot -Recurse `
+                -Filter "ffmpeg.exe" -File -ErrorAction SilentlyContinue |
+                Select-Object -First 1 -ExpandProperty FullName
+            $FfprobePath = Get-ChildItem -LiteralPath $wingetRoot -Recurse `
+                -Filter "ffprobe.exe" -File -ErrorAction SilentlyContinue |
+                Select-Object -First 1 -ExpandProperty FullName
+        }
+    }
+    if (-not $FfmpegPath -or -not $FfprobePath) {
+        Fail "FFmpeg installation failed."
+    }
+
+    $NodeRuntime = Join-Path $DataDir "runtime\node-v$NodeVersion-win-x64"
+    $NodePath = Join-Path $NodeRuntime "node.exe"
+    if (-not (Test-Path -LiteralPath $NodePath)) {
+        if ($SkipDependencies) {
+            $NodePath = Resolve-CommandPath "node.exe"
+            if (-not $NodePath) {
+                Fail "test dependency bypass requires Node.js."
+            }
+        } else {
+            Write-Info "Installing verified Node.js $NodeVersion runtime"
+            $nodeArchive = Join-Path $WorkDir "node.zip"
+            Download-Verified `
+                "https://nodejs.org/dist/v$NodeVersion/node-v$NodeVersion-win-x64.zip" `
+                $nodeArchive `
+                $NodeSha256
+            $nodeUnpack = Join-Path $WorkDir "node-runtime"
+            Expand-Archive -LiteralPath $nodeArchive -DestinationPath $nodeUnpack -Force
+            New-Item -ItemType Directory -Force -Path (Split-Path -Parent $NodeRuntime) | Out-Null
+            Move-Item -LiteralPath (Join-Path $nodeUnpack "node-v$NodeVersion-win-x64") `
+                -Destination $NodeRuntime
+        }
+    }
+    $nodeMajor = (& $NodePath -p 'process.versions.node.split(".")[0]').Trim()
+    Assert-LastExit "Node.js inspection"
+    if ($nodeMajor -ne "24") {
+        Fail "verified Node.js 24 runtime is required."
+    }
+    $CorepackPath = Join-Path (Split-Path -Parent $NodePath) "corepack.cmd"
+    if (-not (Test-Path -LiteralPath $CorepackPath)) {
+        Fail "verified Node runtime is missing Corepack."
+    }
+
+    $WhisperPath = if ($env:CREATORCUT_WHISPER) {
+        [IO.Path]::GetFullPath($env:CREATORCUT_WHISPER)
+    } else {
+        Join-Path $DataDir "runtime\whisper.cpp-v$WhisperVersion-win-x64\whisper-cli.exe"
+    }
+    if (-not (Test-Path -LiteralPath $WhisperPath)) {
+        if ($SkipDependencies) {
+            Fail "test dependency bypass requires CREATORCUT_WHISPER."
+        }
+        Write-Info "Installing verified whisper.cpp $WhisperVersion"
+        $whisperArchive = Join-Path $WorkDir "whisper.zip"
+        Download-Verified `
+            "https://github.com/ggml-org/whisper.cpp/releases/download/v$WhisperVersion/whisper-bin-x64.zip" `
+            $whisperArchive `
+            $WhisperSha256
+        $whisperUnpack = Join-Path $WorkDir "whisper-runtime"
+        Expand-Archive -LiteralPath $whisperArchive -DestinationPath $whisperUnpack -Force
+        $candidate = Get-ChildItem -LiteralPath $whisperUnpack -Recurse `
+            -Filter "whisper-cli.exe" -File | Select-Object -First 1
+        if (-not $candidate) {
+            Fail "whisper.cpp archive does not contain whisper-cli.exe."
+        }
+        New-Item -ItemType Directory -Force -Path (Split-Path -Parent $WhisperPath) | Out-Null
+        Copy-Item -LiteralPath $candidate.FullName -Destination $WhisperPath
+        Get-ChildItem -LiteralPath $candidate.Directory.FullName -File |
+            Where-Object { $_.Extension -eq ".dll" } |
+            Copy-Item -Destination (Split-Path -Parent $WhisperPath)
+    }
+
+    if (-not (Test-Path -LiteralPath $ModelPath)) {
+        if ($SkipDependencies) {
+            Fail "test dependency bypass requires CREATORCUT_WHISPER_MODEL."
+        }
+        Write-Info "Downloading verified multilingual Whisper base model (about 148 MB)"
+        $modelTemporary = "$ModelPath.next-$PID"
+        Download-Verified $ModelUrl $modelTemporary $ModelSha256
+        Move-Item -Force -LiteralPath $modelTemporary -Destination $ModelPath
+    } elseif (-not $SkipDependencies) {
+        Assert-Sha256 $ModelPath $ModelSha256
+    }
+
+    Write-Ok "Local runtime, FFmpeg, whisper.cpp, model and Windows DPAPI are ready"
+
+    Write-Info "Fetching signed $ProductName release policy"
+    $verifierPath = Join-Path $WorkDir "verify-release.mjs"
+    $rootsPath = Join-Path $WorkDir "recovery-roots.json"
+    $keysetPath = Join-Path $WorkDir "release-keyset.json"
+    $manifestPath = Join-Path $WorkDir "release-manifest.json"
+    Download-File $VerifierUrl $verifierPath
+    Download-File $RecoveryRootsUrl $rootsPath
+    Download-File $KeysetUrl $keysetPath
+    Download-File "$CoreApiBase/v1/products/creatorcut/client-release" $manifestPath
+
+    $verifiedText = & $NodePath $verifierPath `
+        --manifest $manifestPath `
+        --keyset $keysetPath `
+        --recovery-roots $rootsPath
+    Assert-LastExit "signed release verification"
+    $verified = ($verifiedText -join "`n") | ConvertFrom-Json
+    $Version = [string]$verified.version
+    $GitTag = [string]$verified.git_tag
+    $GitCommit = [string]$verified.git_commit
+    $ArchiveSha256 = [string]$verified.artifact_sha256
+    $KeysetVersion = [int]$verified.release_keyset_version
+    Write-Ok "Verified signed $ProductName $Version policy"
+
+    Write-Info "Fetching exact public release $GitTag"
+    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $InstallDir) | Out-Null
+    & $GitPath init -q $NextDir
+    Assert-LastExit "git init"
+    & $GitPath -C $NextDir remote add origin $RepoUrl
+    Assert-LastExit "git remote"
+    & $GitPath -C $NextDir fetch -q --depth 1 origin "refs/tags/${GitTag}:refs/tags/${GitTag}"
+    Assert-LastExit "git fetch"
+    $ResolvedCommit = (& $GitPath -C $NextDir rev-parse "${GitTag}^{commit}").Trim()
+    Assert-LastExit "release tag resolution"
+    if ($ResolvedCommit -ne $GitCommit) {
+        Fail "release tag does not resolve to the signed commit."
+    }
+    $archivePath = Join-Path $WorkDir "canonical-release.tar"
+    & $GitPath -C $NextDir -c tar.umask=002 -c core.attributesFile=NUL `
+        archive --format=tar -o $archivePath $GitCommit
+    Assert-LastExit "canonical release archive"
+    Assert-Sha256 $archivePath $ArchiveSha256
+    & $GitPath -C $NextDir checkout -q --detach $GitCommit
+    Assert-LastExit "release checkout"
+    Write-Ok "Verified tag, commit and canonical source archive"
+
+    Write-Info "Installing $ProductName packages"
+    Push-Location $NextDir
+    try {
+        & $CorepackPath "pnpm@10.30.3" install --frozen-lockfile
+        Assert-LastExit "package installation"
+        & $CorepackPath "pnpm@10.30.3" --filter "!agentmesh-creatorcut" `
+            -r --if-present build
+        Assert-LastExit "package build"
+    } finally {
+        Pop-Location
+    }
+
+    $releaseDir = Join-Path $NextDir "release"
+    New-Item -ItemType Directory -Force -Path $releaseDir | Out-Null
+    Copy-Item -LiteralPath $rootsPath -Destination (Join-Path $releaseDir "recovery-roots.json")
+    Copy-Item -LiteralPath $keysetPath -Destination (Join-Path $releaseDir "release-keyset.json")
+
+    $metadata = [ordered]@{
+        schema_version = "creatorcut-managed-install/1.0"
+        managed = $true
+        install_type = "official-installer"
+        repository = $RepoUrl
+        install_dir = $InstallDir
+        version = $Version
+        git_tag = $GitTag
+        git_commit = $GitCommit
+        artifact_sha256 = $ArchiveSha256
+        release_keyset_version = $KeysetVersion
+        installed_at = [DateTime]::UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ")
+        platform = "win32"
+        tools = [ordered]@{
+            node = $NodePath
+            ffmpeg = $FfmpegPath
+            ffprobe = $FfprobePath
+            whisper = $WhisperPath
+            whisper_model = $ModelPath
+        }
+    }
+    $metadataPath = Join-Path $NextDir ".creatorcut-install.json"
+    [IO.File]::WriteAllText(
+        $metadataPath,
+        (($metadata | ConvertTo-Json -Depth 5) + "`n"),
+        [Text.UTF8Encoding]::new($false)
+    )
+
+    if (Test-Path -LiteralPath $InstallDir) {
+        Move-Item -LiteralPath $InstallDir -Destination $BackupDir
+    }
+    try {
+        Move-Item -LiteralPath $NextDir -Destination $InstallDir
+    } catch {
+        if (Test-Path -LiteralPath $BackupDir) {
+            Move-Item -LiteralPath $BackupDir -Destination $InstallDir
+        }
+        throw
+    }
+
+    New-Item -ItemType Directory -Force -Path $BinDir | Out-Null
+    $shim = Join-Path $BinDir "creatorcut.cmd"
+    $shimLines = @(
+        "@echo off",
+        "set `"CREATORCUT_INSTALL_DIR=$InstallDir`"",
+        "set `"CREATORCUT_INSTALL_METADATA=$InstallDir\.creatorcut-install.json`"",
+        "set `"CREATORCUT_RELEASE_KEYSET=$InstallDir\release\release-keyset.json`"",
+        "set `"CREATORCUT_RELEASE_RECOVERY_ROOTS=$InstallDir\release\recovery-roots.json`"",
+        "set `"CREATORCUT_WHISPER=$WhisperPath`"",
+        "set `"CREATORCUT_WHISPER_MODEL=$ModelPath`"",
+        "set `"CREATORCUT_FFMPEG=$FfmpegPath`"",
+        "set `"CREATORCUT_FFPROBE=$FfprobePath`"",
+        "`"$NodePath`" `"$InstallDir\apps\cli\dist\src\main.js`" %*"
+    )
+    [IO.File]::WriteAllLines($shim, $shimLines, [Text.Encoding]::ASCII)
+
+    try {
+        $versionSmoke = & $shim version | ConvertFrom-Json
+        Assert-LastExit "$ProductName version smoke"
+        if (-not $versionSmoke.ok -or $versionSmoke.data.version -ne $Version) {
+            Fail "$ProductName smoke returned the wrong version."
+        }
+        $doctorSmoke = & $shim doctor | ConvertFrom-Json
+        Assert-LastExit "$ProductName doctor smoke"
+        if (-not $doctorSmoke.ok -or
+            $doctorSmoke.data.credential_storage -ne "Windows DPAPI") {
+            Fail "$ProductName doctor did not confirm Windows DPAPI."
+        }
+    } catch {
+        Remove-Item -LiteralPath $InstallDir -Recurse -Force -ErrorAction SilentlyContinue
+        if (Test-Path -LiteralPath $BackupDir) {
+            Move-Item -LiteralPath $BackupDir -Destination $InstallDir
+        }
+        throw
+    }
+    if (Test-Path -LiteralPath $BackupDir) {
+        Remove-Item -LiteralPath $BackupDir -Recurse -Force
+    }
+
+    $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
+    $entries = @($userPath -split ";" | Where-Object { $_ })
+    if ($entries -notcontains $BinDir) {
+        [Environment]::SetEnvironmentVariable(
+            "Path",
+            (@($BinDir) + $entries -join ";"),
+            "User"
+        )
+        Write-Info "Added $BinDir to the user PATH; open a new PowerShell window."
+    }
+
+    Write-Ok "$ProductName $Version installed at $InstallDir"
+    Write-Host ""
+    Write-Host "Next: creatorcut auth login"
+} finally {
+    Remove-Item -LiteralPath $WorkDir -Recurse -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath $NextDir -Recurse -Force -ErrorAction SilentlyContinue
+}

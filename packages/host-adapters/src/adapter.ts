@@ -26,7 +26,7 @@ const controls = {
 
 export function capabilitiesForHost(
   hostType: PublicClientCapabilities["host_type"],
-  clientVersion = "0.1.0",
+  clientVersion = "0.2.0",
 ): PublicClientCapabilities {
   return buildPublicClientCapabilities(hostType, clientVersion);
 }

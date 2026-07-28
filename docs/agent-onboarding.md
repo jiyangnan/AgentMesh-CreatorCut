@@ -1,14 +1,27 @@
-# CreatorCut agent onboarding
+# AgentMesh-CreatorCut agent onboarding
 
-CreatorCut M1 is a local execution product backed by a private, signed Director.
-The current repository is a development checkpoint, not an installed public
-release.
+AgentMesh-CreatorCut is a public local-execution product backed by a private,
+signed Director. Install it through the official managed channel before using
+the workflow below.
+
+macOS or Ubuntu:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/jiyangnan/AgentMesh-CreatorCut/main/scripts/install.sh | bash
+```
+
+Windows PowerShell:
+
+```powershell
+irm https://raw.githubusercontent.com/jiyangnan/AgentMesh-CreatorCut/main/scripts/install.ps1 | iex
+```
 
 ## Required operating sequence
 
 1. Run `creatorcut doctor`.
-2. Authenticate through `creatorcut auth login`; supply the AgentMesh API key on
-   stdin. Never place it in argv, a project, a prompt, a log or shell history.
+2. Authenticate through `creatorcut auth login`; supply the AgentMesh API key
+   on stdin. It is stored in macOS Keychain, Windows DPAPI, or Linux Secret
+   Service. Never place it in argv, a project, a prompt, a log or shell history.
 3. Import the recording with `media import`, then run local transcription with
    `transcribe start --language zh|en|auto|mixed`. Resume the same task after an
    interruption; do not invent a transcript.

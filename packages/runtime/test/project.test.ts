@@ -1,5 +1,5 @@
 import { mkdtemp, mkdir, readFile, stat, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { platform, tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
@@ -201,10 +201,13 @@ describe("public CreatorCut runtime", () => {
     const context = buildDirectorContext(opened);
     const record = await approveDirectorContext(opened, context);
     expect(await requireDirectorConsent(opened, context)).toEqual(record);
-    const mode = (
-      await stat(join(opened.creatorcutDirectory, "director-consent.json"))
-    ).mode;
-    expect(mode & 0o077).toBe(0);
+    const consentStat = await stat(
+      join(opened.creatorcutDirectory, "director-consent.json"),
+    );
+    expect(consentStat.isFile()).toBe(true);
+    if (platform() !== "win32") {
+      expect(consentStat.mode & 0o077).toBe(0);
+    }
     const persisted = await readFile(
       join(opened.creatorcutDirectory, "director-consent.json"),
       "utf8",

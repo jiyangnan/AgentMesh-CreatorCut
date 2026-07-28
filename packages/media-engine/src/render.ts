@@ -115,30 +115,68 @@ ${events}
 `;
 }
 
-function isHdr(asset: LocalMediaAsset | undefined): boolean {
-  const primaries = asset?.color_primaries?.toLowerCase() ?? "";
-  const transfer = asset?.color_transfer?.toLowerCase() ?? "";
-  return (
+interface SourceVideoProfile {
+  encoder: "libx264" | "libx265";
+  pixelFormat: "yuv420p" | "yuv420p10le";
+  encoderArguments: string[];
+  colorArguments: string[];
+}
+
+function normalizedColorValue(value: string | undefined): string {
+  return value?.trim().toLowerCase() ?? "";
+}
+
+function sourceVideoProfile(
+  videoClips: LocalTimelineClip[],
+  assetById: Map<string, LocalMediaAsset>,
+): SourceVideoProfile {
+  const assets = [
+    ...new Map(
+      videoClips.map((clip) => {
+        const asset = assetById.get(clip.asset_id);
+        if (!asset) {
+          throw new Error(
+            `Timeline references unknown asset: ${clip.asset_id}`,
+          );
+        }
+        return [asset.asset_id, asset] as const;
+      }),
+    ).values(),
+  ];
+  const colorSignatures = new Set(
+    assets.map((asset) =>
+      [
+        normalizedColorValue(asset.color_primaries),
+        normalizedColorValue(asset.color_transfer),
+        normalizedColorValue(asset.color_space),
+      ].join("|"),
+    ),
+  );
+  if (colorSignatures.size > 1) {
+    throw new Error(
+      "CreatorCut will not automatically convert mixed source color profiles",
+    );
+  }
+  const source = assets[0]!;
+  const primaries = normalizedColorValue(source.color_primaries);
+  const transfer = normalizedColorValue(source.color_transfer);
+  const colorSpace = normalizedColorValue(source.color_space);
+  const preservesTenBit =
     primaries.includes("bt2020") ||
     transfer.includes("arib-std-b67") ||
     transfer.includes("smpte2084") ||
     transfer.includes("pq") ||
-    transfer.includes("hlg")
-  );
-}
-
-function safeColorFilters(asset: LocalMediaAsset | undefined): string[] {
-  if (!isHdr(asset)) {
-    return [];
-  }
-  return [
-    "zscale=t=linear:npl=100",
-    "format=gbrpf32le",
-    "zscale=p=bt709",
-    "tonemap=hable:desat=1",
-    "zscale=t=bt709:m=bt709:r=tv",
-    "setparams=color_primaries=bt709:color_trc=bt709:colorspace=bt709:range=tv",
-  ];
+    transfer.includes("hlg");
+  const colorArguments: string[] = [];
+  if (primaries) colorArguments.push("-color_primaries", primaries);
+  if (transfer) colorArguments.push("-color_trc", transfer);
+  if (colorSpace) colorArguments.push("-colorspace", colorSpace);
+  return {
+    encoder: preservesTenBit ? "libx265" : "libx264",
+    pixelFormat: preservesTenBit ? "yuv420p10le" : "yuv420p",
+    encoderArguments: preservesTenBit ? ["-tag:v", "hvc1"] : [],
+    colorArguments,
+  };
 }
 
 function sortedClips(
@@ -173,6 +211,7 @@ export async function renderTimeline(
   const assetById = new Map(
     options.project.assets.map((asset) => [asset.asset_id, asset]),
   );
+  const videoProfile = sourceVideoProfile(videoClips, assetById);
   const assetIds = [...new Set(allClips.map((clip) => clip.asset_id))];
   const assets = assetIds.map((assetId) => {
     const asset = assetById.get(assetId);
@@ -216,15 +255,13 @@ export async function renderTimeline(
     if (input === undefined) throw new Error("CreatorCut input map is invalid");
     const width = options.timeline.canvas.width;
     const height = options.timeline.canvas.height;
-    const sourceAsset = assetById.get(clip.asset_id);
     const chain = [
       `trim=start=${seconds(clip.source_start_us)}:end=${seconds(clip.source_end_us)}`,
       "setpts=PTS-STARTPTS",
-      ...safeColorFilters(sourceAsset),
       "setsar=1",
       `scale=${width}:${height}:force_original_aspect_ratio=decrease`,
       `pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:color=black`,
-      "format=yuv420p",
+      `format=${videoProfile.pixelFormat}`,
     ];
     const lut = options.timeline.effects?.find(
       (effect) =>
@@ -360,23 +397,19 @@ export async function renderTimeline(
     "-map",
     "[aout]",
     "-c:v",
-    "libx264",
+    videoProfile.encoder,
     "-preset",
     options.quality === "preview" ? "veryfast" : "medium",
     "-crf",
     options.quality === "preview" ? "27" : "18",
+    "-pix_fmt",
+    videoProfile.pixelFormat,
+    ...videoProfile.encoderArguments,
     "-c:a",
     "aac",
     "-b:a",
     options.quality === "preview" ? "128k" : "192k",
-    "-color_primaries",
-    "bt709",
-    "-color_trc",
-    "bt709",
-    "-colorspace",
-    "bt709",
-    "-color_range",
-    "tv",
+    ...videoProfile.colorArguments,
     "-movflags",
     "+faststart",
     output,

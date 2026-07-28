@@ -570,7 +570,7 @@ describe("public local media execution", () => {
     expect(light.equals(bright)).toBe(false);
   });
 
-  it("tone-maps HLG or PQ sources to tagged BT.709 output", async () => {
+  it("preserves the source HLG profile without implicit color processing", async () => {
     const directory = await projectFixture();
     const opened = await openCreatorCutProject(directory);
     const project = structuredClone(opened.project);
@@ -596,9 +596,51 @@ describe("public local media execution", () => {
       runner,
     });
     const command = ffmpegArgs.join(" ");
-    expect(command).toContain("zscale=t=linear:npl=100");
-    expect(command).toContain("tonemap=hable:desat=1");
-    expect(command).toContain("-color_primaries bt709");
+    expect(command).not.toContain("zscale=");
+    expect(command).not.toContain("tonemap=");
+    expect(command).not.toContain("setparams=");
+    expect(command).not.toContain("-color_primaries bt709");
+    expect(command).not.toContain("-color_range tv");
+    expect(command).toContain("-c:v libx265");
+    expect(command).toContain("-pix_fmt yuv420p10le");
+    expect(command).toContain("-tag:v hvc1");
+    expect(command).toContain("-color_primaries bt2020");
+    expect(command).toContain("-color_trc arib-std-b67");
+    expect(command).toContain("-colorspace bt2020nc");
+  });
+
+  it("refuses mixed source color profiles instead of converting them", async () => {
+    const directory = await projectFixture();
+    const opened = await openCreatorCutProject(directory);
+    const project = structuredClone(opened.project);
+    project.assets[0]!.color_primaries = "bt2020";
+    project.assets[0]!.color_transfer = "arib-std-b67";
+    project.assets[0]!.color_space = "bt2020nc";
+    project.assets.push({
+      ...project.assets[0]!,
+      asset_id: "asset-sdr",
+      relative_path: "media/sdr.mp4",
+      color_primaries: "bt709",
+      color_transfer: "bt709",
+      color_space: "bt709",
+    });
+    const timeline = structuredClone(opened.timeline);
+    timeline.tracks[0]!.clips.push({
+      ...timeline.tracks[0]!.clips[0]!,
+      clip_id: "clip-sdr",
+      asset_id: "asset-sdr",
+    });
+    await expect(
+      renderTimeline({
+        projectDirectory: directory,
+        project,
+        timeline,
+        outputPath: join(directory, "exports", "mixed-preview.mp4"),
+        quality: "preview",
+        overwrite: true,
+        runner: mediaRunner,
+      }),
+    ).rejects.toThrow(/will not automatically convert mixed source color/u);
   });
 
   it("rejects changed preview bytes, Manifest bindings, and project revisions", async () => {

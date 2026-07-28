@@ -124,6 +124,9 @@
       Manifest, changed project revision and unconfirmed export overwrite.
 - [x] Export start/status/resume/cancel persist state, preserve original audio by
       default, render through shell-free FFmpeg invocation and verify the output.
+- [x] Export applies no implicit `zscale`, tone-map, desaturation or BT.709
+      override; uniform HLG/BT.2020 sources retain their source metadata and
+      10-bit output, while mixed color profiles fail closed.
 - [x] A real local FFmpeg import/proxy/export smoke produced a valid MP4 with
       both H.264 video and AAC audio.
 

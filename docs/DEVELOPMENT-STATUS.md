@@ -26,6 +26,9 @@
       Chinese/English/auto/mixed whisper.cpp transcription.
 - [x] Local Manifest preview/apply/undo/redo and resumable export execution
       checkpoint.
+- [x] Local rendering preserves a uniform source color profile and bit depth;
+      it does not apply implicit HDR-to-SDR tone mapping, desaturation or
+      forced BT.709 tagging, and mixed source profiles fail closed.
 - [x] Real `creatorcut-server` generated signed `remove_range` fixture and
       deterministic operation `*_ref` resolution.
 - [x] Complete named 13-operation apply/fail-closed test matrix.

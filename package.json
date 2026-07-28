@@ -11,7 +11,7 @@
   "scripts": {
     "format": "prettier --write .",
     "lint": "prettier --check .",
-    "typecheck": "pnpm -r --if-present typecheck",
+    "typecheck": "pnpm build && pnpm -r --if-present typecheck",
     "build": "pnpm -r --if-present build",
     "test": "pnpm build && pnpm -r --if-present test && node --test tests/public-contract/*.test.mjs",
     "operations:digest": "node scripts/operations-bundle.mjs",

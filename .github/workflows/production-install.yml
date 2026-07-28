@@ -27,13 +27,17 @@ jobs:
           - ubuntu-24.04
           - windows-2022
 
-    env:
-      CREATORCUT_INSTALL_DIR: ${{ runner.temp }}/creatorcut/app
-      CREATORCUT_DATA_DIR: ${{ runner.temp }}/creatorcut/data
-      CREATORCUT_BIN_DIR: ${{ runner.temp }}/creatorcut/bin
-
     steps:
       - uses: actions/checkout@v4
+
+      - name: Prepare isolated install paths
+        shell: bash
+        run: |
+          {
+            echo "CREATORCUT_INSTALL_DIR=$RUNNER_TEMP/creatorcut/app"
+            echo "CREATORCUT_DATA_DIR=$RUNNER_TEMP/creatorcut/data"
+            echo "CREATORCUT_BIN_DIR=$RUNNER_TEMP/creatorcut/bin"
+          } >> "$GITHUB_ENV"
 
       - name: Validate production smoke lock
         shell: bash

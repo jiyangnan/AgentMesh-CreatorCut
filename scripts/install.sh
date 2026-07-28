@@ -32,6 +32,9 @@ command -v ffprobe >/dev/null || err "FFprobe is required. Install it with: brew
 
 NODE_MAJOR="$(node -p 'process.versions.node.split(".")[0]')"
 [ "$NODE_MAJOR" = "24" ] || err "CreatorCut M1 requires Node.js 24; current Node is $(node --version)."
+NODE_PATH="$(node -p 'process.execPath')"
+[ -x "$NODE_PATH" ] || err "Resolved Node.js 24 executable is unavailable: $NODE_PATH"
+NODE_BIN_DIR="$(dirname "$NODE_PATH")"
 
 if [ -z "$WHISPER_PATH" ]; then
   if command -v whisper-cli >/dev/null; then
@@ -162,7 +165,8 @@ SHIM="$BIN_DIR/creatorcut"
   printf 'export CREATORCUT_RELEASE_RECOVERY_ROOTS=%q\n' "$INSTALL_DIR/release/recovery-roots.json"
   printf 'export CREATORCUT_WHISPER=%q\n' "$WHISPER_PATH"
   printf 'export CREATORCUT_WHISPER_MODEL=%q\n' "$MODEL_PATH"
-  printf 'exec node %q "$@"\n' "$INSTALL_DIR/apps/cli/dist/src/main.js"
+  printf 'export PATH=%q:"$PATH"\n' "$NODE_BIN_DIR"
+  printf 'exec %q %q "$@"\n' "$NODE_PATH" "$INSTALL_DIR/apps/cli/dist/src/main.js"
 } > "$SHIM"
 chmod 755 "$SHIM"
 

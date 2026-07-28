@@ -308,6 +308,10 @@ test("installer and managed updater pin the frozen pnpm runtime", async () => {
   );
 
   assert.match(installer, /cd "\$NEXT_DIR"/u);
+  assert.match(installer, /NODE_PATH="\$\(node -p 'process\.execPath'\)"/u);
+  assert.match(installer, /export PATH=%q:"\$PATH"/u);
+  assert.match(installer, /exec %q %q "\$@"/u);
+  assert.doesNotMatch(installer, /exec node %q/u);
   assert.match(installer, /corepack pnpm@10\.30\.3 install/u);
   assert.doesNotMatch(installer, /corepack pnpm --dir/u);
   assert.match(
@@ -404,12 +408,15 @@ test("clean macOS fixture installs only the signed tag, commit and archive", asy
   assert.equal(metadata.git_commit, identity.commit);
   assert.equal(metadata.artifact_sha256, identity.archiveSha256);
   assert.equal(metadata.version, "0.1.0");
+  await writeFile(join(fakeBin, "node"), "#!/bin/sh\nexit 99\n", {
+    mode: 0o755,
+  });
   const version = JSON.parse(
     (
       await execFileAsync(join(bin, "creatorcut"), ["version"], {
         env: {
           ...process.env,
-          PATH: `${nodeBin}:/usr/local/bin:/usr/bin:/bin`,
+          PATH: `${fakeBin}:/usr/local/bin:/usr/bin:/bin`,
         },
       })
     ).stdout,

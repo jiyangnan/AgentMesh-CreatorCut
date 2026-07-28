@@ -347,6 +347,14 @@ test("installer and managed updater pin the frozen pnpm runtime", async () => {
   assert.doesNotMatch(windowsInstaller, /& \$NodePath -p/u);
   assert.match(
     windowsInstaller,
+    /install `\s+--frozen-lockfile --offline --force/u,
+  );
+  assert.match(
+    windowsInstaller,
+    /Rebinding Windows workspace links at the final install path/u,
+  );
+  assert.match(
+    windowsInstaller,
     /releases\/download\/v2\.55\.0\.windows\.3\/MinGit-2\.55\.0\.3-64-bit\.zip/u,
   );
   assert.match(

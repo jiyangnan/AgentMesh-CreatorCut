@@ -426,23 +426,33 @@ try {
         throw
     }
 
-    New-Item -ItemType Directory -Force -Path $BinDir | Out-Null
-    $shim = Join-Path $BinDir "creatorcut.cmd"
-    $shimLines = @(
-        "@echo off",
-        "set `"CREATORCUT_INSTALL_DIR=$InstallDir`"",
-        "set `"CREATORCUT_INSTALL_METADATA=$InstallDir\.creatorcut-install.json`"",
-        "set `"CREATORCUT_RELEASE_KEYSET=$InstallDir\release\release-keyset.json`"",
-        "set `"CREATORCUT_RELEASE_RECOVERY_ROOTS=$InstallDir\release\recovery-roots.json`"",
-        "set `"CREATORCUT_WHISPER=$WhisperPath`"",
-        "set `"CREATORCUT_WHISPER_MODEL=$ModelPath`"",
-        "set `"CREATORCUT_FFMPEG=$FfmpegPath`"",
-        "set `"CREATORCUT_FFPROBE=$FfprobePath`"",
-        "`"$NodePath`" `"$InstallDir\apps\cli\dist\src\main.js`" %*"
-    )
-    [IO.File]::WriteAllLines($shim, $shimLines, [Text.Encoding]::ASCII)
-
     try {
+        Write-Info "Rebinding Windows workspace links at the final install path"
+        Push-Location $InstallDir
+        try {
+            & $CorepackPath "pnpm@10.30.3" install `
+                --frozen-lockfile --offline --force
+            Assert-LastExit "final workspace link installation"
+        } finally {
+            Pop-Location
+        }
+
+        New-Item -ItemType Directory -Force -Path $BinDir | Out-Null
+        $shim = Join-Path $BinDir "creatorcut.cmd"
+        $shimLines = @(
+            "@echo off",
+            "set `"CREATORCUT_INSTALL_DIR=$InstallDir`"",
+            "set `"CREATORCUT_INSTALL_METADATA=$InstallDir\.creatorcut-install.json`"",
+            "set `"CREATORCUT_RELEASE_KEYSET=$InstallDir\release\release-keyset.json`"",
+            "set `"CREATORCUT_RELEASE_RECOVERY_ROOTS=$InstallDir\release\recovery-roots.json`"",
+            "set `"CREATORCUT_WHISPER=$WhisperPath`"",
+            "set `"CREATORCUT_WHISPER_MODEL=$ModelPath`"",
+            "set `"CREATORCUT_FFMPEG=$FfmpegPath`"",
+            "set `"CREATORCUT_FFPROBE=$FfprobePath`"",
+            "`"$NodePath`" `"$InstallDir\apps\cli\dist\src\main.js`" %*"
+        )
+        [IO.File]::WriteAllLines($shim, $shimLines, [Text.Encoding]::ASCII)
+
         $versionSmoke = & $shim version | ConvertFrom-Json
         Assert-LastExit "$ProductName version smoke"
         if (-not $versionSmoke.ok -or $versionSmoke.data.version -ne $Version) {

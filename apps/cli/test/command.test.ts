@@ -110,7 +110,7 @@ describe("creatorcut CLI", () => {
     expect(result).toMatchObject({
       ok: true,
       command: "version",
-      data: { version: "0.1.0-rc.8" },
+      data: { version: "0.1.0-rc.9" },
     });
   });
 

@@ -28,10 +28,10 @@ The installer owns the supported runtime combination:
 
 macOS uses Homebrew for Git, FFmpeg, and whisper.cpp when they are missing.
 Ubuntu uses `apt` for Git, FFmpeg, and Secret Service and downloads the pinned
-official whisper.cpp binary. Windows uses `winget` for Git and FFmpeg and
-downloads pinned official Node and whisper.cpp archives. An operating-system
-administrator prompt may appear while the platform package manager installs
-dependencies; users do not need to select versions or discover paths.
+official whisper.cpp binary. Windows installs SHA-256-verified portable Git,
+FFmpeg, Node, and whisper.cpp archives under the CreatorCut data root, so it
+does not require `winget` or administrator access. Users do not need to select
+versions or discover paths.
 
 Project media and `.creatorcut` state are not stored inside the managed
 application directory. Reinstall, update, and rollback therefore leave source

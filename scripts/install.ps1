@@ -62,6 +62,10 @@ $KeysetUrl = if ($env:CREATORCUT_RELEASE_KEYSET_URL) {
 }
 $NodeVersion = "24.18.0"
 $NodeSha256 = "0ae68406b42d7725661da979b1403ec9926da205c6770827f33aac9d8f26e821"
+$GitVersion = "2.55.0.3"
+$GitSha256 = "f48e2d2dc74a24454adc6d8fd0ac25bf9c2386f19cfb06202b9465aaad4f9f05"
+$FfmpegVersion = "8.1.2"
+$FfmpegSha256 = "db580001caa24ac104c8cb856cd113a87b0a443f7bdf47d8c12b1d740584a2ec"
 $WhisperVersion = "1.9.1"
 $WhisperSha256 = "7d8be46ecd31828e1eb7a2ecdd0d6b314feafd82163038ab6092594b0a063539"
 $ModelUrl = if ($env:CREATORCUT_WHISPER_MODEL_URL) {
@@ -130,34 +134,12 @@ function Download-Verified(
     Assert-Sha256 $Destination $Expected
 }
 
-function Refresh-ProcessPath {
-    $machine = [Environment]::GetEnvironmentVariable("Path", "Machine")
-    $user = [Environment]::GetEnvironmentVariable("Path", "User")
-    $env:Path = "$machine;$user"
-}
-
 function Resolve-CommandPath([string]$Name) {
     $command = Get-Command $Name -ErrorAction SilentlyContinue
     if ($command) {
         return $command.Source
     }
     return $null
-}
-
-function Install-WingetPackage(
-    [string]$Id,
-    [string]$Label
-) {
-    $winget = Resolve-CommandPath "winget.exe"
-    if (-not $winget) {
-        Fail "Windows Package Manager (winget) is required to install $Label."
-    }
-    Write-Info "Installing $Label"
-    & $winget install --id $Id --exact --silent `
-        --accept-package-agreements --accept-source-agreements `
-        --disable-interactivity
-    Assert-LastExit "$Label installation"
-    Refresh-ProcessPath
 }
 
 if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) {
@@ -183,16 +165,62 @@ if ([string]::IsNullOrWhiteSpace($InstallDir) -or
 $WorkDir = Join-Path ([IO.Path]::GetTempPath()) ("creatorcut-install-" + [Guid]::NewGuid())
 $NextDir = "$InstallDir.next-$PID"
 $BackupDir = "$InstallDir.previous-$PID"
+$ManagedGitRoot = Join-Path $DataDir "runtime\mingit-v$GitVersion-win-x64"
+$ManagedGitPath = Join-Path $ManagedGitRoot "cmd\git.exe"
+$ManagedFfmpegRoot = Join-Path $DataDir "runtime\ffmpeg-v$FfmpegVersion-win-x64"
+$ManagedFfmpegPath = Join-Path $ManagedFfmpegRoot "bin\ffmpeg.exe"
+$ManagedFfprobePath = Join-Path $ManagedFfmpegRoot "bin\ffprobe.exe"
 New-Item -ItemType Directory -Force -Path $WorkDir | Out-Null
 
 try {
     if (-not $SkipDependencies) {
-        if (-not (Resolve-CommandPath "git.exe")) {
-            Install-WingetPackage "Git.Git" "Git for Windows"
+        if (-not (Resolve-CommandPath "git.exe") -and
+            -not (Test-Path -LiteralPath $ManagedGitPath)) {
+            Write-Info "Installing verified portable Git for Windows $GitVersion"
+            $gitArchive = Join-Path $WorkDir "mingit.zip"
+            Download-Verified `
+                "https://github.com/git-for-windows/git/releases/download/v2.55.0.windows.3/MinGit-2.55.0.3-64-bit.zip" `
+                $gitArchive `
+                $GitSha256
+            $gitUnpack = Join-Path $WorkDir "mingit-runtime"
+            Expand-Archive -LiteralPath $gitArchive -DestinationPath $gitUnpack -Force
+            if (-not (Test-Path -LiteralPath (Join-Path $gitUnpack "cmd\git.exe"))) {
+                Fail "portable Git archive does not contain cmd\git.exe."
+            }
+            New-Item -ItemType Directory -Force `
+                -Path (Split-Path -Parent $ManagedGitRoot) | Out-Null
+            Move-Item -LiteralPath $gitUnpack -Destination $ManagedGitRoot
         }
         if (-not (Resolve-CommandPath "ffmpeg.exe") -or
             -not (Resolve-CommandPath "ffprobe.exe")) {
-            Install-WingetPackage "Gyan.FFmpeg" "FFmpeg"
+            if (-not (Test-Path -LiteralPath $ManagedFfmpegPath) -or
+                -not (Test-Path -LiteralPath $ManagedFfprobePath)) {
+                Write-Info "Installing verified portable FFmpeg $FfmpegVersion"
+                $ffmpegArchive = Join-Path $WorkDir "ffmpeg.zip"
+                Download-Verified `
+                    "https://github.com/GyanD/codexffmpeg/releases/download/8.1.2/ffmpeg-8.1.2-essentials_build.zip" `
+                    $ffmpegArchive `
+                    $FfmpegSha256
+                $ffmpegUnpack = Join-Path $WorkDir "ffmpeg-runtime"
+                Expand-Archive -LiteralPath $ffmpegArchive `
+                    -DestinationPath $ffmpegUnpack -Force
+                $ffmpegCandidate = Get-ChildItem -LiteralPath $ffmpegUnpack `
+                    -Recurse -Filter "ffmpeg.exe" -File |
+                    Select-Object -First 1
+                if (-not $ffmpegCandidate) {
+                    Fail "portable FFmpeg archive does not contain ffmpeg.exe."
+                }
+                $ffmpegCandidateRoot = Split-Path -Parent `
+                    (Split-Path -Parent $ffmpegCandidate.FullName)
+                if (-not (Test-Path -LiteralPath `
+                    (Join-Path $ffmpegCandidateRoot "bin\ffprobe.exe"))) {
+                    Fail "portable FFmpeg archive does not contain ffprobe.exe."
+                }
+                New-Item -ItemType Directory -Force `
+                    -Path (Split-Path -Parent $ManagedFfmpegRoot) | Out-Null
+                Move-Item -LiteralPath $ffmpegCandidateRoot `
+                    -Destination $ManagedFfmpegRoot
+            }
         }
     }
 
@@ -200,22 +228,22 @@ try {
     if (-not $GitPath) {
         $GitPath = Resolve-CommandPath "git"
     }
+    if (-not $GitPath -and (Test-Path -LiteralPath $ManagedGitPath)) {
+        $GitPath = $ManagedGitPath
+    }
     if (-not $GitPath) {
         Fail "Git installation failed."
     }
 
     $FfmpegPath = Resolve-CommandPath "ffmpeg.exe"
     $FfprobePath = Resolve-CommandPath "ffprobe.exe"
-    if (-not $FfmpegPath -or -not $FfprobePath) {
-        $wingetRoot = Join-Path $LocalAppData "Microsoft\WinGet\Packages"
-        if (Test-Path -LiteralPath $wingetRoot) {
-            $FfmpegPath = Get-ChildItem -LiteralPath $wingetRoot -Recurse `
-                -Filter "ffmpeg.exe" -File -ErrorAction SilentlyContinue |
-                Select-Object -First 1 -ExpandProperty FullName
-            $FfprobePath = Get-ChildItem -LiteralPath $wingetRoot -Recurse `
-                -Filter "ffprobe.exe" -File -ErrorAction SilentlyContinue |
-                Select-Object -First 1 -ExpandProperty FullName
-        }
+    if (-not $FfmpegPath -and
+        (Test-Path -LiteralPath $ManagedFfmpegPath)) {
+        $FfmpegPath = $ManagedFfmpegPath
+    }
+    if (-not $FfprobePath -and
+        (Test-Path -LiteralPath $ManagedFfprobePath)) {
+        $FfprobePath = $ManagedFfprobePath
     }
     if (-not $FfmpegPath -or -not $FfprobePath) {
         Fail "FFmpeg installation failed."

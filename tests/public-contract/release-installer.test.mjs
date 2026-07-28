@@ -339,6 +339,19 @@ test("installer and managed updater pin the frozen pnpm runtime", async () => {
   assert.doesNotMatch(installer, /corepack pnpm@10\.30\.3 build/u);
   assert.match(windowsInstaller, /\$NodeVersion = "24\.18\.0"/u);
   assert.match(windowsInstaller, /\$NodeSha256 = "[a-f0-9]{64}"/u);
+  assert.match(windowsInstaller, /\$GitVersion = "2\.55\.0\.3"/u);
+  assert.match(windowsInstaller, /\$GitSha256 = "[a-f0-9]{64}"/u);
+  assert.match(windowsInstaller, /\$FfmpegVersion = "8\.1\.2"/u);
+  assert.match(windowsInstaller, /\$FfmpegSha256 = "[a-f0-9]{64}"/u);
+  assert.match(
+    windowsInstaller,
+    /releases\/download\/v2\.55\.0\.windows\.3\/MinGit-2\.55\.0\.3-64-bit\.zip/u,
+  );
+  assert.match(
+    windowsInstaller,
+    /releases\/download\/8\.1\.2\/ffmpeg-8\.1\.2-essentials_build\.zip/u,
+  );
+  assert.doesNotMatch(windowsInstaller, /winget/u);
   assert.match(windowsInstaller, /\$WhisperSha256 = "[a-f0-9]{64}"/u);
   assert.match(windowsInstaller, /"Windows DPAPI"/u);
   assert.doesNotMatch(

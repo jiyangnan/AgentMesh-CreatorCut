@@ -10,7 +10,7 @@ import {
   rm,
   writeFile,
 } from "node:fs/promises";
-import { dirname, join, resolve } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
 import {
   assertPublicProtocol,
@@ -512,9 +512,11 @@ export async function readLocalArtifact<T>(
 ): Promise<T | null> {
   const opened = await openCreatorCutProject(projectDirectory);
   const path = resolve(opened.creatorcutDirectory, relativePath);
+  const fromRoot = relative(opened.creatorcutDirectory, path);
   if (
-    path !== opened.creatorcutDirectory &&
-    !path.startsWith(`${opened.creatorcutDirectory}/`)
+    fromRoot === ".." ||
+    fromRoot.startsWith(`..${sep}`) ||
+    isAbsolute(fromRoot)
   ) {
     throw new TypeError("CreatorCut artifact path escapes the project");
   }
@@ -533,9 +535,11 @@ export async function writeLocalArtifact(
 ): Promise<void> {
   const opened = await openCreatorCutProject(projectDirectory);
   const path = resolve(opened.creatorcutDirectory, relativePath);
+  const fromRoot = relative(opened.creatorcutDirectory, path);
   if (
-    path !== opened.creatorcutDirectory &&
-    !path.startsWith(`${opened.creatorcutDirectory}/`)
+    fromRoot === ".." ||
+    fromRoot.startsWith(`..${sep}`) ||
+    isAbsolute(fromRoot)
   ) {
     throw new TypeError("CreatorCut artifact path escapes the project");
   }

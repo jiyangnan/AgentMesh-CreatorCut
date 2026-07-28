@@ -11,9 +11,11 @@ import {
   createCreatorCutProject,
   inspectDirectorContext,
   openCreatorCutProject,
+  readLocalArtifact,
   redoLocalRevision,
   requireDirectorConsent,
   undoLocalRevision,
+  writeLocalArtifact,
 } from "../src/index.js";
 
 async function fixtureProject(): Promise<string> {
@@ -227,5 +229,15 @@ describe("public CreatorCut runtime", () => {
     await expect(requireDirectorConsent(opened, changed)).rejects.toThrow(
       /not approved/u,
     );
+  });
+
+  it("rejects artifact traversal outside the private project state", async () => {
+    const opened = await openCreatorCutProject(await fixtureProject());
+    await expect(
+      writeLocalArtifact(opened.directory, "../escape.json", {}),
+    ).rejects.toThrow(/escapes the project/u);
+    await expect(
+      readLocalArtifact(opened.directory, "../escape.json"),
+    ).rejects.toThrow(/escapes the project/u);
   });
 });

@@ -37,8 +37,10 @@ Ubuntu, Windows, architecture, and dependency contract.
 
 ## Current status
 
-AgentMesh-CreatorCut M1 Cycle 1–5 is complete and public stable `v0.1.0` is available
-through the signed managed-install channel. This repository contains the
+AgentMesh-CreatorCut M1 Cycle 1–5 is complete and public stable `v0.2.0` is
+available through the signed managed-install channel. Production cloud
+admission is open for the Director main feature at the AgentMesh Core
+authoritative price of 50 credits. This repository contains the
 frozen public Protocol v1 plus a
 source-buildable local runtime, Director verification code, cross-platform
 secure credential adapters, stable JSON CLI, public MCP server, semantic card/text
@@ -64,8 +66,9 @@ original-color three-material dogfood, production dark deployment, approved
 50-credit paid canary/rollback, persistent Core stable ReleaseManifest and a
 formal clean public-channel reinstall with real Server/Core preflight.
 
-The public repository is the release carrier, while availability and the
-authoritative 50-credit Director price remain controlled by AgentMesh Core.
+The public repository is the release carrier, while availability, admission,
+and the authoritative 50-credit Director price remain controlled by
+AgentMesh Core.
 
 ## Product boundary
 

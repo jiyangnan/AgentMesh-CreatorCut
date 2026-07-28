@@ -271,9 +271,9 @@ try {
                 -Destination $NodeRuntime
         }
     }
-    $nodeMajor = (& $NodePath -p 'process.versions.node.split(".")[0]').Trim()
+    $nodeVersionText = (& $NodePath --version).Trim()
     Assert-LastExit "Node.js inspection"
-    if ($nodeMajor -ne "24") {
+    if ($nodeVersionText -notmatch "^v24\.") {
         Fail "verified Node.js 24 runtime is required."
     }
     $CorepackPath = Join-Path (Split-Path -Parent $NodePath) "corepack.cmd"

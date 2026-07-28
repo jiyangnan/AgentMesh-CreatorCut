@@ -343,6 +343,8 @@ test("installer and managed updater pin the frozen pnpm runtime", async () => {
   assert.match(windowsInstaller, /\$GitSha256 = "[a-f0-9]{64}"/u);
   assert.match(windowsInstaller, /\$FfmpegVersion = "8\.1\.2"/u);
   assert.match(windowsInstaller, /\$FfmpegSha256 = "[a-f0-9]{64}"/u);
+  assert.match(windowsInstaller, /& \$NodePath --version/u);
+  assert.doesNotMatch(windowsInstaller, /& \$NodePath -p/u);
   assert.match(
     windowsInstaller,
     /releases\/download\/v2\.55\.0\.windows\.3\/MinGit-2\.55\.0\.3-64-bit\.zip/u,

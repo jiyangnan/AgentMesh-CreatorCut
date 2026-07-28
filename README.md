@@ -11,8 +11,9 @@ declarative reversible operations.
 
 ## Current status
 
-This repository has recorded the CreatorCut Cycle 4 local release-engineering
-checkpoint. It contains the frozen public Protocol v1 plus a
+CreatorCut M1 Cycle 1–5 is complete and public stable `v0.1.0` is available
+through the signed managed-install channel. This repository contains the
+frozen public Protocol v1 plus a
 source-buildable local runtime, Director verification code, macOS Keychain
 credential adapter, stable JSON CLI, public MCP server, semantic card/text
 presentation adapters, local media import, Chinese/English/mixed whisper.cpp
@@ -31,16 +32,17 @@ Claude Code is deferred to a post-M1 compatibility iteration and is not an M1
 supported or release-tested host. Its source preview remains under
 `skills/claude-code` but is excluded from support claims.
 
-Cycle 4 added the managed installer and signed release chain. Cycle 5 RC11 has
-now passed the real GitHub tag/archive install, staging signed Manifest,
-original-color media, Node.js 24 runtime and three-material public-product
-dogfood gates.
+Cycle 4 added the managed installer and signed release chain. Cycle 5 completed
+the real GitHub RC/stable tag and canonical archive, staging signed Manifest,
+original-color three-material dogfood, production dark deployment, approved
+50-credit paid canary/rollback, persistent Core stable ReleaseManifest and a
+formal clean public-channel reinstall with real Server/Core preflight.
 
 The public repository is the release carrier, but availability remains
-controlled by AgentMesh Core. A stable tag does not itself activate public
-installation: production Server/Core/shared Caddy must first deploy dark, the
-approved paid canary and rollback must pass, and Core stable ReleaseManifest
-activation remains the final launch action.
+controlled by AgentMesh Core. Public managed installation is active; paid new
+Director generations are still intentionally closed by both the Core and
+Server production gates. Stable client availability must not be interpreted as
+commercial workload admission.
 
 ## Product boundary
 

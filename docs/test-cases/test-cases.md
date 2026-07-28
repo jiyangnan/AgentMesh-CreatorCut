@@ -203,6 +203,13 @@
       reinstalls the prior build without rewriting managed metadata.
 - [x] `upgrade-check` validates the current project and reports preserved state
       plus any task that defers update.
+- [x] Formal public-channel reinstall verifies the stable Core Manifest,
+      exact `v0.1.0` tag/commit/canonical archive, managed metadata, Node 24
+      runtime, `version`, `doctor`, `update check` and a real Server/Core
+      Director preflight from isolated install/Home/Keychain roots.
+- [x] A routine Core production redeploy preserves the stable release registry
+      and signing-key configuration; the public release endpoint remains
+      verifiable instead of reverting to `503`.
 
 ## Cycle 3 closeout gate
 
@@ -217,3 +224,11 @@ managed update rollback tests, shell/standalone verifier checks and the clean
 macOS installer fixture passed. This closes local Cycle 4 engineering only; it
 does not claim a real GitHub tag, activated Core manifest, push, deployment or
 public launch.
+
+## Cycle 5 closeout gate
+
+The immutable RC/stable artifacts, staging three-material acceptance,
+production dark deployment, approved paid canary/refund rollback, persistent
+stable ReleaseManifest and formal public-channel reinstall passed. Public
+managed installation is live; Core and Server paid-new-work gates remain
+closed by policy.

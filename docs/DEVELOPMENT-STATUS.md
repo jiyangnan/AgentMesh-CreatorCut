@@ -40,15 +40,20 @@
 - [x] macOS managed installer, recovery-root-signed ReleaseManifest
       verification, update deferral, compatibility check and rollback.
 - [x] Real RC11 public-product installation and three-material dogfood.
+- [x] Immutable public stable `v0.1.0` tag, canonical archive and formal
+      GitHub Release.
+- [x] Production dark deployment, approved 50-credit paid canary/refund
+      rollback, persistent Core stable ReleaseManifest and formal clean
+      public-channel reinstall with real Server/Core preflight.
 
-Cycle 3 and Cycle 4 are complete. Cycle 5 RC11 has passed the real public tag,
-canonical archive, staging-signed ReleaseManifest, isolated managed install,
-Node.js 24 runtime and three-material local execution gates. Batch 3 closed the
-real signed fixture, Codex MCP App, OpenClaw Skill, generic-text fallback and
-four-point interruption-recovery gaps. The user-approved plan delta defers
-Claude Code to post-M1 and removes it from M1 completion claims. Production
-dark deployment, paid canary/rollback and final Core stable Manifest activation
-remain separate gates.
+Cycle 1–5 are complete. The stable managed-install channel serves `v0.1.0` and
+survives a routine Core production redeploy because the release registry and
+signing configuration are persisted in the production workflow. Batch 3
+closed the real signed fixture, Codex MCP App, OpenClaw Skill, generic-text
+fallback and four-point interruption-recovery gaps. The user-approved plan
+delta defers Claude Code to post-M1 and removes it from M1 completion claims.
+Core and Server new-work gates remain closed, so paid Director generations are
+not generally available even though stable client installation is live.
 
 ## Cycle 4 closeout
 
@@ -82,6 +87,7 @@ remain separate gates.
 Exact evidence:
 [Cycle 4 managed release closeout](operations/2026-07-27-cycle4-managed-release-closeout.md).
 [Cycle 5 RC11 staging acceptance](operations/2026-07-28-cycle5-rc11-staging-acceptance.md).
+[Cycle 5 stable production release](operations/2026-07-28-cycle5-v0.1.0-production-release.md).
 
 ## Cycle 3 / Batch 3 closeout
 

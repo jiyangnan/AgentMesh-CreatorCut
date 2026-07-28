@@ -41,8 +41,14 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Verify packages and public contracts
+        if: runner.os != 'Windows'
         shell: bash
         run: pnpm verify
+
+      - name: Verify Windows packages
+        if: runner.os == 'Windows'
+        shell: bash
+        run: pnpm verify:packages
 
       - name: Validate shell installer
         if: runner.os != 'Windows'

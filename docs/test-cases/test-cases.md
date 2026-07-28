@@ -127,6 +127,10 @@
 - [x] Export applies no implicit `zscale`, tone-map, desaturation or BT.709
       override; uniform HLG/BT.2020 sources retain their source metadata and
       10-bit output, while mixed color profiles fail closed.
+- [x] HLG export pins input decoding, filter scheduling and x265
+      frame/lookahead scheduling. The named command-contract regression and a
+      parallel six-second 4K HLG real-media probe produced identical output
+      SHA-256 values.
 - [x] A real local FFmpeg import/proxy/export smoke produced a valid MP4 with
       both H.264 video and AAC audio.
 

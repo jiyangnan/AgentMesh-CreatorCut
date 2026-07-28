@@ -570,7 +570,7 @@ describe("public local media execution", () => {
     expect(light.equals(bright)).toBe(false);
   });
 
-  it("preserves the source HLG profile without implicit color processing", async () => {
+  it("preserves the source HLG profile and pins deterministic scheduling", async () => {
     const directory = await projectFixture();
     const opened = await openCreatorCutProject(directory);
     const project = structuredClone(opened.project);
@@ -603,6 +603,12 @@ describe("public local media execution", () => {
     expect(command).not.toContain("-color_range tv");
     expect(command).toContain("-c:v libx265");
     expect(command).toContain("-pix_fmt yuv420p10le");
+    expect(command).toContain("-filter_threads 1");
+    expect(command).toContain("-filter_complex_threads 1");
+    expect(command).toContain("-threads 1 -i");
+    expect(command).toContain(
+      "-x265-params frame-threads=1:lookahead-threads=1",
+    );
     expect(command).toContain("-tag:v hvc1");
     expect(command).toContain("-color_primaries bt2020");
     expect(command).toContain("-color_trc arib-std-b67");

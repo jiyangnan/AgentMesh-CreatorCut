@@ -244,10 +244,19 @@ export async function renderTimeline(
   if (existingOutput && [...pathsByAsset.values()].includes(existingOutput)) {
     throw new Error("CreatorCut export can never overwrite a project asset");
   }
-  const args: string[] = ["-nostdin", "-hide_banner", "-loglevel", "error"];
+  const args: string[] = [
+    "-nostdin",
+    "-hide_banner",
+    "-loglevel",
+    "error",
+    "-filter_threads",
+    "1",
+    "-filter_complex_threads",
+    "1",
+  ];
   if (options.overwrite) args.push("-y");
   for (const asset of assets) {
-    args.push("-i", pathsByAsset.get(asset.asset_id)!);
+    args.push("-threads", "1", "-i", pathsByAsset.get(asset.asset_id)!);
   }
   const filters: string[] = [];
   for (const [index, clip] of videoClips.entries()) {
@@ -404,6 +413,9 @@ export async function renderTimeline(
     options.quality === "preview" ? "27" : "18",
     "-pix_fmt",
     videoProfile.pixelFormat,
+    ...(videoProfile.encoder === "libx265"
+      ? ["-x265-params", "frame-threads=1:lookahead-threads=1"]
+      : []),
     ...videoProfile.encoderArguments,
     "-c:a",
     "aac",

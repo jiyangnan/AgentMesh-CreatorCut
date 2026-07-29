@@ -1,7 +1,7 @@
 {
   "schema_version": "creatorcut-production-smoke/1.0",
-  "version": "0.2.0",
-  "git_tag": "v0.2.0",
-  "git_commit": "b92e992f22109960d84f9abc29481989867d04a7",
-  "artifact_sha256": "c38a93307d98eea1e58455b5f5592801d041f98b59e8971f6dd0e6411c8855f8"
+  "version": "0.2.1",
+  "git_tag": "v0.2.1",
+  "git_commit": "4305b1e201f602fb769ae4973c2b37efbf62e923",
+  "artifact_sha256": "21b10149fa720f753e3f90371c399ed13c01227b5481dd013845bcee200972b5"
 }

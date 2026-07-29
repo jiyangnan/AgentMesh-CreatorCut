@@ -3,6 +3,19 @@
 AgentMesh-CreatorCut is the AgentMesh360 intelligent post-production product
 for existing talking-head recordings and product screen recordings.
 
+## Best Fit
+
+- Creators who already have a talking-head, tutorial, demo, or product screen
+  recording and need transcription, semantic editing, captions, music, and
+  export.
+- Chinese, English, and mixed-language recordings.
+- Workflows where source media must remain local and every edit must remain
+  previewable, reversible, and bound to a signed plan.
+
+It is not a topic-to-video generator. AgentMesh-LectureCast starts with a topic
+and builds a course video; AgentMesh-CreatorCut starts with an existing
+recording and performs post-production.
+
 Product contract:
 
 - Public local client: media import, Chinese/English/mixed transcription,

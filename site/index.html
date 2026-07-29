@@ -8,7 +8,37 @@
       name="description"
       content="AgentMesh-CreatorCut 自动完成口播和产品录屏的转写、交互式剪辑决策、字幕、背景音乐与本地导出。原始媒体始终留在你的电脑。"
     />
+    <meta name="robots" content="index,follow,max-image-preview:large" />
+    <meta
+      property="og:title"
+      content="AgentMesh-CreatorCut｜口播与产品录屏智能后期 Agent"
+    />
+    <meta
+      property="og:description"
+      content="把已经录好的口播和产品录屏交给 Agent：中英转写、可逆剪辑、字幕、背景音乐与原色导出留在本机，云端 Director 返回签名剪辑方案。"
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://creatorcut.agentmesh360.com/" />
+    <meta
+      property="og:site_name"
+      content="AgentMesh-CreatorCut · AgentMesh360"
+    />
+    <meta name="twitter:card" content="summary" />
+    <meta
+      name="twitter:title"
+      content="AgentMesh-CreatorCut｜口播与产品录屏智能后期 Agent"
+    />
+    <meta
+      name="twitter:description"
+      content="已有视频进，转写、可逆剪辑、字幕、音乐和原色成片出；原始媒体留在本机。"
+    />
     <link rel="canonical" href="https://creatorcut.agentmesh360.com/" />
+    <link
+      rel="alternate"
+      type="text/markdown"
+      href="/llms.txt"
+      title="AgentMesh-CreatorCut LLMs.txt"
+    />
     <link
       rel="alternate"
       hreflang="zh-CN"
@@ -29,23 +59,99 @@
       hreflang="ko"
       href="https://creatorcut.agentmesh360.com/ko/"
     />
+    <link
+      rel="alternate"
+      hreflang="x-default"
+      href="https://creatorcut.agentmesh360.com/"
+    />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="/assets/styles.css" />
     <script defer src="/assets/site.js"></script>
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
-        "@type": "SoftwareApplication",
-        "name": "AgentMesh-CreatorCut",
-        "applicationCategory": "MultimediaApplication",
-        "operatingSystem": "macOS, Windows, Ubuntu",
-        "url": "https://creatorcut.agentmesh360.com/",
-        "offers": {
-          "@type": "Offer",
-          "price": "50",
-          "priceCurrency": "AgentMesh credits",
-          "description": "One signed CreatorCut Director plan"
-        }
+        "@graph": [
+          {
+            "@type": "Organization",
+            "@id": "https://agentmesh360.com/#organization",
+            "name": "AgentMesh360",
+            "url": "https://agentmesh360.com/"
+          },
+          {
+            "@type": "SoftwareApplication",
+            "@id": "https://creatorcut.agentmesh360.com/#software",
+            "name": "AgentMesh-CreatorCut",
+            "applicationCategory": "MultimediaApplication",
+            "applicationSubCategory": "AI post-production agent",
+            "operatingSystem": "macOS, Windows, Ubuntu",
+            "url": "https://creatorcut.agentmesh360.com/",
+            "codeRepository": "https://github.com/jiyangnan/AgentMesh-CreatorCut",
+            "provider": {
+              "@id": "https://agentmesh360.com/#organization"
+            },
+            "audience": {
+              "@type": "Audience",
+              "audienceType": "已经录好口播、教程或产品录屏，需要完成智能后期的创作者"
+            },
+            "isAccessibleForFree": false,
+            "description": "AgentMesh-CreatorCut 面向已经录好的口播与产品录屏，在本机完成中英转写、可逆剪辑、字幕、背景音乐和原色导出，并由云端 Director 返回签名剪辑方案。",
+            "featureList": [
+              "中文、英文与中英混合转写",
+              "语义剪辑与可逆编辑",
+              "字幕与轻快背景音乐",
+              "默认保持源视频色彩",
+              "本地预览与导出",
+              "交互式决策卡片",
+              "签名声明式剪辑方案"
+            ],
+            "offers": {
+              "@type": "Offer",
+              "url": "https://agentmesh360.com/app/#pricing",
+              "description": "本地执行不消耗 credits；用户确认一份签名 Director 剪辑方案时消耗 50 个 AgentMesh credits。",
+              "availability": "https://schema.org/InStock"
+            }
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://creatorcut.agentmesh360.com/#website",
+            "url": "https://creatorcut.agentmesh360.com/",
+            "name": "AgentMesh-CreatorCut",
+            "inLanguage": "zh-CN",
+            "publisher": {
+              "@id": "https://agentmesh360.com/#organization"
+            }
+          },
+          {
+            "@type": "FAQPage",
+            "@id": "https://creatorcut.agentmesh360.com/#faq",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "CreatorCut 会把视频上传到云端吗？",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "不会。源视频、音频、转写中间文件、预览和导出都留在本机；只有用户检查并确认过的结构化 DirectorContext 才会发送到云端策略服务。"
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "CreatorCut 会自动给视频加滤镜或调色吗？",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "不会。默认保持源视频色彩，不做自动 LUT、曝光增强、HDR 转 SDR 或强制 BT.709；受支持的画面处理必须进入可见计划和本地预览。"
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "CreatorCut 和 LectureCast 有什么区别？",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "LectureCast 从一个主题生成完整课程视频；AgentMesh-CreatorCut 从已经录好的口播或产品录屏出发，完成智能后期。"
+                }
+              }
+            ]
+          }
+        ]
       }
     </script>
   </head>

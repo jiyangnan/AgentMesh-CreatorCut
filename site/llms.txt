@@ -49,4 +49,9 @@ Localized sites:
 - Japanese: https://creatorcut.agentmesh360.com/ja/
 - Korean: https://creatorcut.agentmesh360.com/ko/
 
+Further reading:
+
+- AI talking-head video editing: https://creatorcut.agentmesh360.com/guides/talking-head-video-editing/
+- AI product screen-recording editing: https://creatorcut.agentmesh360.com/guides/screen-recording-editing/
+
 Public repository: https://github.com/jiyangnan/AgentMesh-CreatorCut

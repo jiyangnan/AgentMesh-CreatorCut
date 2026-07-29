@@ -271,6 +271,9 @@ export function validateSite(rootInput) {
     "robots.txt",
     "sitemap.xml",
     "llms.txt",
+    "seo.css",
+    "guides/talking-head-video-editing/index.html",
+    "guides/screen-recording-editing/index.html",
   ]) {
     if (!existsSync(join(root, asset))) {
       errors.push(`${asset}: required site asset is missing`);

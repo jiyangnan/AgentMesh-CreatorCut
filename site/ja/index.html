@@ -10,7 +10,25 @@
       name="description"
       content="AgentMesh-CreatorCut はトーク動画と製品デモを、中英文字起こし、対話型編集判断、字幕、音楽、ローカル書き出しで完成動画に仕上げます。"
     />
+    <meta name="robots" content="index,follow,max-image-preview:large" />
+    <meta
+      property="og:title"
+      content="AgentMesh-CreatorCut｜トーク動画・画面録画のスマート編集 Agent"
+    />
+    <meta
+      property="og:description"
+      content="撮影済み動画から、中英文字起こし、可逆編集、字幕、音楽、原色書き出しまで。元メディアはローカルに残ります。"
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://creatorcut.agentmesh360.com/ja/" />
+    <meta name="twitter:card" content="summary" />
     <link rel="canonical" href="https://creatorcut.agentmesh360.com/ja/" />
+    <link
+      rel="alternate"
+      type="text/markdown"
+      href="/llms.txt"
+      title="AgentMesh-CreatorCut LLMs.txt"
+    />
     <link
       rel="alternate"
       hreflang="zh-CN"
@@ -31,6 +49,11 @@
       hreflang="ko"
       href="https://creatorcut.agentmesh360.com/ko/"
     />
+    <link
+      rel="alternate"
+      hreflang="x-default"
+      href="https://creatorcut.agentmesh360.com/"
+    />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="/assets/styles.css" />
     <script defer src="/assets/site.js"></script>
@@ -40,13 +63,22 @@
         "@type": "SoftwareApplication",
         "name": "AgentMesh-CreatorCut",
         "applicationCategory": "MultimediaApplication",
+        "applicationSubCategory": "AI post-production agent",
         "operatingSystem": "macOS, Windows, Ubuntu",
         "url": "https://creatorcut.agentmesh360.com/ja/",
+        "codeRepository": "https://github.com/jiyangnan/AgentMesh-CreatorCut",
+        "isAccessibleForFree": false,
+        "provider": {
+          "@type": "Organization",
+          "name": "AgentMesh360",
+          "url": "https://agentmesh360.com/"
+        },
+        "description": "AgentMesh-CreatorCut は撮影済みのトーク動画と製品画面録画を、中英文字起こし、可逆編集、字幕、音楽、原色ローカル書き出しで完成動画にします。",
         "offers": {
           "@type": "Offer",
-          "price": "50",
-          "priceCurrency": "AgentMesh credits",
-          "description": "署名付き CreatorCut Director プラン 1 件"
+          "url": "https://agentmesh360.com/app/#pricing",
+          "description": "ローカル実行は cloud credits を消費しません。確認済みの署名付き Director 編集プラン 1 件は 50 AgentMesh credits です。",
+          "availability": "https://schema.org/InStock"
         }
       }
     </script>

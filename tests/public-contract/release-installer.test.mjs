@@ -330,6 +330,10 @@ test("installer and managed updater pin the frozen pnpm runtime", async () => {
   assert.match(installer, /export PATH=%q:"\$PATH"/u);
   assert.match(installer, /exec %q %q "\$@"/u);
   assert.doesNotMatch(installer, /exec node %q/u);
+  assert.match(installer, /export CREATORCUT_DIRECTOR_ENDPOINT=%q/u);
+  assert.match(installer, /export CREATORCUT_DIRECTOR_KEYSET=%q/u);
+  assert.match(installer, /export CREATORCUT_PROTOCOL_BUNDLE_DIGEST=%q/u);
+  assert.match(installer, /"\$SHIM" onboard/u);
   assert.match(installer, /"\$COREPACK_PATH" pnpm@10\.30\.3 install/u);
   assert.doesNotMatch(installer, /corepack pnpm --dir/u);
   assert.match(
@@ -364,6 +368,15 @@ test("installer and managed updater pin the frozen pnpm runtime", async () => {
   assert.doesNotMatch(windowsInstaller, /winget/u);
   assert.match(windowsInstaller, /\$WhisperSha256 = "[a-f0-9]{64}"/u);
   assert.match(windowsInstaller, /"Windows DPAPI"/u);
+  assert.match(
+    windowsInstaller,
+    /CREATORCUT_DIRECTOR_ENDPOINT=\$DirectorApiBase/u,
+  );
+  assert.match(
+    windowsInstaller,
+    /CREATORCUT_PROTOCOL_BUNDLE_DIGEST=\$ProtocolBundleDigest/u,
+  );
+  assert.match(windowsInstaller, /& \$shim onboard/u);
   assert.doesNotMatch(
     windowsInstaller,
     /CREATORCUT_(?:API_KEY|CORE_SERVICE_TOKEN)\s*=/u,
@@ -388,6 +401,12 @@ test("clean Unix fixture installs only the signed tag, commit and archive", asyn
   ]);
   const identity = await fixtureRepository(source);
   const trust = releaseTrust(identity.archiveSha256, identity.commit);
+  const directorKeysetSha256 = createHash("sha256")
+    .update(JSON.stringify(trust.keyset))
+    .digest("hex");
+  const directorRecoveryRootsSha256 = createHash("sha256")
+    .update(JSON.stringify(trust.roots))
+    .digest("hex");
   const keysetPath = join(root, "keyset.json");
   const rootsPath = join(root, "roots.json");
   const modelPath = join(home, "model", "ggml-base.bin");
@@ -441,6 +460,11 @@ test("clean Unix fixture installs only the signed tag, commit and archive", asyn
           )}`,
           CREATORCUT_RELEASE_RECOVERY_ROOTS_URL: `file://${rootsPath}`,
           CREATORCUT_RELEASE_KEYSET_URL: `file://${keysetPath}`,
+          CREATORCUT_DIRECTOR_KEYSET_URL: `file://${keysetPath}`,
+          CREATORCUT_DIRECTOR_RECOVERY_ROOTS_URL: `file://${rootsPath}`,
+          CREATORCUT_DIRECTOR_KEYSET_SHA256: directorKeysetSha256,
+          CREATORCUT_DIRECTOR_RECOVERY_ROOTS_SHA256:
+            directorRecoveryRootsSha256,
           CREATORCUT_WHISPER: whisperPath,
           CREATORCUT_WHISPER_MODEL: modelPath,
           CREATORCUT_SKIP_DEPENDENCY_INSTALL: "1",
@@ -493,6 +517,12 @@ test("clean Windows fixture installs only the signed tag, commit and archive", a
   ]);
   const identity = await fixtureRepository(source);
   const trust = releaseTrust(identity.archiveSha256, identity.commit);
+  const directorKeysetSha256 = createHash("sha256")
+    .update(JSON.stringify(trust.keyset))
+    .digest("hex");
+  const directorRecoveryRootsSha256 = createHash("sha256")
+    .update(JSON.stringify(trust.roots))
+    .digest("hex");
   const keysetPath = join(root, "keyset.json");
   const rootsPath = join(root, "roots.json");
   await Promise.all([
@@ -546,6 +576,11 @@ test("clean Windows fixture installs only the signed tag, commit and archive", a
           ).href,
           CREATORCUT_RELEASE_RECOVERY_ROOTS_URL: pathToFileURL(rootsPath).href,
           CREATORCUT_RELEASE_KEYSET_URL: pathToFileURL(keysetPath).href,
+          CREATORCUT_DIRECTOR_KEYSET_URL: pathToFileURL(keysetPath).href,
+          CREATORCUT_DIRECTOR_RECOVERY_ROOTS_URL: pathToFileURL(rootsPath).href,
+          CREATORCUT_DIRECTOR_KEYSET_SHA256: directorKeysetSha256,
+          CREATORCUT_DIRECTOR_RECOVERY_ROOTS_SHA256:
+            directorRecoveryRootsSha256,
           CREATORCUT_WHISPER: whisperPath,
           CREATORCUT_WHISPER_MODEL: modelPath,
           CREATORCUT_SKIP_DEPENDENCY_INSTALL: "1",

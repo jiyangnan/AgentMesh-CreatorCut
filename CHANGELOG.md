@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.1
+
+- Add resumable `creatorcut onboard` guidance from dependency checks through
+  secure login, local media import, multilingual transcription, explicit
+  context consent, and Director start.
+- Pin and verify the public production Director trust bundle in the macOS,
+  Ubuntu, and Windows managed installers.
+- Place a macOS-style one-command terminal directly beside the website's
+  install call to action and document the complete post-install journey.
+
 ## 0.2.0
 
 - Add one-command managed installation for macOS 14+, Ubuntu 22.04/24.04, and

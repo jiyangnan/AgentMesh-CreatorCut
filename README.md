@@ -25,19 +25,25 @@ irm https://raw.githubusercontent.com/jiyangnan/AgentMesh-CreatorCut/main/script
 
 The installers set up the pinned Node runtime, Git, FFmpeg, whisper.cpp,
 multilingual transcription model, secure credential backend, CLI shim, and
-signed managed-update channel. Then run:
+signed managed-update channel. A successful install immediately starts the
+guided Agent handoff:
 
 ```bash
-creatorcut doctor
-creatorcut auth login
+creatorcut onboard
 ```
+
+`onboard` checks the local toolchain and trusted Director configuration, asks
+for the AgentMesh API key through secure standard input, guides local recording
+import, starts multilingual transcription, and then returns the exact
+`next_suggested` action. Run the same command at any time to resume from the
+first incomplete stage.
 
 See [supported platforms](docs/SUPPORTED-PLATFORMS.md) for the exact macOS,
 Ubuntu, Windows, architecture, and dependency contract.
 
 ## Current status
 
-AgentMesh-CreatorCut M1 Cycle 1–5 is complete and public stable `v0.2.0` is
+AgentMesh-CreatorCut M1 Cycle 1–5 is complete and public stable `v0.2.1` is
 available through the signed managed-install channel. Production cloud
 admission is open for the Director main feature at the AgentMesh Core
 authoritative price of 50 credits. This repository contains the
@@ -137,8 +143,10 @@ never overwrites an existing file unless `--confirm-overwrite` is present.
 Remote Director commands intentionally require an AgentMesh API key stored by
 `creatorcut auth login` in macOS Keychain, Windows DPAPI, or Linux Secret
 Service; a trusted recovery-root-signed Director keyset; an
-explicit endpoint, and the pinned protocol bundle digest. The repository does
-not ship staging credentials or silently select a production endpoint.
+explicit endpoint, and the pinned protocol bundle digest. The official managed
+installer provisions the pinned public production trust bundle. A source build
+does not ship credentials, silently select staging, or bypass that trust
+configuration.
 
 See [Agent onboarding](docs/agent-onboarding.md),
 [privacy contract](docs/privacy.md), and

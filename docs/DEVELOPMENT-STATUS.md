@@ -18,6 +18,10 @@
 - [x] Named response-loss/idempotent Generation recovery tests.
 - [x] Stable JSON CLI for doctor, Keychain auth, project/context, Director,
       cards and paid edit workflow.
+- [x] Resumable `creatorcut onboard` state machine connects environment repair,
+      secure login, local media import, multilingual transcription, explicit
+      context consent, and Director start through stable `next_suggested`
+      actions.
 - [x] Public stdio MCP server using only public runtime/Director client; no
       Studio or local Director policy dependency.
 - [x] Cross-host semantic card presentation and generic text fallback adapters
@@ -39,21 +43,23 @@
       part of the M1 supported-host or release-test matrix.
 - [x] macOS managed installer, recovery-root-signed ReleaseManifest
       verification, update deferral, compatibility check and rollback.
+- [x] Managed installers pin and verify the public Director keyset, recovery
+      roots, endpoint and Protocol v1 digest before entering onboarding.
 - [x] Real RC11 public-product installation and three-material dogfood.
-- [x] Immutable public stable `v0.1.0` tag, canonical archive and formal
+- [x] Immutable public stable `v0.2.1` tag, canonical archive and formal
       GitHub Release.
 - [x] Production dark deployment, approved 50-credit paid canary/refund
       rollback, persistent Core stable ReleaseManifest and formal clean
       public-channel reinstall with real Server/Core preflight.
 
-Cycle 1–5 are complete. The stable managed-install channel serves `v0.1.0` and
+Cycle 1–5 are complete. The stable managed-install channel serves `v0.2.1` and
 survives a routine Core production redeploy because the release registry and
 signing configuration are persisted in the production workflow. Batch 3
 closed the real signed fixture, Codex MCP App, OpenClaw Skill, generic-text
 fallback and four-point interruption-recovery gaps. The user-approved plan
 delta defers Claude Code to post-M1 and removes it from M1 completion claims.
-Core and Server new-work gates remain closed, so paid Director generations are
-not generally available even though stable client installation is live.
+Production Director admission is open at the Core-authoritative price of 50
+credits per confirmed signed plan.
 
 ## Cycle 4 closeout
 

@@ -51,7 +51,7 @@ import {
 
 import type { CliEnvelope, CliIo } from "./types.js";
 
-const CURRENT_CLIENT_VERSION = "0.2.0";
+const CURRENT_CLIENT_VERSION = "0.2.1";
 const DEFAULT_RELEASE_ENDPOINT =
   "https://api.agentmesh360.com/v1/products/creatorcut/client-release";
 
@@ -282,6 +282,85 @@ async function available(path: string | undefined, executable = true) {
     .catch(() => false);
 }
 
+async function inspectOnboardingState(
+  projectDirectory: string,
+  credentials: CredentialStore,
+) {
+  const dependencyPaths = {
+    node: process.execPath,
+    ffmpeg: process.env.CREATORCUT_FFMPEG,
+    ffprobe: process.env.CREATORCUT_FFPROBE,
+    whisper: process.env.CREATORCUT_WHISPER,
+    whisper_model: process.env.CREATORCUT_WHISPER_MODEL,
+  };
+  const localDependencies = {
+    node: {
+      path: dependencyPaths.node,
+      version: process.versions.node,
+      ready: process.versions.node.split(".")[0] === "24",
+    },
+    ffmpeg: {
+      path: dependencyPaths.ffmpeg ?? null,
+      ready: await available(dependencyPaths.ffmpeg),
+    },
+    ffprobe: {
+      path: dependencyPaths.ffprobe ?? null,
+      ready: await available(dependencyPaths.ffprobe),
+    },
+    whisper: {
+      path: dependencyPaths.whisper ?? null,
+      ready: await available(dependencyPaths.whisper),
+    },
+    whisper_model: {
+      path: dependencyPaths.whisper_model ?? null,
+      ready: await available(dependencyPaths.whisper_model, false),
+    },
+  };
+  const directorPaths = {
+    keyset: process.env.CREATORCUT_DIRECTOR_KEYSET,
+    recovery_roots: process.env.CREATORCUT_DIRECTOR_RECOVERY_ROOTS,
+  };
+  const directorConfiguration = {
+    endpoint: process.env.CREATORCUT_DIRECTOR_ENDPOINT ?? null,
+    protocol_bundle_digest:
+      process.env.CREATORCUT_PROTOCOL_BUNDLE_DIGEST ?? null,
+    keyset: {
+      path: directorPaths.keyset ?? null,
+      ready: await available(directorPaths.keyset, false),
+    },
+    recovery_roots: {
+      path: directorPaths.recovery_roots ?? null,
+      ready: await available(directorPaths.recovery_roots, false),
+    },
+  };
+  const projectReady = await access(resolve(projectDirectory, ".creatorcut"))
+    .then(() => true)
+    .catch(() => false);
+  const protocolDigestReady = /^sha256:[a-f0-9]{64}$/u.test(
+    directorConfiguration.protocol_bundle_digest ?? "",
+  );
+  const directorConfigurationReady =
+    Boolean(directorConfiguration.endpoint) &&
+    protocolDigestReady &&
+    directorConfiguration.keyset.ready &&
+    directorConfiguration.recovery_roots.ready;
+
+  return {
+    product: "AgentMesh-CreatorCut",
+    platform: process.platform,
+    node: process.versions.node,
+    credential_storage: credentials.storage,
+    dependencies: localDependencies,
+    dependencies_ready: Object.values(localDependencies).every(
+      (dependency) => dependency.ready,
+    ),
+    director_configuration: directorConfiguration,
+    director_configuration_ready: directorConfigurationReady,
+    authenticated: await credentials.hasApiKey(),
+    project: projectReady,
+  };
+}
+
 export async function executeCli(
   argv: string[],
   io: CliIo,
@@ -304,53 +383,125 @@ export async function executeCli(
     }
 
     if (commandName === "doctor") {
-      const dependencyPaths = {
-        node: process.execPath,
-        ffmpeg: process.env.CREATORCUT_FFMPEG,
-        ffprobe: process.env.CREATORCUT_FFPROBE,
-        whisper: process.env.CREATORCUT_WHISPER,
-        whisper_model: process.env.CREATORCUT_WHISPER_MODEL,
-      };
-      const dependencies = {
-        node: {
-          path: dependencyPaths.node,
-          version: process.versions.node,
-          ready: process.versions.node.split(".")[0] === "24",
-        },
-        ffmpeg: {
-          path: dependencyPaths.ffmpeg ?? null,
-          ready: await available(dependencyPaths.ffmpeg),
-        },
-        ffprobe: {
-          path: dependencyPaths.ffprobe ?? null,
-          ready: await available(dependencyPaths.ffprobe),
-        },
-        whisper: {
-          path: dependencyPaths.whisper ?? null,
-          ready: await available(dependencyPaths.whisper),
-        },
-        whisper_model: {
-          path: dependencyPaths.whisper_model ?? null,
-          ready: await available(dependencyPaths.whisper_model, false),
-        },
-      };
-      const checks = {
-        product: "AgentMesh-CreatorCut",
-        platform: process.platform,
-        node: process.versions.node,
-        credential_storage: credentials.storage,
-        dependencies,
-        dependencies_ready: Object.values(dependencies).every(
-          (dependency) => dependency.ready,
-        ),
-        authenticated: await credentials.hasApiKey(),
-        project: await access(resolve(projectDirectory, ".creatorcut"))
-          .then(() => true)
-          .catch(() => false),
-      };
+      const checks = await inspectOnboardingState(
+        projectDirectory,
+        credentials,
+      );
       return success(commandName, checks, {
-        next: checks.authenticated ? "project status" : "auth login",
+        next: "onboard",
       });
+    }
+
+    if (commandName === "onboard") {
+      const checks = await inspectOnboardingState(
+        projectDirectory,
+        credentials,
+      );
+      const explicitProject = option(parsed, "project");
+      const projectSuffix = explicitProject
+        ? ` --project ${JSON.stringify(projectDirectory)}`
+        : "";
+
+      if (!checks.dependencies_ready) {
+        return success(
+          commandName,
+          {
+            stage: "repair_local_environment",
+            complete: false,
+            checks,
+          },
+          {
+            next: "doctor",
+            requiresUserAction: true,
+            userPrompt:
+              "CreatorCut local media dependencies are incomplete. Re-run the official managed installer, then run creatorcut onboard again.",
+          },
+        );
+      }
+      if (!checks.authenticated) {
+        return success(
+          commandName,
+          {
+            stage: "authenticate",
+            complete: false,
+            checks,
+          },
+          {
+            next: `auth login${projectSuffix}`,
+            requiresUserAction: true,
+            userPrompt:
+              "Open https://agentmesh360.com/app/#account, create or copy an AgentMesh API Key, then run creatorcut auth login and paste the key through stdin. Never put the key in command arguments, prompts, logs, or shell history.",
+          },
+        );
+      }
+      if (!checks.project) {
+        return success(
+          commandName,
+          {
+            stage: "import_media",
+            complete: false,
+            checks,
+          },
+          {
+            next: "media import --source <recording.mov> --project <project.creatorcut>",
+            requiresUserAction: true,
+            userPrompt:
+              "Choose one recorded talking-head or product-demo file and a new local CreatorCut project folder. The source media remains on this device.",
+          },
+        );
+      }
+
+      const opened = await openCreatorCutProject(projectDirectory);
+      const consent = await readDirectorConsent(opened);
+      const next =
+        opened.transcript.segments.length === 0
+          ? `transcribe start --language auto${projectSuffix}`
+          : !checks.director_configuration_ready
+            ? "doctor"
+            : consent
+              ? `director start${projectSuffix}`
+              : `director context inspect${projectSuffix}`;
+      const stage =
+        opened.transcript.segments.length === 0
+          ? "transcribe"
+          : !checks.director_configuration_ready
+            ? "repair_director_configuration"
+            : consent
+              ? "start_director"
+              : "inspect_director_context";
+      return success(
+        commandName,
+        {
+          stage,
+          complete: false,
+          checks,
+          project: {
+            project_id: opened.project.project_id,
+            name: opened.project.name,
+            revision: opened.project.revision,
+            transcript_segments: opened.transcript.segments.length,
+            director_consent: consent !== null,
+          },
+        },
+        {
+          revision: opened.project.revision,
+          next,
+          requiresUserAction:
+            stage === "repair_director_configuration" ||
+            stage === "inspect_director_context",
+          ...(stage === "repair_director_configuration"
+            ? {
+                userPrompt:
+                  "CreatorCut local media is ready, but the signed production Director trust configuration is missing. Re-run the official managed installer, then resume this project with creatorcut onboard --project <project>.",
+              }
+            : stage === "inspect_director_context"
+              ? {
+                  userPrompt:
+                    "Inspect the complete local DirectorContext and request explicit project-level approval before uploading the structured context. Source media is not uploaded.",
+                }
+              : {}),
+        },
+      );
     }
 
     if (commandName === "upgrade-check") {
@@ -473,7 +624,13 @@ export async function executeCli(
       return success(
         commandName,
         { stored_in: credentials.storage, authenticated: true },
-        { next: "director context inspect" },
+        {
+          next: `onboard${
+            option(parsed, "project")
+              ? ` --project ${JSON.stringify(projectDirectory)}`
+              : ""
+          }`,
+        },
       );
     }
     if (commandName === "auth status") {

@@ -23,5 +23,11 @@ Official install:
 - Windows PowerShell:
   irm https://raw.githubusercontent.com/jiyangnan/AgentMesh-CreatorCut/main/scripts/install.ps1 | iex
 
+The official installer verifies all dependencies, the signed client release,
+and the public Director trust bundle, then starts `creatorcut onboard`.
+`creatorcut onboard` is resumable and returns the exact next action for secure
+login, local recording import, bilingual transcription, explicit context
+consent, and Director start. Never request an API key in command arguments.
+
 Official site: https://creatorcut.agentmesh360.com/
 Public repository: https://github.com/jiyangnan/AgentMesh-CreatorCut

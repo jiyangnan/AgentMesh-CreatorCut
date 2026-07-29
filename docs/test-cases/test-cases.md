@@ -30,6 +30,11 @@
 
 - [x] CLI returns `creatorcut-cli/1.0` JSON with stable success/error,
       `requires_user_action`, `retryable`, and `next_suggested` fields.
+- [x] `creatorcut onboard` resumes at the first incomplete stage: environment
+      repair, secure authentication, local media import, transcription,
+      explicit Director-context consent, or Director start.
+- [x] `doctor` and `auth login` return to `onboard` instead of suggesting a
+      project-dependent action before a project exists.
 - [x] macOS Keychain write sends the AgentMesh API key on stdin and never puts
       it in argv.
 - [x] `--key` is rejected and the attempted secret is absent from output.
@@ -197,6 +202,10 @@
 - [x] Clean macOS fixture installs from an isolated signed tag/source archive
       without an internal CreatorCut checkout and records the exact verified
       commit, archive digest and version.
+- [x] macOS/Ubuntu and Windows installers download and SHA-256-verify the
+      production Director keyset and recovery roots, pin the endpoint and
+      Protocol v1 digest in the managed CLI shim, and launch the resumable
+      onboarding command after installation.
 - [x] Managed update refuses non-official origin, tracked local changes, active
       transcription/export tasks, concurrent update lock and keyset rollback.
 - [x] Failed dependency build or smoke returns to the prior detached commit and

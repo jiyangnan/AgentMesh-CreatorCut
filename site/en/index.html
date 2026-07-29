@@ -78,7 +78,7 @@
               >—with preview, confirmation, and undo at every meaningful step.
             </p>
             <div class="actions">
-              <a class="button primary" href="#install"
+              <a class="button primary" href="#quick-install"
                 >Install in one command</a
               >
               <a
@@ -87,6 +87,48 @@
               >
                 View on GitHub
               </a>
+            </div>
+
+            <div class="hero-install">
+              <p class="hero-install-copy">
+                <strong>Copy this command and give it to your AI Agent.</strong>
+                The installer handles dependencies, checks, and signature
+                verification, then starts <code>creatorcut onboard</code> to
+                guide login, recording selection, and project creation.
+              </p>
+              <div
+                class="mac-terminal"
+                id="quick-install"
+                aria-label="One-command macOS installation"
+              >
+                <div class="terminal-titlebar">
+                  <span class="terminal-lights" aria-hidden="true"
+                    ><i></i><i></i><i></i
+                  ></span>
+                  <span>Terminal — zsh</span>
+                  <span class="terminal-context">paste to your agent</span>
+                </div>
+                <div class="terminal-body">
+                  <code id="hero-install-unix"
+                    ><span class="terminal-prompt">$</span> curl -fsSL
+                    https://raw.githubusercontent.com/jiyangnan/AgentMesh-CreatorCut/main/scripts/install.sh
+                    | bash</code
+                  >
+                  <button
+                    class="copy terminal-copy"
+                    type="button"
+                    data-copy="#hero-install-unix"
+                    data-copy-text="curl -fsSL https://raw.githubusercontent.com/jiyangnan/AgentMesh-CreatorCut/main/scripts/install.sh | bash"
+                    data-copied-label="Copied"
+                  >
+                    Copy
+                  </button>
+                </div>
+                <div class="terminal-next">
+                  Installed → environment check → secure login → choose local
+                  video → transcribe
+                </div>
+              </div>
             </div>
           </div>
 
@@ -239,7 +281,9 @@
               <p class="section-lede">
                 The installer handles pinned Node 24, Git, FFmpeg, whisper.cpp,
                 the multilingual model, and the secure credential backend, then
-                verifies an immutable Core-signed release.
+                verifies an immutable Core-signed release. On success it starts
+                <code>creatorcut onboard</code>, so the journey does not end at
+                “installed.”
               </p>
             </div>
           </div>
@@ -305,6 +349,41 @@
                 Copy
               </button>
             </div>
+          </div>
+
+          <div class="onboard-flow" aria-label="Post-install Agent onboarding">
+            <article>
+              <span>01</span>
+              <b>Check the environment</b>
+              <p>
+                Verify Node, FFmpeg, whisper.cpp, the model, and the secure
+                credential backend.
+              </p>
+            </article>
+            <article>
+              <span>02</span>
+              <b>Sign in securely</b>
+              <p>
+                Your API key enters through standard input and stays in the
+                system keychain—not in command arguments.
+              </p>
+            </article>
+            <article>
+              <span>03</span>
+              <b>Create a local project</b>
+              <p>
+                Choose a talking-head or screen recording. Media stays on your
+                device while multilingual transcription begins.
+              </p>
+            </article>
+            <article>
+              <span>04</span>
+              <b>Let the Agent continue</b>
+              <p>
+                Each step follows <code>next_suggested</code> and pauses only
+                when your confirmation is required.
+              </p>
+            </article>
           </div>
 
           <div class="platform-grid">

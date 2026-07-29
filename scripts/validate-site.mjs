@@ -89,6 +89,25 @@ export function validateSite(rootInput) {
         errors.push(`${page}: exact install command is missing`);
       }
     }
+    const hero = html.match(
+      /<section\b[^>]*class=["'][^"']*\bhero\b[^"']*["'][^>]*>([\s\S]*?)<\/section>/iu,
+    )?.[1];
+    if (
+      !hero ||
+      !hero.includes('href="#quick-install"') ||
+      !hero.includes('id="quick-install"') ||
+      !hero.includes(REQUIRED_INSTALL_COMMANDS[0])
+    ) {
+      errors.push(
+        `${page}: hero must keep the macOS command beside the install CTA`,
+      );
+    }
+    if (
+      !html.includes("creatorcut onboard") ||
+      !html.includes('class="onboard-flow"')
+    ) {
+      errors.push(`${page}: post-install Agent onboarding journey is missing`);
+    }
     if (!html.includes(">50 <") && !html.includes(">50<")) {
       errors.push(`${page}: 50-credit price is missing`);
     }

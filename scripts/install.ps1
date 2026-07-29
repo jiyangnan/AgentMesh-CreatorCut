@@ -60,6 +60,32 @@ $KeysetUrl = if ($env:CREATORCUT_RELEASE_KEYSET_URL) {
 } else {
     "$BootstrapBaseUrl/release/release-keyset.json"
 }
+$DirectorApiBase = if ($env:CREATORCUT_DIRECTOR_ENDPOINT) {
+    $env:CREATORCUT_DIRECTOR_ENDPOINT
+} else {
+    "https://api.creatorcut.agentmesh360.com"
+}
+$DirectorKeysetUrl = if ($env:CREATORCUT_DIRECTOR_KEYSET_URL) {
+    $env:CREATORCUT_DIRECTOR_KEYSET_URL
+} else {
+    "$DirectorApiBase/trust/director-keyset.json"
+}
+$DirectorRecoveryRootsUrl = if ($env:CREATORCUT_DIRECTOR_RECOVERY_ROOTS_URL) {
+    $env:CREATORCUT_DIRECTOR_RECOVERY_ROOTS_URL
+} else {
+    "$DirectorApiBase/trust/recovery-roots.json"
+}
+$DirectorKeysetSha256 = if ($env:CREATORCUT_DIRECTOR_KEYSET_SHA256) {
+    $env:CREATORCUT_DIRECTOR_KEYSET_SHA256
+} else {
+    "45bf09de1b0a9fc8c65206002b1c32c727237999446864936057cb69a17f4aab"
+}
+$DirectorRecoveryRootsSha256 = if ($env:CREATORCUT_DIRECTOR_RECOVERY_ROOTS_SHA256) {
+    $env:CREATORCUT_DIRECTOR_RECOVERY_ROOTS_SHA256
+} else {
+    "e4fe757b84d327a10a4b11cfe250b2c9796c0316dc0b7f4d3b583e01e84cb87d"
+}
+$ProtocolBundleDigest = "sha256:97a2d98e149a5c0e442fc90b1247322a0396545450f773e27f3fe6cd59c4d858"
 $NodeVersion = "24.18.0"
 $NodeSha256 = "0ae68406b42d7725661da979b1403ec9926da205c6770827f33aac9d8f26e821"
 $GitVersion = "2.55.0.3"
@@ -385,6 +411,15 @@ try {
     New-Item -ItemType Directory -Force -Path $releaseDir | Out-Null
     Copy-Item -LiteralPath $rootsPath -Destination (Join-Path $releaseDir "recovery-roots.json")
     Copy-Item -LiteralPath $keysetPath -Destination (Join-Path $releaseDir "release-keyset.json")
+    Download-Verified `
+        $DirectorKeysetUrl `
+        (Join-Path $releaseDir "director-keyset.json") `
+        $DirectorKeysetSha256
+    Download-Verified `
+        $DirectorRecoveryRootsUrl `
+        (Join-Path $releaseDir "director-recovery-roots.json") `
+        $DirectorRecoveryRootsSha256
+    Write-Ok "Pinned the production Director endpoint, protocol and public trust roots"
 
     $metadata = [ordered]@{
         schema_version = "creatorcut-managed-install/1.0"
@@ -445,6 +480,11 @@ try {
             "set `"CREATORCUT_INSTALL_METADATA=$InstallDir\.creatorcut-install.json`"",
             "set `"CREATORCUT_RELEASE_KEYSET=$InstallDir\release\release-keyset.json`"",
             "set `"CREATORCUT_RELEASE_RECOVERY_ROOTS=$InstallDir\release\recovery-roots.json`"",
+            "set `"CREATORCUT_DIRECTOR_ENDPOINT=$DirectorApiBase`"",
+            "set `"CREATORCUT_DIRECTOR_KEYSET=$InstallDir\release\director-keyset.json`"",
+            "set `"CREATORCUT_DIRECTOR_RECOVERY_ROOTS=$InstallDir\release\director-recovery-roots.json`"",
+            "set `"CREATORCUT_MINIMUM_KEYSET_VERSION=1`"",
+            "set `"CREATORCUT_PROTOCOL_BUNDLE_DIGEST=$ProtocolBundleDigest`"",
             "set `"CREATORCUT_WHISPER=$WhisperPath`"",
             "set `"CREATORCUT_WHISPER_MODEL=$ModelPath`"",
             "set `"CREATORCUT_FFMPEG=$FfmpegPath`"",
@@ -488,7 +528,14 @@ try {
 
     Write-Ok "$ProductName $Version installed at $InstallDir"
     Write-Host ""
-    Write-Host "Next: creatorcut auth login"
+    Write-Info "Starting Agent-native onboarding"
+    try {
+        & $shim onboard
+        Assert-LastExit "$ProductName onboarding"
+    } catch {
+        Write-Info "This installed release predates guided onboarding."
+        Write-Host "Next: creatorcut doctor; creatorcut auth login"
+    }
 } finally {
     Remove-Item -LiteralPath $WorkDir -Recurse -Force -ErrorAction SilentlyContinue
     Remove-Item -LiteralPath $NextDir -Recurse -Force -ErrorAction SilentlyContinue

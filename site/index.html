@@ -75,13 +75,54 @@
               负责后期。<strong>中英双语转写、语义剪辑、字幕、轻快背景音乐、原色导出</strong>，每一步都能预览、确认、撤销。
             </p>
             <div class="actions">
-              <a class="button primary" href="#install">一条命令安装</a>
+              <a class="button primary" href="#quick-install">一条命令安装</a>
               <a
                 class="button secondary"
                 href="https://github.com/jiyangnan/AgentMesh-CreatorCut"
               >
                 在 GitHub 查看
               </a>
+            </div>
+
+            <div class="hero-install">
+              <p class="hero-install-copy">
+                <strong>复制下面这条命令，发给你的 AI Agent。</strong>
+                安装器会完成依赖、自检和签名校验，然后自动进入
+                <code>creatorcut onboard</code
+                >，继续带你登录、选择录屏并创建项目。
+              </p>
+              <div
+                class="mac-terminal"
+                id="quick-install"
+                aria-label="macOS 一条命令安装"
+              >
+                <div class="terminal-titlebar">
+                  <span class="terminal-lights" aria-hidden="true"
+                    ><i></i><i></i><i></i
+                  ></span>
+                  <span>Terminal — zsh</span>
+                  <span class="terminal-context">paste to your agent</span>
+                </div>
+                <div class="terminal-body">
+                  <code id="hero-install-unix"
+                    ><span class="terminal-prompt">$</span> curl -fsSL
+                    https://raw.githubusercontent.com/jiyangnan/AgentMesh-CreatorCut/main/scripts/install.sh
+                    | bash</code
+                  >
+                  <button
+                    class="copy terminal-copy"
+                    type="button"
+                    data-copy="#hero-install-unix"
+                    data-copy-text="curl -fsSL https://raw.githubusercontent.com/jiyangnan/AgentMesh-CreatorCut/main/scripts/install.sh | bash"
+                    data-copied-label="已复制"
+                  >
+                    复制
+                  </button>
+                </div>
+                <div class="terminal-next">
+                  安装完成 → 环境自检 → 安全登录 → 选择本地视频 → 开始转写
+                </div>
+              </div>
             </div>
           </div>
 
@@ -230,7 +271,9 @@
               <p class="section-lede">
                 安装器会处理固定 Node
                 24、Git、FFmpeg、whisper.cpp、多语言模型和安全凭据后端，并验证
-                Core 签名的不可变版本。
+                Core 签名的不可变版本。安装成功后会自动运行
+                <code>creatorcut onboard</code
+                >，不会把你留在一句“安装完成”之后。
               </p>
             </div>
           </div>
@@ -292,6 +335,31 @@
                 复制
               </button>
             </div>
+          </div>
+
+          <div class="onboard-flow" aria-label="安装后的 Agent 引导流程">
+            <article>
+              <span>01</span>
+              <b>环境自检</b>
+              <p>确认 Node、FFmpeg、whisper.cpp、模型和安全凭据后端。</p>
+            </article>
+            <article>
+              <span>02</span>
+              <b>安全登录</b>
+              <p>API Key 只通过标准输入进入系统 Keychain，不写命令参数。</p>
+            </article>
+            <article>
+              <span>03</span>
+              <b>建立本地项目</b>
+              <p>选择口播或产品录屏，媒体留在设备上并开始多语言转写。</p>
+            </article>
+            <article>
+              <span>04</span>
+              <b>Agent 接续执行</b>
+              <p>
+                每一步读取 <code>next_suggested</code>，需要你确认时才暂停。
+              </p>
+            </article>
           </div>
 
           <div class="platform-grid">

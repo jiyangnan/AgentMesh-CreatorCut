@@ -1,6 +1,6 @@
 {
   "name": "@agentmesh/creatorcut-cli",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Public AgentMesh-CreatorCut command-line client",
   "license": "Apache-2.0",
   "type": "module",

@@ -17,6 +17,12 @@ BOOTSTRAP_BASE_URL="${CREATORCUT_BOOTSTRAP_BASE_URL:-https://raw.githubuserconte
 VERIFIER_URL="${CREATORCUT_RELEASE_VERIFIER_URL:-$BOOTSTRAP_BASE_URL/scripts/verify-release.mjs}"
 RECOVERY_ROOTS_URL="${CREATORCUT_RELEASE_RECOVERY_ROOTS_URL:-$BOOTSTRAP_BASE_URL/release/recovery-roots.json}"
 KEYSET_URL="${CREATORCUT_RELEASE_KEYSET_URL:-$BOOTSTRAP_BASE_URL/release/release-keyset.json}"
+DIRECTOR_API_BASE="${CREATORCUT_DIRECTOR_ENDPOINT:-https://api.creatorcut.agentmesh360.com}"
+DIRECTOR_KEYSET_URL="${CREATORCUT_DIRECTOR_KEYSET_URL:-$DIRECTOR_API_BASE/trust/director-keyset.json}"
+DIRECTOR_RECOVERY_ROOTS_URL="${CREATORCUT_DIRECTOR_RECOVERY_ROOTS_URL:-$DIRECTOR_API_BASE/trust/recovery-roots.json}"
+DIRECTOR_KEYSET_SHA256="${CREATORCUT_DIRECTOR_KEYSET_SHA256:-45bf09de1b0a9fc8c65206002b1c32c727237999446864936057cb69a17f4aab}"
+DIRECTOR_RECOVERY_ROOTS_SHA256="${CREATORCUT_DIRECTOR_RECOVERY_ROOTS_SHA256:-e4fe757b84d327a10a4b11cfe250b2c9796c0316dc0b7f4d3b583e01e84cb87d}"
+PROTOCOL_BUNDLE_DIGEST="sha256:97a2d98e149a5c0e442fc90b1247322a0396545450f773e27f3fe6cd59c4d858"
 NODE_VERSION="24.18.0"
 WHISPER_VERSION="1.9.1"
 MODEL_URL="${CREATORCUT_WHISPER_MODEL_URL:-https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin}"
@@ -294,6 +300,15 @@ info "Installing $PRODUCT_NAME packages"
 mkdir -p "$NEXT_DIR/release"
 cp "$WORK_DIR/recovery-roots.json" "$NEXT_DIR/release/recovery-roots.json"
 cp "$WORK_DIR/release-keyset.json" "$NEXT_DIR/release/release-keyset.json"
+download_verified \
+  "$DIRECTOR_KEYSET_URL" \
+  "$NEXT_DIR/release/director-keyset.json" \
+  "$DIRECTOR_KEYSET_SHA256"
+download_verified \
+  "$DIRECTOR_RECOVERY_ROOTS_URL" \
+  "$NEXT_DIR/release/director-recovery-roots.json" \
+  "$DIRECTOR_RECOVERY_ROOTS_SHA256"
+ok "Pinned the production Director endpoint, protocol and public trust roots"
 
 INSTALLED_AT="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
 CREATORCUT_META_REPOSITORY="$REPO_URL" \
@@ -352,6 +367,11 @@ SHIM="$BIN_DIR/creatorcut"
   printf 'export CREATORCUT_INSTALL_METADATA=%q\n' "$INSTALL_DIR/.creatorcut-install.json"
   printf 'export CREATORCUT_RELEASE_KEYSET=%q\n' "$INSTALL_DIR/release/release-keyset.json"
   printf 'export CREATORCUT_RELEASE_RECOVERY_ROOTS=%q\n' "$INSTALL_DIR/release/recovery-roots.json"
+  printf 'export CREATORCUT_DIRECTOR_ENDPOINT=%q\n' "$DIRECTOR_API_BASE"
+  printf 'export CREATORCUT_DIRECTOR_KEYSET=%q\n' "$INSTALL_DIR/release/director-keyset.json"
+  printf 'export CREATORCUT_DIRECTOR_RECOVERY_ROOTS=%q\n' "$INSTALL_DIR/release/director-recovery-roots.json"
+  printf 'export CREATORCUT_MINIMUM_KEYSET_VERSION=%q\n' "1"
+  printf 'export CREATORCUT_PROTOCOL_BUNDLE_DIGEST=%q\n' "$PROTOCOL_BUNDLE_DIGEST"
   printf 'export CREATORCUT_WHISPER=%q\n' "$WHISPER_PATH"
   printf 'export CREATORCUT_WHISPER_MODEL=%q\n' "$MODEL_PATH"
   printf 'export CREATORCUT_FFMPEG=%q\n' "$(command -v ffmpeg)"
@@ -392,4 +412,9 @@ case ":$PATH:" in
     printf "    echo 'export PATH=\"%s:\\$PATH\"' >> ~/.bashrc\n" "$BIN_DIR"
     ;;
 esac
-printf '\nNext: creatorcut auth login\n'
+printf '\n'
+info "Starting Agent-native onboarding"
+if ! "$SHIM" onboard; then
+  info "This installed release predates guided onboarding."
+  printf 'Next: creatorcut doctor && creatorcut auth login\n'
+fi

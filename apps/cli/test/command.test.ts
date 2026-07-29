@@ -110,7 +110,7 @@ describe("creatorcut CLI", () => {
     expect(result).toMatchObject({
       ok: true,
       command: "version",
-      data: { version: "0.2.0" },
+      data: { version: "0.2.1" },
     });
   });
 
@@ -161,6 +161,167 @@ describe("creatorcut CLI", () => {
     }
   });
 
+  it("onboard starts with secure authentication after a managed install", async () => {
+    const root = await mkdtemp(join(tmpdir(), "creatorcut-onboard-"));
+    const executable = join(root, "tool");
+    const model = join(root, "model.bin");
+    await writeFile(executable, "", { mode: 0o755 });
+    await writeFile(model, "model");
+    const names = [
+      "CREATORCUT_FFMPEG",
+      "CREATORCUT_FFPROBE",
+      "CREATORCUT_WHISPER",
+      "CREATORCUT_WHISPER_MODEL",
+    ] as const;
+    const previous = Object.fromEntries(
+      names.map((name) => [name, process.env[name]]),
+    );
+    try {
+      process.env.CREATORCUT_FFMPEG = executable;
+      process.env.CREATORCUT_FFPROBE = executable;
+      process.env.CREATORCUT_WHISPER = executable;
+      process.env.CREATORCUT_WHISPER_MODEL = model;
+      const result = await executeCli(["onboard"], io(), {
+        credentials: new MemoryCredentialStore(),
+        cwd: () => root,
+      });
+
+      expect(result).toMatchObject({
+        ok: true,
+        command: "onboard",
+        requires_user_action: true,
+        next_suggested: "auth login",
+        data: {
+          stage: "authenticate",
+          complete: false,
+          checks: {
+            dependencies_ready: true,
+            authenticated: false,
+            project: false,
+          },
+        },
+      });
+      expect(JSON.stringify(result)).not.toContain("API key is required");
+    } finally {
+      for (const name of names) {
+        const value = previous[name];
+        if (value === undefined) delete process.env[name];
+        else process.env[name] = value;
+      }
+    }
+  });
+
+  it("onboard asks for local media after authentication", async () => {
+    const root = await mkdtemp(join(tmpdir(), "creatorcut-onboard-auth-"));
+    const executable = join(root, "tool");
+    const model = join(root, "model.bin");
+    await writeFile(executable, "", { mode: 0o755 });
+    await writeFile(model, "model");
+    const credentials = new MemoryCredentialStore();
+    await credentials.setApiKey("am_test_key");
+    const names = [
+      "CREATORCUT_FFMPEG",
+      "CREATORCUT_FFPROBE",
+      "CREATORCUT_WHISPER",
+      "CREATORCUT_WHISPER_MODEL",
+    ] as const;
+    const previous = Object.fromEntries(
+      names.map((name) => [name, process.env[name]]),
+    );
+    try {
+      process.env.CREATORCUT_FFMPEG = executable;
+      process.env.CREATORCUT_FFPROBE = executable;
+      process.env.CREATORCUT_WHISPER = executable;
+      process.env.CREATORCUT_WHISPER_MODEL = model;
+      const result = await executeCli(["onboard"], io(), {
+        credentials,
+        cwd: () => root,
+      });
+
+      expect(result).toMatchObject({
+        ok: true,
+        command: "onboard",
+        requires_user_action: true,
+        next_suggested:
+          "media import --source <recording.mov> --project <project.creatorcut>",
+        data: {
+          stage: "import_media",
+          checks: {
+            authenticated: true,
+            project: false,
+          },
+        },
+      });
+    } finally {
+      for (const name of names) {
+        const value = previous[name];
+        if (value === undefined) delete process.env[name];
+        else process.env[name] = value;
+      }
+    }
+  });
+
+  it("onboard resumes an existing project at explicit Director consent", async () => {
+    const project = await projectFixture();
+    const executable = join(project, "tool");
+    const model = join(project, "model.bin");
+    const keyset = join(project, "director-keyset.json");
+    const roots = join(project, "director-recovery-roots.json");
+    await Promise.all([
+      writeFile(executable, "", { mode: 0o755 }),
+      writeFile(model, "model"),
+      writeFile(keyset, "{}"),
+      writeFile(roots, "{}"),
+    ]);
+    const credentials = new MemoryCredentialStore();
+    await credentials.setApiKey("am_test_key");
+    const values = {
+      CREATORCUT_FFMPEG: executable,
+      CREATORCUT_FFPROBE: executable,
+      CREATORCUT_WHISPER: executable,
+      CREATORCUT_WHISPER_MODEL: model,
+      CREATORCUT_DIRECTOR_ENDPOINT: "https://api.creatorcut.agentmesh360.com",
+      CREATORCUT_DIRECTOR_KEYSET: keyset,
+      CREATORCUT_DIRECTOR_RECOVERY_ROOTS: roots,
+      CREATORCUT_PROTOCOL_BUNDLE_DIGEST: `sha256:${"a".repeat(64)}`,
+    } as const;
+    const previous = Object.fromEntries(
+      Object.keys(values).map((name) => [name, process.env[name]]),
+    );
+    try {
+      Object.assign(process.env, values);
+      const result = await executeCli(["onboard", "--project", project], io(), {
+        credentials,
+      });
+
+      expect(result).toMatchObject({
+        ok: true,
+        command: "onboard",
+        requires_user_action: true,
+        next_suggested: `director context inspect --project ${JSON.stringify(project)}`,
+        data: {
+          stage: "inspect_director_context",
+          checks: {
+            dependencies_ready: true,
+            director_configuration_ready: true,
+            authenticated: true,
+            project: true,
+          },
+          project: {
+            transcript_segments: 1,
+            director_consent: false,
+          },
+        },
+      });
+    } finally {
+      for (const name of Object.keys(values)) {
+        const value = previous[name];
+        if (value === undefined) delete process.env[name];
+        else process.env[name] = value;
+      }
+    }
+  });
+
   it("defers upgrades while a resumable local task is active", async () => {
     const project = await projectFixture();
     await mkdir(join(project, ".creatorcut", "tasks"));
@@ -198,6 +359,7 @@ describe("creatorcut CLI", () => {
       ok: true,
       command: "auth login",
       requires_user_action: false,
+      next_suggested: "onboard",
     });
     expect(await credentials.getApiKey()).toBe("am_test_key");
   });

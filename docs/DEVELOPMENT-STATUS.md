@@ -45,6 +45,9 @@
       verification, update deferral, compatibility check and rollback.
 - [x] Managed installers pin and verify the public Director keyset, recovery
       roots, endpoint and Protocol v1 digest before entering onboarding.
+- [x] The Chinese and English website keeps the install CTA adjacent to a
+      synchronized macOS, Windows and Ubuntu selector; each platform exposes
+      only its exact public command before entering the shared onboarding flow.
 - [x] Real RC11 public-product installation and three-material dogfood.
 - [x] Immutable public stable `v0.2.1` tag, canonical archive and formal
       GitHub Release.

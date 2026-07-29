@@ -220,6 +220,20 @@
       and signing-key configuration; the public release endpoint remains
       verifiable instead of reverting to `503`.
 
+## TC-SITE-001: platform-specific installation handoff
+
+- [x] The Chinese and English hero install CTA targets the adjacent quick
+      installer instead of the distant detailed-install section.
+- [x] macOS, Windows and Ubuntu are explicit synchronized choices in both the
+      hero and detailed install sections.
+- [x] macOS and Ubuntu show the public Bash installer; Windows shows the public
+      PowerShell installer. Switching either selector updates both sections.
+- [x] The site contract requires both exact public commands, all three platform
+      tabs, all three command panels and the `creatorcut onboard` continuation
+      inside the hero section.
+- [x] Desktop and mobile browser checks show the selector and corresponding
+      command without horizontal page overflow.
+
 ## Cycle 3 closeout gate
 
 The operations/ref/real-Server fixture gates, Codex MCP App UI, OpenClaw Skill,

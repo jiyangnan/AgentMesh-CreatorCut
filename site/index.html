@@ -84,17 +84,50 @@
               </a>
             </div>
 
-            <div class="hero-install">
+            <div class="hero-install" id="quick-install">
               <p class="hero-install-copy">
-                <strong>复制下面这条命令，发给你的 AI Agent。</strong>
+                <strong>先选择你的系统，再复制对应命令给 AI Agent。</strong>
                 安装器会完成依赖、自检和签名校验，然后自动进入
                 <code>creatorcut onboard</code
                 >，继续带你登录、选择录屏并创建项目。
               </p>
               <div
-                class="mac-terminal"
-                id="quick-install"
+                class="install-tabs hero-platform-tabs"
+                role="tablist"
+                aria-label="快捷安装平台"
+              >
+                <button
+                  class="install-tab active"
+                  type="button"
+                  role="tab"
+                  aria-selected="true"
+                  data-install-tab="macos"
+                >
+                  macOS
+                </button>
+                <button
+                  class="install-tab"
+                  type="button"
+                  role="tab"
+                  aria-selected="false"
+                  data-install-tab="windows"
+                >
+                  Windows
+                </button>
+                <button
+                  class="install-tab"
+                  type="button"
+                  role="tab"
+                  aria-selected="false"
+                  data-install-tab="ubuntu"
+                >
+                  Ubuntu
+                </button>
+              </div>
+              <div
+                class="mac-terminal hero-install-command active"
                 aria-label="macOS 一条命令安装"
+                data-install-command="macos"
               >
                 <div class="terminal-titlebar">
                   <span class="terminal-lights" aria-hidden="true"
@@ -113,6 +146,70 @@
                     class="copy terminal-copy"
                     type="button"
                     data-copy="#hero-install-unix"
+                    data-copy-text="curl -fsSL https://raw.githubusercontent.com/jiyangnan/AgentMesh-CreatorCut/main/scripts/install.sh | bash"
+                    data-copied-label="已复制"
+                  >
+                    复制
+                  </button>
+                </div>
+                <div class="terminal-next">
+                  安装完成 → 环境自检 → 安全登录 → 选择本地视频 → 开始转写
+                </div>
+              </div>
+              <div
+                class="mac-terminal hero-install-command"
+                aria-label="Windows 一条命令安装"
+                data-install-command="windows"
+              >
+                <div class="terminal-titlebar">
+                  <span class="terminal-lights" aria-hidden="true"
+                    ><i></i><i></i><i></i
+                  ></span>
+                  <span>Windows PowerShell</span>
+                  <span class="terminal-context">paste to your agent</span>
+                </div>
+                <div class="terminal-body">
+                  <code id="hero-install-windows"
+                    ><span class="terminal-prompt">PS&gt;</span> irm
+                    https://raw.githubusercontent.com/jiyangnan/AgentMesh-CreatorCut/main/scripts/install.ps1
+                    | iex</code
+                  >
+                  <button
+                    class="copy terminal-copy"
+                    type="button"
+                    data-copy="#hero-install-windows"
+                    data-copy-text="irm https://raw.githubusercontent.com/jiyangnan/AgentMesh-CreatorCut/main/scripts/install.ps1 | iex"
+                    data-copied-label="已复制"
+                  >
+                    复制
+                  </button>
+                </div>
+                <div class="terminal-next">
+                  安装完成 → 环境自检 → 安全登录 → 选择本地视频 → 开始转写
+                </div>
+              </div>
+              <div
+                class="mac-terminal hero-install-command"
+                aria-label="Ubuntu 一条命令安装"
+                data-install-command="ubuntu"
+              >
+                <div class="terminal-titlebar">
+                  <span class="terminal-lights" aria-hidden="true"
+                    ><i></i><i></i><i></i
+                  ></span>
+                  <span>Terminal — bash</span>
+                  <span class="terminal-context">paste to your agent</span>
+                </div>
+                <div class="terminal-body">
+                  <code id="hero-install-ubuntu"
+                    ><span class="terminal-prompt">$</span> curl -fsSL
+                    https://raw.githubusercontent.com/jiyangnan/AgentMesh-CreatorCut/main/scripts/install.sh
+                    | bash</code
+                  >
+                  <button
+                    class="copy terminal-copy"
+                    type="button"
+                    data-copy="#hero-install-ubuntu"
                     data-copy-text="curl -fsSL https://raw.githubusercontent.com/jiyangnan/AgentMesh-CreatorCut/main/scripts/install.sh | bash"
                     data-copied-label="已复制"
                   >
@@ -285,9 +382,9 @@
                 type="button"
                 role="tab"
                 aria-selected="true"
-                data-install-tab="unix"
+                data-install-tab="macos"
               >
-                macOS / Ubuntu
+                macOS
               </button>
               <button
                 class="install-tab"
@@ -298,13 +395,22 @@
               >
                 Windows PowerShell
               </button>
+              <button
+                class="install-tab"
+                type="button"
+                role="tab"
+                aria-selected="false"
+                data-install-tab="ubuntu"
+              >
+                Ubuntu
+              </button>
             </div>
             <div
               class="command active"
               role="tabpanel"
-              data-install-command="unix"
+              data-install-command="macos"
             >
-              <code id="install-unix"
+              <code id="install-macos"
                 >curl -fsSL
                 https://raw.githubusercontent.com/jiyangnan/AgentMesh-CreatorCut/main/scripts/install.sh
                 | bash</code
@@ -312,7 +418,7 @@
               <button
                 class="copy"
                 type="button"
-                data-copy="#install-unix"
+                data-copy="#install-macos"
                 data-copy-text="curl -fsSL https://raw.githubusercontent.com/jiyangnan/AgentMesh-CreatorCut/main/scripts/install.sh | bash"
                 data-copied-label="已复制"
               >
@@ -330,6 +436,22 @@
                 type="button"
                 data-copy="#install-windows"
                 data-copy-text="irm https://raw.githubusercontent.com/jiyangnan/AgentMesh-CreatorCut/main/scripts/install.ps1 | iex"
+                data-copied-label="已复制"
+              >
+                复制
+              </button>
+            </div>
+            <div class="command" role="tabpanel" data-install-command="ubuntu">
+              <code id="install-ubuntu"
+                >curl -fsSL
+                https://raw.githubusercontent.com/jiyangnan/AgentMesh-CreatorCut/main/scripts/install.sh
+                | bash</code
+              >
+              <button
+                class="copy"
+                type="button"
+                data-copy="#install-ubuntu"
+                data-copy-text="curl -fsSL https://raw.githubusercontent.com/jiyangnan/AgentMesh-CreatorCut/main/scripts/install.sh | bash"
                 data-copied-label="已复制"
               >
                 复制

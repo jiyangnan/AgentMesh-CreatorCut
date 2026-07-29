@@ -1,26 +1,30 @@
 const tabs = [...document.querySelectorAll("[data-install-tab]")];
 const commands = [...document.querySelectorAll("[data-install-command]")];
 
+function setInstallPlatform(platform) {
+  for (const candidate of tabs) {
+    const isActive = candidate.dataset.installTab === platform;
+    candidate.classList.toggle("active", isActive);
+    candidate.setAttribute("aria-selected", isActive ? "true" : "false");
+    candidate.setAttribute("tabindex", isActive ? "0" : "-1");
+  }
+  for (const command of commands) {
+    const isActive = command.dataset.installCommand === platform;
+    command.classList.toggle("active", isActive);
+    command.setAttribute("aria-hidden", isActive ? "false" : "true");
+  }
+}
+
 for (const tab of tabs) {
-  tab.addEventListener("click", () => {
-    const platform = tab.dataset.installTab;
-    for (const candidate of tabs) {
-      candidate.classList.toggle(
-        "active",
-        candidate.dataset.installTab === platform,
-      );
-      candidate.setAttribute(
-        "aria-selected",
-        candidate.dataset.installTab === platform ? "true" : "false",
-      );
-    }
-    for (const command of commands) {
-      command.classList.toggle(
-        "active",
-        command.dataset.installCommand === platform,
-      );
-    }
-  });
+  tab.addEventListener("click", () =>
+    setInstallPlatform(tab.dataset.installTab),
+  );
+}
+
+const initialPlatform = tabs.find((tab) => tab.classList.contains("active"))
+  ?.dataset.installTab;
+if (initialPlatform) {
+  setInstallPlatform(initialPlatform);
 }
 
 for (const button of document.querySelectorAll("[data-copy]")) {

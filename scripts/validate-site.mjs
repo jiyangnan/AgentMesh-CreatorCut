@@ -96,10 +96,17 @@ export function validateSite(rootInput) {
       !hero ||
       !hero.includes('href="#quick-install"') ||
       !hero.includes('id="quick-install"') ||
-      !hero.includes(REQUIRED_INSTALL_COMMANDS[0])
+      !hero.includes('data-install-tab="macos"') ||
+      !hero.includes('data-install-tab="windows"') ||
+      !hero.includes('data-install-tab="ubuntu"') ||
+      !hero.includes('data-install-command="macos"') ||
+      !hero.includes('data-install-command="windows"') ||
+      !hero.includes('data-install-command="ubuntu"') ||
+      !hero.includes(REQUIRED_INSTALL_COMMANDS[0]) ||
+      !hero.includes(REQUIRED_INSTALL_COMMANDS[1])
     ) {
       errors.push(
-        `${page}: hero must keep the macOS command beside the install CTA`,
+        `${page}: hero must keep platform-specific commands beside the install CTA`,
       );
     }
     if (

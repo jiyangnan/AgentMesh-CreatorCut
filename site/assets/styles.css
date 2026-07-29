@@ -231,6 +231,7 @@ h1 .marker::after {
 .hero-install {
   max-width: 650px;
   margin-top: 28px;
+  scroll-margin-top: 92px;
 }
 
 .hero-install-copy {
@@ -257,7 +258,25 @@ h1 .marker::after {
   border-radius: 10px;
   background: #0c0d0c;
   box-shadow: 8px 8px 0 var(--blue);
-  scroll-margin-top: 92px;
+}
+
+.hero-platform-tabs {
+  overflow: hidden;
+  margin-top: 14px;
+  border: 2px solid var(--ink);
+  border-bottom: 0;
+  border-radius: 10px 10px 0 0;
+  background: var(--ink);
+}
+
+.hero-install-command {
+  display: none;
+  margin-top: 0;
+  border-radius: 0 0 10px 10px;
+}
+
+.hero-install-command.active {
+  display: block;
 }
 
 .terminal-titlebar {

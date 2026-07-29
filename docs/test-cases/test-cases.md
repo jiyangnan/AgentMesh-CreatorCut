@@ -236,6 +236,9 @@
 - [x] Both language variants include an exact `https://agentmesh360.com/`
       brand backlink in the header and footer; the site contract rejects either
       placement being removed.
+- [x] Both language variants include at least four explicit purchase actions
+      that link directly to `https://agentmesh360.com/app/#pricing`; the site
+      contract rejects removal or routing back to the generic account home.
 
 ## Cycle 3 closeout gate
 

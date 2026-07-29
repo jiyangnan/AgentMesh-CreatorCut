@@ -51,6 +51,9 @@
 - [x] The Chinese and English website exposes an explicit AgentMesh360 brand
       backlink in the desktop header and all-viewport footer, matching the
       ecosystem discovery contract used by sibling product websites.
+- [x] The Chinese and English website exposes direct AgentMesh360 pass purchase
+      actions in the header, hero, Director pricing card and footer without
+      changing the local-media or credit boundary.
 - [x] Real RC11 public-product installation and three-material dogfood.
 - [x] Immutable public stable `v0.2.1` tag, canonical archive and formal
       GitHub Release.

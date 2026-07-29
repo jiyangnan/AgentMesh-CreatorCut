@@ -141,6 +141,22 @@ a {
   text-underline-offset: 4px;
 }
 
+.nav-pass {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 14px;
+  border: 1px solid var(--ink);
+  background: var(--ink);
+  color: var(--paper-bright);
+}
+
+.nav-links .nav-pass:hover {
+  background: var(--lime);
+  color: var(--ink);
+  text-decoration: none;
+}
+
 .lang {
   display: inline-flex;
   overflow: hidden;
@@ -905,6 +921,13 @@ h2 {
   line-height: 1.6;
 }
 
+.price-cta {
+  width: fit-content;
+  margin-top: 22px;
+  background: var(--ink);
+  color: var(--paper-bright);
+}
+
 .faq {
   margin-top: 52px;
 }
@@ -994,7 +1017,7 @@ h2 {
 }
 
 @media (max-width: 920px) {
-  .nav-links > a {
+  .nav-links > a:not(.nav-pass) {
     display: none;
   }
 
@@ -1029,6 +1052,10 @@ h2 {
   }
 
   .brand-parent {
+    display: none;
+  }
+
+  .nav-links > a.nav-pass {
     display: none;
   }
 

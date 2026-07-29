@@ -125,6 +125,15 @@ export function validateSite(rootInput) {
     if (!html.includes(">50 <") && !html.includes(">50<")) {
       errors.push(`${page}: 50-credit price is missing`);
     }
+    if (
+      (html.match(/data-purchase-cta/gu) ?? []).length < 4 ||
+      (html.match(/https:\/\/agentmesh360\.com\/app\/#pricing/gu) ?? [])
+        .length < 4
+    ) {
+      errors.push(
+        `${page}: direct AgentMesh360 pass purchase CTAs are missing`,
+      );
+    }
 
     const ids = attributeValues(html, "id");
     const duplicates = ids.filter((id, index) => ids.indexOf(id) !== index);

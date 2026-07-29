@@ -30,4 +30,10 @@ login, local recording import, bilingual transcription, explicit context
 consent, and Director start. Never request an API key in command arguments.
 
 Official site: https://creatorcut.agentmesh360.com/
+Localized sites:
+
+- English: https://creatorcut.agentmesh360.com/en/
+- Japanese: https://creatorcut.agentmesh360.com/ja/
+- Korean: https://creatorcut.agentmesh360.com/ko/
+
 Public repository: https://github.com/jiyangnan/AgentMesh-CreatorCut

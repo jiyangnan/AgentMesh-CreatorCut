@@ -222,7 +222,7 @@
 
 ## TC-SITE-001: platform-specific installation handoff
 
-- [x] The Chinese and English hero install CTA targets the adjacent quick
+- [x] The Chinese, English, Japanese and Korean hero install CTA targets the adjacent quick
       installer instead of the distant detailed-install section.
 - [x] macOS, Windows and Ubuntu are explicit synchronized choices in both the
       hero and detailed install sections.
@@ -233,12 +233,15 @@
       inside the hero section.
 - [x] Desktop and mobile browser checks show the selector and corresponding
       command without horizontal page overflow.
-- [x] Both language variants include an exact `https://agentmesh360.com/`
+- [x] All four language variants include an exact `https://agentmesh360.com/`
       brand backlink in the header and footer; the site contract rejects either
       placement being removed.
-- [x] Both language variants include at least four explicit purchase actions
+- [x] All four language variants include at least four explicit purchase actions
       that link directly to `https://agentmesh360.com/app/#pricing`; the site
       contract rejects removal or routing back to the generic account home.
+- [x] Every language variant exposes Chinese, English, Japanese and Korean in
+      its switch, marks exactly one active locale and declares all four
+      reciprocal alternate URLs.
 
 ## Cycle 3 closeout gate
 

@@ -9,6 +9,17 @@ const REQUIRED_INSTALL_COMMANDS = [
   "irm https://raw.githubusercontent.com/jiyangnan/AgentMesh-CreatorCut/main/scripts/install.ps1 | iex",
 ];
 
+const REQUIRED_LOCALES = [
+  ["zh-CN", "https://creatorcut.agentmesh360.com/"],
+  ["en", "https://creatorcut.agentmesh360.com/en/"],
+  ["ja", "https://creatorcut.agentmesh360.com/ja/"],
+  ["ko", "https://creatorcut.agentmesh360.com/ko/"],
+];
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+}
+
 function htmlFiles(root) {
   const files = [];
   for (const entry of readdirSync(root)) {
@@ -51,11 +62,54 @@ export function validateSite(rootInput) {
   const root = resolve(rootInput);
   const errors = [];
   const requiredPages = [
-    ["index.html", "zh-CN"],
-    ["en/index.html", "en"],
+    [
+      "index.html",
+      "zh-CN",
+      "中",
+      [
+        ["/en/", "en"],
+        ["/ja/", "ja"],
+        ["/ko/", "ko"],
+      ],
+    ],
+    [
+      "en/index.html",
+      "en",
+      "EN",
+      [
+        ["/", "zh-CN"],
+        ["/ja/", "ja"],
+        ["/ko/", "ko"],
+      ],
+    ],
+    [
+      "ja/index.html",
+      "ja",
+      "日",
+      [
+        ["/", "zh-CN"],
+        ["/en/", "en"],
+        ["/ko/", "ko"],
+      ],
+    ],
+    [
+      "ko/index.html",
+      "ko",
+      "한",
+      [
+        ["/", "zh-CN"],
+        ["/en/", "en"],
+        ["/ja/", "ja"],
+      ],
+    ],
   ];
 
-  for (const [page, expectedLanguage] of requiredPages) {
+  for (const [
+    page,
+    expectedLanguage,
+    activeLanguageLabel,
+    languageLinks,
+  ] of requiredPages) {
     const path = join(root, page);
     if (!existsSync(path)) {
       errors.push(`${page}: required page is missing`);
@@ -71,6 +125,40 @@ export function validateSite(rootInput) {
     }
     if (!html.includes("AgentMesh-CreatorCut")) {
       errors.push(`${page}: unified public product name is missing`);
+    }
+    for (const [locale, url] of REQUIRED_LOCALES) {
+      const alternate = new RegExp(
+        `<link\\b(?=[^>]*\\brel=["']alternate["'])(?=[^>]*\\bhreflang=["']${escapeRegExp(locale)}["'])(?=[^>]*\\bhref=["']${escapeRegExp(url)}["'])[^>]*>`,
+        "iu",
+      );
+      if (!alternate.test(html)) {
+        errors.push(`${page}: ${locale} alternate URL is missing`);
+      }
+    }
+    const languageSwitchStart = html.search(
+      /<span\b[^>]*class=["'][^"']*\blang\b[^"']*["'][^>]*>/iu,
+    );
+    const languageSwitch =
+      languageSwitchStart >= 0
+        ? html.slice(languageSwitchStart, languageSwitchStart + 700)
+        : "";
+    if (
+      !languageSwitch ||
+      !new RegExp(
+        `<span\\b[^>]*\\bclass=["'][^"']*\\bactive\\b[^"']*["'][^>]*\\baria-current=["']page["'][^>]*>\\s*${escapeRegExp(activeLanguageLabel)}\\s*<\\/span>`,
+        "iu",
+      ).test(languageSwitch)
+    ) {
+      errors.push(`${page}: active locale is missing from language switch`);
+    }
+    for (const [route, locale] of languageLinks) {
+      const languageLink = new RegExp(
+        `<a\\b(?=[^>]*\\bhref=["']${escapeRegExp(route)}["'])(?=[^>]*\\bhreflang=["']${escapeRegExp(locale)}["'])[^>]*>`,
+        "iu",
+      );
+      if (!languageSwitch || !languageLink.test(languageSwitch)) {
+        errors.push(`${page}: ${locale} language-switch route is missing`);
+      }
     }
     const brandHomeLinks =
       html.match(/href=["']https:\/\/agentmesh360\.com\/["']/giu) ?? [];

@@ -45,15 +45,17 @@
       verification, update deferral, compatibility check and rollback.
 - [x] Managed installers pin and verify the public Director keyset, recovery
       roots, endpoint and Protocol v1 digest before entering onboarding.
-- [x] The Chinese and English website keeps the install CTA adjacent to a
+- [x] The Chinese, English, Japanese and Korean website keeps the install CTA adjacent to a
       synchronized macOS, Windows and Ubuntu selector; each platform exposes
       only its exact public command before entering the shared onboarding flow.
-- [x] The Chinese and English website exposes an explicit AgentMesh360 brand
+- [x] The four-language website exposes an explicit AgentMesh360 brand
       backlink in the desktop header and all-viewport footer, matching the
       ecosystem discovery contract used by sibling product websites.
-- [x] The Chinese and English website exposes direct AgentMesh360 pass purchase
+- [x] The four-language website exposes direct AgentMesh360 pass purchase
       actions in the header, hero, Director pricing card and footer without
       changing the local-media or credit boundary.
+- [x] Japanese and Korean are complete localized pages with a four-language
+      switch and reciprocal `hreflang` metadata on every locale.
 - [x] Real RC11 public-product installation and three-material dogfood.
 - [x] Immutable public stable `v0.2.1` tag, canonical archive and formal
       GitHub Release.

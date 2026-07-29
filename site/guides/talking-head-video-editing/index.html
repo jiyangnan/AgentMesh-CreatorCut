@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AI 口播剪辑指南：从转写、删改到字幕与本地导出</title>
+    <meta
+      name="description"
+      content="AI 口播视频剪辑实用指南：理解中英转写、可逆剪辑、字幕、背景音乐、原色导出和媒体隐私，并了解 AgentMesh-CreatorCut 的工作方式。"
+    />
+    <meta name="robots" content="index,follow,max-image-preview:large" />
+    <link
+      rel="canonical"
+      href="https://creatorcut.agentmesh360.com/guides/talking-head-video-editing/"
+    />
+    <meta property="og:title" content="AI 口播剪辑指南：从转写到可逆成片" />
+    <meta
+      property="og:description"
+      content="让 AI 帮你剪口播，重点不是自动删得多，而是每个决定可审阅、可撤销，原始媒体仍在本机。"
+    />
+    <meta property="og:type" content="article" />
+    <meta
+      property="og:url"
+      content="https://creatorcut.agentmesh360.com/guides/talking-head-video-editing/"
+    />
+    <meta
+      property="og:image"
+      content="https://agentmesh360.com/agentmesh360-icon.png?v=transparent-2"
+    />
+    <meta name="twitter:card" content="summary" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="stylesheet" href="/seo.css" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Article",
+            "headline": "AI 口播剪辑指南：从转写、删改到字幕与本地导出",
+            "datePublished": "2026-07-30",
+            "dateModified": "2026-07-30",
+            "inLanguage": "zh-CN",
+            "author": {
+              "@type": "Organization",
+              "name": "AgentMesh360",
+              "url": "https://agentmesh360.com/"
+            }
+          },
+          {
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "AgentMesh-CreatorCut",
+                "item": "https://creatorcut.agentmesh360.com/"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "AI 口播剪辑",
+                "item": "https://creatorcut.agentmesh360.com/guides/talking-head-video-editing/"
+              }
+            ]
+          },
+          {
+            "@type": "FAQPage",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "CreatorCut 会把源视频上传到云端吗？",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "不会。源视频、音频、转写文件、预览、项目和导出留在本机；只有用户确认过的结构化 DirectorContext 用于生成签名剪辑方案。"
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "AI 口播剪辑会自动给视频调色吗？",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "CreatorCut 默认保持源视频色彩，不自动应用 LUT、曝光增强或强制色彩空间转换。"
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "CreatorCut 和 LectureCast 有什么区别？",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "CreatorCut 从已经录好的口播或产品录屏开始做后期；LectureCast 从一个主题开始生成完整课程视频。"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    </script>
+  </head>
+  <body data-product-contract="local-media-paid-director-v1">
+    <header class="site-nav">
+      <div class="container nav-inner">
+        <a class="brand" href="/">AgentMesh-CreatorCut</a>
+        <nav class="nav-links" aria-label="页面导航">
+          <a href="/guides/screen-recording-editing/">录屏剪辑</a
+          ><a href="https://lecturecast.agentmesh360.com/">课程视频生成</a
+          ><a href="https://agentmesh360.com/app/#pricing">开通通行证</a>
+        </nav>
+      </div>
+    </header>
+    <main>
+      <section class="hero">
+        <div class="container">
+          <p class="eyebrow">AI 口播剪辑指南</p>
+          <h1>好的 AI 口播剪辑，不是“一键删到只剩重点”。</h1>
+          <p class="lead">
+            它应该理解说话内容，提出可审阅的剪辑建议，让字幕、配乐和时间线与真实语义一致，同时保留原始素材与撤销路径。
+          </p>
+          <div class="hero-actions">
+            <a class="button primary" href="/">查看 CreatorCut</a
+            ><a class="button" href="#workflow">看完整工作流</a>
+          </div>
+        </div>
+      </section>
+      <article class="container article">
+        <nav class="toc" aria-label="本页目录">
+          <strong>本页内容</strong><a href="#problems">口播难点</a
+          ><a href="#workflow">剪辑流程</a><a href="#quality">质量检查</a
+          ><a href="#faq">常见问题</a>
+        </nav>
+        <section id="problems">
+          <h2>口播视频难剪，通常不是因为不会点软件</h2>
+          <div class="grid">
+            <article class="card">
+              <h3>内容删改需要理解上下文</h3>
+              <p>
+                停顿、重复和口头禅不一定都该删。某些停顿在强调观点，某些重复是在补充条件。只按静音长度裁切，容易让表达变得机械。
+              </p>
+            </article>
+            <article class="card">
+              <h3>文字与画面必须保持可追溯</h3>
+              <p>
+                转写修正、删句、重排、字幕和时间线彼此关联。任何一步改动都应该能回到原始片段，而不是直接覆盖源视频。
+              </p>
+            </article>
+            <article class="card">
+              <h3>字幕不是把全文铺到屏幕上</h3>
+              <p>
+                字幕需要控制单行长度、断句、时间和可读区域。中英文混合时，标点、专有名词与行宽处理也会影响观看体验。
+              </p>
+            </article>
+            <article class="card">
+              <h3>配乐与调色不能偷走表达</h3>
+              <p>
+                背景音乐需要服务语气，默认音量不能压过人声。画面处理也应当可见、可预览，CreatorCut
+                默认保持原始色彩。
+              </p>
+            </article>
+          </div>
+        </section>
+        <section id="workflow">
+          <h2>CreatorCut 的口播后期工作流</h2>
+          <ol class="checklist">
+            <li>
+              <strong>本地导入媒体：</strong
+              >源视频、代理文件和项目路径停留在你的电脑。
+            </li>
+            <li>
+              <strong>中英转写：</strong
+              >把语音转换成可审阅文本，并保留文字与时间线的映射。
+            </li>
+            <li>
+              <strong>构建 DirectorContext：</strong
+              >用户检查并确认用于剪辑决策的结构化上下文，不上传原始媒体。
+            </li>
+            <li>
+              <strong>生成签名剪辑方案：</strong>云端 Director 在明确的
+              50-credit 报价后返回可验证计划。
+            </li>
+            <li>
+              <strong>预览与应用：</strong
+              >本地执行器按照计划生成剪辑、字幕和配乐，关键决定可预览、可撤销。
+            </li>
+            <li>
+              <strong>本地导出：</strong
+              >最终视频在设备上完成导出，默认保持源视频色彩。
+            </li>
+          </ol>
+          <div class="callout">
+            <strong>本地执行不消耗云端 credits。</strong
+            >安装、转写、媒体导入、预览、应用、字幕、配乐、导出和撤销都在本机完成。只有用户确认生成签名
+            Director 方案时，才按当前产品报价消耗 50 credits。
+          </div>
+        </section>
+        <section id="quality">
+          <h2>交付前的口播质量检查</h2>
+          <ul class="checklist">
+            <li>删句后语义是否仍然完整，前后代词和转折是否有明确指向。</li>
+            <li>是否出现不自然的呼吸切点、嘴型跳变或过短镜头。</li>
+            <li>字幕是否与人声同步，专有名词和中英混排是否正确。</li>
+            <li>背景音乐是否压住人声，起止点是否与内容段落一致。</li>
+            <li>源视频色彩是否被意外改变，导出分辨率和帧率是否符合预期。</li>
+            <li>所有关键删改是否仍能从项目记录中撤销。</li>
+          </ul>
+          <p>
+            如果素材主要是产品演示或屏幕操作，继续阅读
+            <a href="/guides/screen-recording-editing/">产品录屏剪辑指南</a>。
+          </p>
+        </section>
+        <section id="faq" class="faq">
+          <h2>常见问题</h2>
+          <details>
+            <summary>CreatorCut 会把源视频上传到云端吗？</summary>
+            <p>
+              不会。源视频、音频、转写文件、预览、项目和导出留在本机；只有用户确认过的结构化
+              DirectorContext 用于生成签名剪辑方案。
+            </p>
+          </details>
+          <details>
+            <summary>会自动给视频调色吗？</summary>
+            <p>
+              默认不会。CreatorCut 保持源视频色彩，不自动应用
+              LUT、曝光增强或强制色彩空间转换。
+            </p>
+          </details>
+          <details>
+            <summary>CreatorCut 和 LectureCast 有什么区别？</summary>
+            <p>
+              CreatorCut 从已录好的素材开始做后期；LectureCast
+              从一个主题开始生成完整课程视频。
+            </p>
+          </details>
+        </section>
+        <section>
+          <div class="related">
+            <h2>把已经录好的表达，剪成可以发布的成片</h2>
+            <p>
+              查看
+              <a href="/">AgentMesh-CreatorCut 产品页</a
+              >，确认安装、数据流、50-credit Director 方案和本地导出边界。
+            </p>
+          </div>
+        </section>
+      </article>
+    </main>
+    <footer class="site-footer">
+      <div class="container footer-inner">
+        <span>AgentMesh-CreatorCut · Local media, reversible edits</span>
+        <div class="footer-links">
+          <a href="/">产品首页</a
+          ><a href="https://github.com/jiyangnan/AgentMesh-CreatorCut">GitHub</a
+          ><a href="https://agentmesh360.com/">AgentMesh360</a>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

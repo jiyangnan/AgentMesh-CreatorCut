@@ -72,6 +72,13 @@ export function validateSite(rootInput) {
     if (!html.includes("AgentMesh-CreatorCut")) {
       errors.push(`${page}: unified public product name is missing`);
     }
+    const brandHomeLinks =
+      html.match(/href=["']https:\/\/agentmesh360\.com\/["']/giu) ?? [];
+    if (brandHomeLinks.length < 2 || !html.includes('class="brand-parent"')) {
+      errors.push(
+        `${page}: header and footer must link back to the AgentMesh360 brand website`,
+      );
+    }
     if (
       !html.includes('data-product-contract="local-media-paid-director-v1"')
     ) {

@@ -233,6 +233,9 @@
       inside the hero section.
 - [x] Desktop and mobile browser checks show the selector and corresponding
       command without horizontal page overflow.
+- [x] Both language variants include an exact `https://agentmesh360.com/`
+      brand backlink in the header and footer; the site contract rejects either
+      placement being removed.
 
 ## Cycle 3 closeout gate
 

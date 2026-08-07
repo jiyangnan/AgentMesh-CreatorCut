@@ -56,6 +56,10 @@
       changing the local-media or credit boundary.
 - [x] Japanese and Korean are complete localized pages with a four-language
       switch and reciprocal `hreflang` metadata on every locale.
+- [x] Every public product and guide page reports page views to CreatorCut's
+      dedicated self-hosted Umami property, restricted to the production
+      domain, with URL query strings excluded and without media, transcript,
+      account or project payloads.
 - [x] Real RC11 public-product installation and three-material dogfood.
 - [x] Immutable public stable `v0.2.1` tag, canonical archive and formal
       GitHub Release.

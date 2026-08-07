@@ -242,6 +242,10 @@
 - [x] Every language variant exposes Chinese, English, Japanese and Korean in
       its switch, marks exactly one active locale and declares all four
       reciprocal alternate URLs.
+- [x] Every localized landing page and public editing guide contains exactly
+      one production-domain-restricted Umami tag using CreatorCut's dedicated
+      website ID with query-string collection disabled; the site contract
+      rejects missing, duplicated or mixed-product analytics configuration.
 
 ## Cycle 3 closeout gate
 

@@ -16,6 +16,11 @@ const REQUIRED_LOCALES = [
   ["ko", "https://creatorcut.agentmesh360.com/ko/"],
 ];
 
+const ANALYTICS_SCRIPT_URL = "https://analytics.agentmesh360.com/script.js";
+const ANALYTICS_WEBSITE_ID = "2cb77930-61ba-46d3-aa1b-aa5cbc546297";
+const ANALYTICS_DOMAIN = "creatorcut.agentmesh360.com";
+const ANALYTICS_EXCLUDE_SEARCH = "true";
+
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
 }
@@ -259,6 +264,15 @@ export function validateSite(rootInput) {
 
   for (const page of htmlFiles(root)) {
     const html = readFileSync(page, "utf8");
+    const analyticsTag = new RegExp(
+      `<script\\b(?=[^>]*\\bsrc=["']${escapeRegExp(ANALYTICS_SCRIPT_URL)}["'])(?=[^>]*\\bdata-website-id=["']${escapeRegExp(ANALYTICS_WEBSITE_ID)}["'])(?=[^>]*\\bdata-domains=["']${escapeRegExp(ANALYTICS_DOMAIN)}["'])(?=[^>]*\\bdata-exclude-search=["']${ANALYTICS_EXCLUDE_SEARCH}["'])[^>]*>\\s*<\\/script>`,
+      "giu",
+    );
+    if ((html.match(analyticsTag) ?? []).length !== 1) {
+      errors.push(
+        `${page}: expected one dedicated production Umami analytics tag`,
+      );
+    }
     if (/creatorcut-server|CLIENT_RELEASE_SIGNING_KEYS_JSON/iu.test(html)) {
       errors.push(`${page}: private implementation detail leaked`);
     }

@@ -10,8 +10,8 @@ const REQUIRED_INSTALL_COMMANDS = [
 ];
 
 const REQUIRED_LOCALES = [
-  ["zh-CN", "https://creatorcut.agentmesh360.com/"],
-  ["en", "https://creatorcut.agentmesh360.com/en/"],
+  ["zh-CN", "https://creatorcut.agentmesh360.com/zh/"],
+  ["en", "https://creatorcut.agentmesh360.com/"],
   ["ja", "https://creatorcut.agentmesh360.com/ja/"],
   ["ko", "https://creatorcut.agentmesh360.com/ko/"],
 ];
@@ -69,43 +69,58 @@ export function validateSite(rootInput) {
   const requiredPages = [
     [
       "index.html",
-      "zh-CN",
-      "中",
+      "en",
+      "EN",
       [
-        ["/en/", "en"],
+        ["/zh/", "zh-CN"],
         ["/ja/", "ja"],
         ["/ko/", "ko"],
       ],
+      "https://agentmesh360.com/",
+    ],
+    [
+      "zh/index.html",
+      "zh-CN",
+      "中",
+      [
+        ["/", "en"],
+        ["/ja/", "ja"],
+        ["/ko/", "ko"],
+      ],
+      "https://agentmesh360.com/zh/",
     ],
     [
       "en/index.html",
       "en",
       "EN",
       [
-        ["/", "zh-CN"],
+        ["/zh/", "zh-CN"],
         ["/ja/", "ja"],
         ["/ko/", "ko"],
       ],
+      "https://agentmesh360.com/",
     ],
     [
       "ja/index.html",
       "ja",
       "日",
       [
-        ["/", "zh-CN"],
-        ["/en/", "en"],
+        ["/zh/", "zh-CN"],
+        ["/", "en"],
         ["/ko/", "ko"],
       ],
+      "https://agentmesh360.com/ja/",
     ],
     [
       "ko/index.html",
       "ko",
       "한",
       [
-        ["/", "zh-CN"],
-        ["/en/", "en"],
+        ["/zh/", "zh-CN"],
+        ["/", "en"],
         ["/ja/", "ja"],
       ],
+      "https://agentmesh360.com/ko/",
     ],
   ];
 
@@ -114,6 +129,7 @@ export function validateSite(rootInput) {
     expectedLanguage,
     activeLanguageLabel,
     languageLinks,
+    brandHome,
   ] of requiredPages) {
     const path = join(root, page);
     if (!existsSync(path)) {
@@ -166,7 +182,7 @@ export function validateSite(rootInput) {
       }
     }
     const brandHomeLinks =
-      html.match(/href=["']https:\/\/agentmesh360\.com\/["']/giu) ?? [];
+      html.match(new RegExp(`href=["']${escapeRegExp(brandHome)}["']`, "giu")) ?? [];
     if (brandHomeLinks.length < 2 || !html.includes('class="brand-parent"')) {
       errors.push(
         `${page}: header and footer must link back to the AgentMesh360 brand website`,
@@ -220,7 +236,7 @@ export function validateSite(rootInput) {
     }
     if (
       (html.match(/data-purchase-cta/gu) ?? []).length < 4 ||
-      (html.match(/https:\/\/agentmesh360\.com\/app\/#pricing/gu) ?? [])
+      (html.match(/https:\/\/agentmesh360\.com\/app\/(?:\?lang=(?:zh-CN|ja|ko))?#pricing/gu) ?? [])
         .length < 4
     ) {
       errors.push(

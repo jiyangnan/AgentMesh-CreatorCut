@@ -16,7 +16,7 @@ test("public website preserves the product and trust boundary", () => {
 
 test("public website links and indexes both editing guides", () => {
   const site = resolve(repositoryRoot, "site");
-  const landing = readFileSync(resolve(site, "index.html"), "utf8");
+  const landing = readFileSync(resolve(site, "zh/index.html"), "utf8");
   const sitemap = readFileSync(resolve(site, "sitemap.xml"), "utf8");
   for (const route of [
     "/guides/talking-head-video-editing/",

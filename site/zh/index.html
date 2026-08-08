@@ -1,34 +1,46 @@
 <!doctype html>
-<html lang="ko">
+<html lang="zh-CN">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>AgentMesh-CreatorCut | 토킹헤드·화면 녹화 스마트 편집 Agent</title>
+    <title>AgentMesh-CreatorCut｜口播与产品录屏智能后期 Agent</title>
     <meta
       name="description"
-      content="AgentMesh-CreatorCut은 토킹헤드와 제품 데모를 중영문 전사, 대화형 편집 결정, 자막, 음악, 로컬 출력으로 완성합니다."
+      content="AgentMesh-CreatorCut 自动完成口播和产品录屏的转写、交互式剪辑决策、字幕、背景音乐与本地导出。原始媒体始终留在你的电脑。"
     />
     <meta name="robots" content="index,follow,max-image-preview:large" />
     <meta
       property="og:title"
-      content="AgentMesh-CreatorCut | 토킹헤드·화면 녹화 스마트 편집 Agent"
+      content="AgentMesh-CreatorCut｜口播与产品录屏智能后期 Agent"
     />
     <meta
       property="og:description"
-      content="촬영된 영상에서 중영문 전사, 되돌릴 수 있는 편집, 자막, 음악, 원색 출력까지. 원본 미디어는 로컬에 남습니다."
+      content="把已经录好的口播和产品录屏交给 Agent：中英转写、可逆剪辑、字幕、背景音乐与原色导出留在本机，云端 Director 返回签名剪辑方案。"
     />
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://creatorcut.agentmesh360.com/ko/" />
+    <meta property="og:url" content="https://creatorcut.agentmesh360.com/zh/" />
     <meta
       property="og:image"
       content="https://agentmesh360.com/agentmesh360-icon.png"
+    />
+    <meta
+      property="og:site_name"
+      content="AgentMesh-CreatorCut · AgentMesh360"
     />
     <meta name="twitter:card" content="summary" />
     <meta
       name="twitter:image"
       content="https://agentmesh360.com/agentmesh360-icon.png"
     />
-    <link rel="canonical" href="https://creatorcut.agentmesh360.com/ko/" />
+    <meta
+      name="twitter:title"
+      content="AgentMesh-CreatorCut｜口播与产品录屏智能后期 Agent"
+    />
+    <meta
+      name="twitter:description"
+      content="已有视频进，转写、可逆剪辑、字幕、音乐和原色成片出；原始媒体留在本机。"
+    />
+    <link rel="canonical" href="https://creatorcut.agentmesh360.com/zh/" />
     <link
       rel="alternate"
       type="text/markdown"
@@ -73,26 +85,88 @@
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
-        "@type": "SoftwareApplication",
-        "name": "AgentMesh-CreatorCut",
-        "applicationCategory": "MultimediaApplication",
-        "applicationSubCategory": "AI post-production agent",
-        "operatingSystem": "macOS, Windows, Ubuntu",
-        "url": "https://creatorcut.agentmesh360.com/ko/",
-        "codeRepository": "https://github.com/jiyangnan/AgentMesh-CreatorCut",
-        "isAccessibleForFree": false,
-        "provider": {
-          "@type": "Organization",
-          "name": "AgentMesh360",
-          "url": "https://agentmesh360.com/"
-        },
-        "description": "AgentMesh-CreatorCut은 촬영된 토킹헤드와 제품 화면 녹화를 중영문 전사, 되돌릴 수 있는 편집, 자막, 음악, 원색 로컬 출력으로 완성합니다.",
-        "offers": {
-          "@type": "Offer",
-          "url": "https://agentmesh360.com/app/?lang=ko#pricing",
-          "description": "로컬 실행에는 cloud credits가 필요하지 않습니다. 확인된 서명 Director 편집 계획 1건은 50 AgentMesh credits를 사용합니다.",
-          "availability": "https://schema.org/InStock"
-        }
+        "@graph": [
+          {
+            "@type": "Organization",
+            "@id": "https://agentmesh360.com/#organization",
+            "name": "AgentMesh360",
+            "url": "https://agentmesh360.com/"
+          },
+          {
+            "@type": "SoftwareApplication",
+            "@id": "https://creatorcut.agentmesh360.com/#software",
+            "name": "AgentMesh-CreatorCut",
+            "applicationCategory": "MultimediaApplication",
+            "applicationSubCategory": "AI post-production agent",
+            "operatingSystem": "macOS, Windows, Ubuntu",
+            "url": "https://creatorcut.agentmesh360.com/",
+            "codeRepository": "https://github.com/jiyangnan/AgentMesh-CreatorCut",
+            "provider": {
+              "@id": "https://agentmesh360.com/#organization"
+            },
+            "audience": {
+              "@type": "Audience",
+              "audienceType": "已经录好口播、教程或产品录屏，需要完成智能后期的创作者"
+            },
+            "isAccessibleForFree": false,
+            "description": "AgentMesh-CreatorCut 面向已经录好的口播与产品录屏，在本机完成中英转写、可逆剪辑、字幕、背景音乐和原色导出，并由云端 Director 返回签名剪辑方案。",
+            "featureList": [
+              "中文、英文与中英混合转写",
+              "语义剪辑与可逆编辑",
+              "字幕与轻快背景音乐",
+              "默认保持源视频色彩",
+              "本地预览与导出",
+              "交互式决策卡片",
+              "签名声明式剪辑方案"
+            ],
+            "offers": {
+              "@type": "Offer",
+              "url": "https://agentmesh360.com/app/?lang=zh-CN#pricing",
+              "description": "本地执行不消耗 credits；用户确认一份签名 Director 剪辑方案时消耗 50 个 AgentMesh credits。",
+              "availability": "https://schema.org/InStock"
+            }
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://creatorcut.agentmesh360.com/#website",
+            "url": "https://creatorcut.agentmesh360.com/",
+            "name": "AgentMesh-CreatorCut",
+            "inLanguage": "zh-CN",
+            "publisher": {
+              "@id": "https://agentmesh360.com/#organization"
+            }
+          },
+          {
+            "@type": "FAQPage",
+            "@id": "https://creatorcut.agentmesh360.com/#faq",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "CreatorCut 会把视频上传到云端吗？",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "不会。源视频、音频、转写中间文件、预览和导出都留在本机；只有用户检查并确认过的结构化 DirectorContext 才会发送到云端策略服务。"
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "CreatorCut 会自动给视频加滤镜或调色吗？",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "不会。默认保持源视频色彩，不做自动 LUT、曝光增强、HDR 转 SDR 或强制 BT.709；受支持的画面处理必须进入可见计划和本地预览。"
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "CreatorCut 和 LectureCast 有什么区别？",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "LectureCast 从一个主题生成完整课程视频；AgentMesh-CreatorCut 从已经录好的口播或产品录屏出发，完成智能后期。"
+                }
+              }
+            ]
+          }
+        ]
       }
     </script>
   </head>
@@ -102,35 +176,35 @@
         <div class="brand">
           <a
             class="brand-home"
-            href="/ko/"
-            aria-label="AgentMesh-CreatorCut 홈"
+            href="/zh/"
+            aria-label="AgentMesh-CreatorCut 首页"
           >
             <span class="brand-mark" aria-hidden="true"></span>
             <span>AgentMesh-CreatorCut</span>
           </a>
           <a
             class="brand-parent"
-            href="https://agentmesh360.com/ko/"
-            aria-label="AgentMesh360 브랜드 사이트로 돌아가기"
+            href="https://agentmesh360.com/zh/"
+            aria-label="返回 AgentMesh360 品牌主站"
             >by AgentMesh360 <span aria-hidden="true">↗</span></a
           >
         </div>
-        <nav class="nav-links" aria-label="기본 탐색">
-          <a href="#features">기능</a>
-          <a href="#boundary">경계</a>
-          <a href="#install">설치</a>
-          <a href="#pricing">가격</a>
-          <span class="lang" aria-label="언어">
-            <a href="/zh/" hreflang="zh-CN">中</a>
+        <nav class="nav-links" aria-label="主导航">
+          <a href="#features">能力</a>
+          <a href="#boundary">边界</a>
+          <a href="#install">安装</a>
+          <a href="#pricing">价格</a>
+          <span class="lang" aria-label="语言">
+            <span class="active" aria-current="page">中</span>
             <a href="/" hreflang="en">EN</a>
             <a href="/ja/" hreflang="ja">日</a>
-            <span class="active" aria-current="page">한</span>
+            <a href="/ko/" hreflang="ko">한</a>
           </span>
           <a
             class="nav-pass"
             data-purchase-cta
-            href="https://agentmesh360.com/app/?lang=ko#pricing"
-            >패스 구매</a
+            href="https://agentmesh360.com/app/?lang=zh-CN#pricing"
+            >开通通行证</a
           >
         </nav>
       </div>
@@ -140,52 +214,43 @@
       <section class="hero">
         <div class="wrap hero-grid">
           <div>
-            <div class="eyebrow">로컬 제작 · 클라우드 Director</div>
+            <div class="eyebrow">Local production · Cloud Director</div>
             <h1>
-              당신이 녹화하고,<br />
-              편집은 Agent에게<br />
-              <span class="marker">맡기세요.</span>
+              把口播与<br />
+              产品录屏<br />
+              <span class="marker">剪成成片</span>
             </h1>
             <p class="hero-copy">
-              당신이 말하면 Agent가 후반 작업을 맡습니다.
-              <strong
-                >중영문 전사, 의미 기반 편집, 자막, 경쾌한 음악, 원색을 지키는
-                출력</strong
-              >을 제공하며, 중요한 단계마다 미리보기·확인·실행 취소가
-              가능합니다.
+              你负责录，Agent
+              负责后期。<strong>中英双语转写、语义剪辑、字幕、轻快背景音乐、原色导出</strong>，每一步都能预览、确认、撤销。
             </p>
             <div class="actions">
-              <a class="button primary" href="#quick-install"
-                >한 줄 명령으로 설치</a
-              >
+              <a class="button primary" href="#quick-install">一条命令安装</a>
               <a
                 class="button secondary"
                 href="https://github.com/jiyangnan/AgentMesh-CreatorCut"
               >
-                GitHub에서 보기
+                在 GitHub 查看
               </a>
               <a
                 class="button secondary"
                 data-purchase-cta
-                href="https://agentmesh360.com/app/?lang=ko#pricing"
-                >패스 구매</a
+                href="https://agentmesh360.com/app/?lang=zh-CN#pricing"
+                >开通通行证</a
               >
             </div>
 
             <div class="hero-install" id="quick-install">
               <p class="hero-install-copy">
-                <strong
-                  >운영체제를 선택한 뒤 해당 명령을 AI Agent에게
-                  전달하세요.</strong
-                >
-                설치 프로그램이 의존성, 자체 점검, 서명 검증을 처리한 뒤
-                <code>creatorcut onboard</code> 를 실행해 로그인, 녹화 선택,
-                프로젝트 생성을 안내합니다.
+                <strong>先选择你的系统，再复制对应命令给 AI Agent。</strong>
+                安装器会完成依赖、自检和签名校验，然后自动进入
+                <code>creatorcut onboard</code
+                >，继续带你登录、选择录屏并创建项目。
               </p>
               <div
                 class="install-tabs hero-platform-tabs"
                 role="tablist"
-                aria-label="빠른 설치 플랫폼"
+                aria-label="快捷安装平台"
               >
                 <button
                   class="install-tab active"
@@ -217,7 +282,7 @@
               </div>
               <div
                 class="mac-terminal hero-install-command active"
-                aria-label="macOS 한 줄 명령 설치"
+                aria-label="macOS 一条命令安装"
                 data-install-command="macos"
               >
                 <div class="terminal-titlebar">
@@ -225,7 +290,7 @@
                     ><i></i><i></i><i></i
                   ></span>
                   <span>Terminal — zsh</span>
-                  <span class="terminal-context">Agent에 붙여넣기</span>
+                  <span class="terminal-context">paste to your agent</span>
                 </div>
                 <div class="terminal-body">
                   <code id="hero-install-unix"
@@ -238,18 +303,18 @@
                     type="button"
                     data-copy="#hero-install-unix"
                     data-copy-text="curl -fsSL https://raw.githubusercontent.com/jiyangnan/AgentMesh-CreatorCut/main/scripts/install.sh | bash"
-                    data-copied-label="복사됨"
+                    data-copied-label="已复制"
                   >
-                    복사
+                    复制
                   </button>
                 </div>
                 <div class="terminal-next">
-                  설치 → 환경 점검 → 안전한 로그인 → 로컬 영상 선택 → 전사
+                  安装完成 → 环境自检 → 安全登录 → 选择本地视频 → 开始转写
                 </div>
               </div>
               <div
                 class="mac-terminal hero-install-command"
-                aria-label="Windows 한 줄 명령 설치"
+                aria-label="Windows 一条命令安装"
                 data-install-command="windows"
               >
                 <div class="terminal-titlebar">
@@ -257,7 +322,7 @@
                     ><i></i><i></i><i></i
                   ></span>
                   <span>Windows PowerShell</span>
-                  <span class="terminal-context">Agent에 붙여넣기</span>
+                  <span class="terminal-context">paste to your agent</span>
                 </div>
                 <div class="terminal-body">
                   <code id="hero-install-windows"
@@ -270,18 +335,18 @@
                     type="button"
                     data-copy="#hero-install-windows"
                     data-copy-text="irm https://raw.githubusercontent.com/jiyangnan/AgentMesh-CreatorCut/main/scripts/install.ps1 | iex"
-                    data-copied-label="복사됨"
+                    data-copied-label="已复制"
                   >
-                    복사
+                    复制
                   </button>
                 </div>
                 <div class="terminal-next">
-                  설치 → 환경 점검 → 안전한 로그인 → 로컬 영상 선택 → 전사
+                  安装完成 → 环境自检 → 安全登录 → 选择本地视频 → 开始转写
                 </div>
               </div>
               <div
                 class="mac-terminal hero-install-command"
-                aria-label="Ubuntu 한 줄 명령 설치"
+                aria-label="Ubuntu 一条命令安装"
                 data-install-command="ubuntu"
               >
                 <div class="terminal-titlebar">
@@ -289,7 +354,7 @@
                     ><i></i><i></i><i></i
                   ></span>
                   <span>Terminal — bash</span>
-                  <span class="terminal-context">Agent에 붙여넣기</span>
+                  <span class="terminal-context">paste to your agent</span>
                 </div>
                 <div class="terminal-body">
                   <code id="hero-install-ubuntu"
@@ -302,25 +367,25 @@
                     type="button"
                     data-copy="#hero-install-ubuntu"
                     data-copy-text="curl -fsSL https://raw.githubusercontent.com/jiyangnan/AgentMesh-CreatorCut/main/scripts/install.sh | bash"
-                    data-copied-label="복사됨"
+                    data-copied-label="已复制"
                   >
-                    복사
+                    复制
                   </button>
                 </div>
                 <div class="terminal-next">
-                  설치 → 환경 점검 → 안전한 로그인 → 로컬 영상 선택 → 전사
+                  安装完成 → 环境自检 → 安全登录 → 选择本地视频 → 开始转写
                 </div>
               </div>
             </div>
           </div>
 
-          <div class="edit-desk" aria-label="CreatorCut 타임라인 예시">
+          <div class="edit-desk" aria-label="CreatorCut 时间线示意">
             <div class="desk-head">
               <span>Project / launch-demo.creatorcut</span>
-              <span class="status">원본 색상</span>
+              <span class="status">Original color</span>
             </div>
             <div class="preview">
-              <div class="caption">이 부분은 Agent에게 편집을 맡깁니다.</div>
+              <div class="caption">这一步，交给 Agent 剪。</div>
             </div>
             <div class="timeline">
               <div class="playhead"></div>
@@ -334,37 +399,35 @@
                 <div class="clip"></div>
               </div>
             </div>
-            <div class="tape-note">자동 필터 없음 ✓</div>
+            <div class="tape-note">NO AUTO FILTERS ✓</div>
           </div>
         </div>
       </section>
 
       <div class="marquee" aria-hidden="true">
         <div class="marquee-track">
-          <span>중국어 / 영어 / 혼합</span>
-          <span>대화형 카드</span>
-          <span>원본 색상</span>
-          <span>로컬 미디어</span>
-          <span>실행 취소 / 다시 실행</span>
-          <span>중국어 / 영어 / 혼합</span>
-          <span>대화형 카드</span>
-          <span>원본 색상</span>
-          <span>로컬 미디어</span>
-          <span>실행 취소 / 다시 실행</span>
+          <span>中文 / English / Mixed</span>
+          <span>Interactive cards</span>
+          <span>Original color</span>
+          <span>Local media</span>
+          <span>Undo / Redo</span>
+          <span>中文 / English / Mixed</span>
+          <span>Interactive cards</span>
+          <span>Original color</span>
+          <span>Local media</span>
+          <span>Undo / Redo</span>
         </div>
       </div>
 
       <section class="section" id="features">
         <div class="wrap">
           <div class="section-head">
-            <div class="section-index">01 / 스마트 편집</div>
+            <div class="section-index">01 / 智能后期</div>
             <div>
-              <h2>템플릿을 씌우는 것이 아니라,<br />말의 의미를 이해합니다.</h2>
+              <h2>不是套模板，<br />而是读懂你在说什么。</h2>
               <p class="section-lede">
-                AgentMesh-CreatorCut은 이미 촬영한 토킹헤드나 제품 데모에서
-                시작합니다. 클라우드 Director는 승인된 구조화 컨텍스트만 받아
-                서명된 편집 계획을 반환하고, 실제 미디어 처리는 공개
-                클라이언트가 로컬에서 수행합니다.
+                AgentMesh-CreatorCut 面向已经录好的口播和产品演示。云端 Director
+                只接收经过你确认的结构化上下文，返回签名剪辑方案；本地客户端负责真正处理媒体。
               </p>
             </div>
           </div>
@@ -372,36 +435,35 @@
           <div class="feature-grid">
             <article class="feature">
               <span class="num">01 — TRANSCRIBE</span>
-              <h3>중국어, 영어, 혼합 발화 지원</h3>
+              <h3>中英混合口播，也能转得明白</h3>
               <p>
-                whisper.cpp를 기기에서 실행하며 중국어, 영어, 자동 감지, 혼합
-                모드를 지원합니다. Director가 편집 결정을 내리기 전에 전사
-                내용을 수정할 수 있습니다.
+                本机运行
+                whisper.cpp，支持中文、英文、自动识别和混合模式。你可以先校对文本，再让
+                Director 做剪辑判断。
               </p>
             </article>
             <article class="feature">
               <span class="num">02 — DECIDE</span>
-              <h3>대화형 카드로 요구사항을 정확하게</h3>
+              <h3>交互式卡片，把模糊要求问准确</h3>
               <p>
-                템포, 자막, 음악, 위험 작업을 구조화 카드로 확인합니다. 카드가
-                지원되지 않는 환경에서는 같은 의미의 텍스트 방식으로 전환됩니다.
+                节奏、字幕、音乐和风险操作由 Agent
+                用结构化卡片确认。宿主不支持原生控件时，仍有语义一致的文本回退。
               </p>
             </article>
             <article class="feature">
               <span class="num">03 — FINISH</span>
-              <h3>웅웅거리는 소리가 아닌 경쾌한 음악</h3>
+              <h3>轻快配乐，不再是一段嗡嗡声</h3>
               <p>
-                MVP는 청취 검증을 마친 경쾌한 템플릿 2종을 제공합니다. 원본
-                음성을 중심에 두고 음악은 제한된 음량 범위에서 믹스합니다.
+                MVP
+                提供两套经过试听验收的轻快节奏模板；原声优先，背景音乐按响度边界混合。
               </p>
             </article>
             <article class="feature">
               <span class="num">04 — EXPORT</span>
-              <h3>원본 색상 그대로. 몰래 넣는 필터 없음.</h3>
+              <h3>保持原色。没有偷偷加滤镜。</h3>
               <p>
-                자동 LUT, 톤 매핑, HDR-SDR 변환, 색상 태그 강제를 하지 않습니다.
-                적용 전 미리보고, 실패한 출력은 재개하며, 기존 파일을 알리지
-                않고 덮어쓰지 않습니다.
+                默认不做自动调色、LUT、HDR 转 SDR
+                或强制色域转换。预览确认后才应用，导出失败可以恢复，已有文件不会被静默覆盖。
               </p>
             </article>
           </div>
@@ -411,13 +473,13 @@
       <section class="section" id="boundary">
         <div class="wrap">
           <div class="section-head">
-            <div class="section-index">02 / 제품 경계</div>
+            <div class="section-index">02 / 产品边界</div>
             <div>
-              <h2>지능은 클라우드에.<br />영상은 당신의 기기에.</h2>
+              <h2>聪明在云端，<br />视频留本地。</h2>
               <p class="section-lede">
-                AgentMesh360의 Director / Studio 분리는 비공개 전략을 보호하고,
-                미디어 처리를 로컬에 유지하며, 모든 유료 작업을 Core에서
-                일관되게 측정합니다.
+                这是 AgentMesh360 统一的 Director / Studio
+                分工：策略形成护城河， 媒体处理保护隐私，所有收费动作由 Core
+                统一计量。
               </p>
             </div>
           </div>
@@ -429,24 +491,24 @@
             data-media="local"
           >
             <article class="boundary-card local">
-              <span class="tag">당신의 기기 · Local Studio</span>
-              <h3>공개 클라이언트</h3>
+              <span class="tag">你的电脑 · Local Studio</span>
+              <h3>公开客户端</h3>
               <ul>
-                <li>원본 영상, 원본 음성, 전사</li>
-                <li>FFmpeg와 whisper.cpp 로컬 실행</li>
-                <li>미리보기, 확인, 실행 취소, 다시 실행</li>
-                <li>자막, 음악, 최종 출력</li>
+                <li>源视频、原声和转写文件</li>
+                <li>FFmpeg / whisper.cpp 本地执行</li>
+                <li>预览、确认、撤销、重做</li>
+                <li>字幕、配乐和最终导出</li>
               </ul>
             </article>
             <div class="boundary-arrow" aria-hidden="true">↔</div>
             <article class="boundary-card cloud">
               <span class="tag">AgentMesh360 · Cloud Director</span>
-              <h3>비공개 전략</h3>
+              <h3>私有策略服务</h3>
               <ul>
-                <li>대화형 카드와 의미 기반 편집 정책</li>
-                <li>구조화 컨텍스트만 전송, 원본 미디어는 전송하지 않음</li>
-                <li>서명된 계획, 검토, 복구</li>
-                <li>Core 신원, 권한, credits</li>
+                <li>交互卡片与语义剪辑策略</li>
+                <li>结构化上下文，不接收源媒体</li>
+                <li>签名计划、审阅与恢复</li>
+                <li>Core 身份、权益与 credits</li>
               </ul>
             </article>
           </div>
@@ -456,21 +518,21 @@
       <section class="section" id="install">
         <div class="wrap">
           <div class="section-head">
-            <div class="section-index">03 / 한 줄 명령 설치</div>
+            <div class="section-index">03 / 一键安装</div>
             <div>
-              <h2>환경 설정을 찾아 헤맬 필요 없이.<br />복사. 실행. 편집.</h2>
+              <h2>不用配环境。<br />复制，回车，开剪。</h2>
               <p class="section-lede">
-                설치 프로그램이 고정된 Node 24, Git, FFmpeg, whisper.cpp, 다국어
-                모델, 안전한 자격 증명 저장소를 준비하고 Core가 서명한 변경 불가
-                릴리스를 검증합니다. 성공하면
-                <code>creatorcut onboard</code>를 실행하므로 ‘설치 완료’에서
-                과정이 끝나지 않습니다.
+                安装器会处理固定 Node
+                24、Git、FFmpeg、whisper.cpp、多语言模型和安全凭据后端，并验证
+                Core 签名的不可变版本。安装成功后会自动运行
+                <code>creatorcut onboard</code
+                >，不会把你留在一句“安装完成”之后。
               </p>
             </div>
           </div>
 
           <div class="install-panel">
-            <div class="install-tabs" role="tablist" aria-label="설치 플랫폼">
+            <div class="install-tabs" role="tablist" aria-label="安装平台">
               <button
                 class="install-tab active"
                 type="button"
@@ -514,9 +576,9 @@
                 type="button"
                 data-copy="#install-macos"
                 data-copy-text="curl -fsSL https://raw.githubusercontent.com/jiyangnan/AgentMesh-CreatorCut/main/scripts/install.sh | bash"
-                data-copied-label="복사됨"
+                data-copied-label="已复制"
               >
-                복사
+                复制
               </button>
             </div>
             <div class="command" role="tabpanel" data-install-command="windows">
@@ -530,9 +592,9 @@
                 type="button"
                 data-copy="#install-windows"
                 data-copy-text="irm https://raw.githubusercontent.com/jiyangnan/AgentMesh-CreatorCut/main/scripts/install.ps1 | iex"
-                data-copied-label="복사됨"
+                data-copied-label="已复制"
               >
-                복사
+                复制
               </button>
             </div>
             <div class="command" role="tabpanel" data-install-command="ubuntu">
@@ -546,44 +608,34 @@
                 type="button"
                 data-copy="#install-ubuntu"
                 data-copy-text="curl -fsSL https://raw.githubusercontent.com/jiyangnan/AgentMesh-CreatorCut/main/scripts/install.sh | bash"
-                data-copied-label="복사됨"
+                data-copied-label="已复制"
               >
-                복사
+                复制
               </button>
             </div>
           </div>
 
-          <div class="onboard-flow" aria-label="설치 후 Agent 온보딩">
+          <div class="onboard-flow" aria-label="安装后的 Agent 引导流程">
             <article>
               <span>01</span>
-              <b>환경 점검</b>
-              <p>
-                Node, FFmpeg, whisper.cpp, 모델, 안전한 자격 증명 저장소를
-                확인합니다.
-              </p>
+              <b>环境自检</b>
+              <p>确认 Node、FFmpeg、whisper.cpp、模型和安全凭据后端。</p>
             </article>
             <article>
               <span>02</span>
-              <b>안전하게 로그인</b>
-              <p>
-                API Key는 표준 입력으로 받아 명령 인자가 아닌 시스템의 안전한
-                저장소에 보관합니다.
-              </p>
+              <b>安全登录</b>
+              <p>API Key 只通过标准输入进入系统 Keychain，不写命令参数。</p>
             </article>
             <article>
               <span>03</span>
-              <b>로컬 프로젝트 생성</b>
-              <p>
-                토킹헤드 또는 화면 녹화를 선택합니다. 미디어는 기기에 남아 있는
-                상태로 다국어 전사를 시작합니다.
-              </p>
+              <b>建立本地项目</b>
+              <p>选择口播或产品录屏，媒体留在设备上并开始多语言转写。</p>
             </article>
             <article>
               <span>04</span>
-              <b>Agent가 계속 진행하도록 하기</b>
+              <b>Agent 接续执行</b>
               <p>
-                각 단계는 <code>next_suggested</code> 를 따르며, 확인이 필요할
-                때만 멈춥니다.
+                每一步读取 <code>next_suggested</code>，需要你确认时才暂停。
               </p>
             </article>
           </div>
@@ -608,34 +660,70 @@
       <section class="section" id="pricing">
         <div class="wrap">
           <div class="section-head">
-            <div class="section-index">04 / 명확한 가격</div>
+            <div class="section-index">04 / 清楚计价</div>
             <div>
-              <h2>로컬 작업은 무료.<br />Director는 계획 단위 과금.</h2>
+              <h2>本地剪辑免费，<br />Director 按次计费。</h2>
             </div>
           </div>
+
           <div class="price-row">
             <article class="price">
-              <span class="section-index">로컬 실행</span>
+              <span class="section-index">LOCAL EXECUTION</span>
               <div class="amount">0 <small>credits</small></div>
               <p>
-                설치, 전사, 가져오기, 미리보기, 적용, 자막, 음악, 출력, 실행
-                취소는 로컬에서 처리되어 클라우드 credits를 사용하지 않습니다.
+                安装、转写、媒体导入、预览、应用、字幕、配乐、导出和撤销都在本机完成，不消耗云端
+                credits。
               </p>
             </article>
             <article class="price highlight">
-              <span class="section-index">서명된 DIRECTOR 계획</span>
-              <div class="amount">50 <small>credits / 계획</small></div>
+              <span class="section-index">SIGNED DIRECTOR PLAN</span>
+              <div class="amount">50 <small>credits / 次</small></div>
               <p>
-                Core의 공식 견적을 확인한 뒤에만 검토 가능한 서명 편집 계획을
-                생성합니다. 재시도는 멱등성을 보장하며, 실패한 유료 작업의
-                credits는 계약에 따라 반환되고 중복 차감되지 않습니다.
+                只有在你确认 Core
+                权威报价后才创建一次可复核、签名的剪辑方案。失败重试遵循幂等规则，失败的付费工作按契约退还
+                credits，不重复扣 credit。
               </p>
               <a
                 class="button price-cta"
                 data-purchase-cta
-                href="https://agentmesh360.com/app/?lang=ko#pricing"
-                >AgentMesh360 패스 구매</a
+                href="https://agentmesh360.com/app/?lang=zh-CN#pricing"
+                >开通 AgentMesh360 通行证</a
               >
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="guides">
+        <div class="wrap">
+          <div class="section-head">
+            <div class="section-index">05 / 剪辑指南</div>
+            <div><h2>从素材类型出发，理解智能后期。</h2></div>
+          </div>
+          <div class="feature-grid">
+            <article class="feature">
+              <span class="num">GUIDE — TALKING HEAD</span>
+              <h3>AI 口播视频剪辑怎么做</h3>
+              <p>
+                从转写校对、删除建议、字幕、音乐到真色导出，理解可审阅、可撤销的口播后期流程。
+              </p>
+              <p>
+                <a class="button" href="/guides/talking-head-video-editing/"
+                  >阅读口播剪辑指南</a
+                >
+              </p>
+            </article>
+            <article class="feature">
+              <span class="num">GUIDE — SCREEN RECORDING</span>
+              <h3>产品录屏如何智能剪辑</h3>
+              <p>
+                识别讲解停顿、操作等待和界面关键步骤，在不上传原始媒体的前提下形成结构化剪辑方案。
+              </p>
+              <p>
+                <a class="button" href="/guides/screen-recording-editing/"
+                  >阅读录屏剪辑指南</a
+                >
+              </p>
             </article>
           </div>
         </div>
@@ -644,41 +732,37 @@
       <section class="section" id="faq">
         <div class="wrap">
           <div class="section-head">
-            <div class="section-index">05 / FAQ</div>
-            <div><h2>중요한 내용을 명확하게.</h2></div>
+            <div class="section-index">06 / FAQ</div>
+            <div><h2>先把重要的事说清楚。</h2></div>
           </div>
           <div class="faq">
             <details>
-              <summary>내 영상이 업로드되나요?</summary>
+              <summary>会把我的视频上传到云端吗？</summary>
               <p>
-                아니요. 원본 미디어, 음성, 전사 중간 파일, 미리보기, 출력물은
-                로컬에 남습니다. 직접 확인하고 승인한 구조화 DirectorContext만
-                전략 서비스로 전송됩니다.
+                不会。源视频、音频、转写中间文件、预览和导出都留在本机。只有你检查并确认过的结构化
+                DirectorContext 才会发送给云端策略服务。
               </p>
             </details>
             <details>
-              <summary>자동으로 필터를 추가하나요?</summary>
+              <summary>它会自动给视频加滤镜或调色吗？</summary>
               <p>
-                아니요. 기본값은 원본 색상을 유지합니다. 자동 LUT, 노출 증가,
-                HDR-SDR 변환, BT.709 태그 강제가 없습니다.
+                不会。默认保持源视频色彩，不做自动 LUT、曝光增强、HDR 转 SDR
+                或强制
+                BT.709。任何受支持的画面处理都必须进入可见计划和本地预览。
               </p>
             </details>
             <details>
-              <summary>
-                업데이트로 프로젝트나 API Key가 삭제될 수 있나요?
-              </summary>
+              <summary>升级会删除我的项目或 API Key 吗？</summary>
               <p>
-                아니요. 프로젝트와 미디어는 설치 경로 밖에 있고 API Key는
-                운영체제의 안전한 저장소에 보관됩니다. 업데이트가 실패하면 이전
-                관리 버전으로 복원됩니다.
+                不会。项目和媒体不在安装目录，API Key
+                存在操作系统安全存储中。升级会先验证、构建和烟测，失败则恢复上一版本。
               </p>
             </details>
             <details>
-              <summary>LectureCast와 무엇이 다른가요?</summary>
+              <summary>和 Lecturecast 有什么区别？</summary>
               <p>
-                AgentMesh-LectureCast는 주제에서 강의 영상을 만듭니다.
-                AgentMesh-CreatorCut은 이미 촬영한 토킹헤드나 제품 데모에서
-                시작해 스마트 후반 작업을 수행합니다.
+                Lecturecast 从一个主题生成完整课程视频；AgentMesh-CreatorCut
+                从你已经录好的口播或产品录屏出发，做智能后期。
               </p>
             </details>
           </div>
@@ -689,14 +773,14 @@
     <footer class="footer">
       <div class="wrap">
         <div class="footer-grid">
-          <h2>당신이 말하고.<br />Agent가 편집합니다.</h2>
+          <h2>你来表达。<br />Agent 来剪。</h2>
           <div class="footer-links">
-            <a href="#install">AgentMesh-CreatorCut 설치</a>
-            <a href="https://agentmesh360.com/ko/">AgentMesh360 홈 ↗</a>
+            <a href="#install">安装 AgentMesh-CreatorCut</a>
+            <a href="https://agentmesh360.com/zh/">AgentMesh360 品牌主站 ↗</a>
             <a
               data-purchase-cta
-              href="https://agentmesh360.com/app/?lang=ko#pricing"
-              >AgentMesh360 패스 구매</a
+              href="https://agentmesh360.com/app/?lang=zh-CN#pricing"
+              >开通 AgentMesh360 通行证</a
             >
             <a href="https://github.com/jiyangnan/AgentMesh-CreatorCut"
               >GitHub</a
@@ -705,7 +789,7 @@
         </div>
         <div class="legal">
           <span>© 2026 AgentMesh360</span>
-          <span>로컬 미디어 · 서명된 계획 · 되돌릴 수 있는 편집</span>
+          <span>Local media · Signed plans · Reversible edits</span>
         </div>
       </div>
     </footer>

@@ -1,21 +1,21 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>AgentMesh-CreatorCut｜口播与产品录屏智能后期 Agent</title>
+    <title>AgentMesh-CreatorCut | Intelligent post-production Agent</title>
     <meta
       name="description"
-      content="AgentMesh-CreatorCut 自动完成口播和产品录屏的转写、交互式剪辑决策、字幕、背景音乐与本地导出。原始媒体始终留在你的电脑。"
+      content="Edit talking-head and product-demo videos with bilingual transcription, reviewable AI decisions, captions, music, and local export."
     />
     <meta name="robots" content="index,follow,max-image-preview:large" />
     <meta
       property="og:title"
-      content="AgentMesh-CreatorCut｜口播与产品录屏智能后期 Agent"
+      content="AgentMesh-CreatorCut | Intelligent post-production Agent"
     />
     <meta
       property="og:description"
-      content="把已经录好的口播和产品录屏交给 Agent：中英转写、可逆剪辑、字幕、背景音乐与原色导出留在本机，云端 Director 返回签名剪辑方案。"
+      content="Existing recording in; bilingual transcript, reversible edits, captions, music, and true-color video out. Source media stays local."
     />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://creatorcut.agentmesh360.com/" />
@@ -23,22 +23,10 @@
       property="og:image"
       content="https://agentmesh360.com/agentmesh360-icon.png"
     />
-    <meta
-      property="og:site_name"
-      content="AgentMesh-CreatorCut · AgentMesh360"
-    />
     <meta name="twitter:card" content="summary" />
     <meta
       name="twitter:image"
       content="https://agentmesh360.com/agentmesh360-icon.png"
-    />
-    <meta
-      name="twitter:title"
-      content="AgentMesh-CreatorCut｜口播与产品录屏智能后期 Agent"
-    />
-    <meta
-      name="twitter:description"
-      content="已有视频进，转写、可逆剪辑、字幕、音乐和原色成片出；原始媒体留在本机。"
     />
     <link rel="canonical" href="https://creatorcut.agentmesh360.com/" />
     <link
@@ -50,12 +38,12 @@
     <link
       rel="alternate"
       hreflang="zh-CN"
-      href="https://creatorcut.agentmesh360.com/"
+      href="https://creatorcut.agentmesh360.com/zh/"
     />
     <link
       rel="alternate"
       hreflang="en"
-      href="https://creatorcut.agentmesh360.com/en/"
+      href="https://creatorcut.agentmesh360.com/"
     />
     <link
       rel="alternate"
@@ -85,88 +73,26 @@
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
-        "@graph": [
-          {
-            "@type": "Organization",
-            "@id": "https://agentmesh360.com/#organization",
-            "name": "AgentMesh360",
-            "url": "https://agentmesh360.com/"
-          },
-          {
-            "@type": "SoftwareApplication",
-            "@id": "https://creatorcut.agentmesh360.com/#software",
-            "name": "AgentMesh-CreatorCut",
-            "applicationCategory": "MultimediaApplication",
-            "applicationSubCategory": "AI post-production agent",
-            "operatingSystem": "macOS, Windows, Ubuntu",
-            "url": "https://creatorcut.agentmesh360.com/",
-            "codeRepository": "https://github.com/jiyangnan/AgentMesh-CreatorCut",
-            "provider": {
-              "@id": "https://agentmesh360.com/#organization"
-            },
-            "audience": {
-              "@type": "Audience",
-              "audienceType": "已经录好口播、教程或产品录屏，需要完成智能后期的创作者"
-            },
-            "isAccessibleForFree": false,
-            "description": "AgentMesh-CreatorCut 面向已经录好的口播与产品录屏，在本机完成中英转写、可逆剪辑、字幕、背景音乐和原色导出，并由云端 Director 返回签名剪辑方案。",
-            "featureList": [
-              "中文、英文与中英混合转写",
-              "语义剪辑与可逆编辑",
-              "字幕与轻快背景音乐",
-              "默认保持源视频色彩",
-              "本地预览与导出",
-              "交互式决策卡片",
-              "签名声明式剪辑方案"
-            ],
-            "offers": {
-              "@type": "Offer",
-              "url": "https://agentmesh360.com/app/#pricing",
-              "description": "本地执行不消耗 credits；用户确认一份签名 Director 剪辑方案时消耗 50 个 AgentMesh credits。",
-              "availability": "https://schema.org/InStock"
-            }
-          },
-          {
-            "@type": "WebSite",
-            "@id": "https://creatorcut.agentmesh360.com/#website",
-            "url": "https://creatorcut.agentmesh360.com/",
-            "name": "AgentMesh-CreatorCut",
-            "inLanguage": "zh-CN",
-            "publisher": {
-              "@id": "https://agentmesh360.com/#organization"
-            }
-          },
-          {
-            "@type": "FAQPage",
-            "@id": "https://creatorcut.agentmesh360.com/#faq",
-            "mainEntity": [
-              {
-                "@type": "Question",
-                "name": "CreatorCut 会把视频上传到云端吗？",
-                "acceptedAnswer": {
-                  "@type": "Answer",
-                  "text": "不会。源视频、音频、转写中间文件、预览和导出都留在本机；只有用户检查并确认过的结构化 DirectorContext 才会发送到云端策略服务。"
-                }
-              },
-              {
-                "@type": "Question",
-                "name": "CreatorCut 会自动给视频加滤镜或调色吗？",
-                "acceptedAnswer": {
-                  "@type": "Answer",
-                  "text": "不会。默认保持源视频色彩，不做自动 LUT、曝光增强、HDR 转 SDR 或强制 BT.709；受支持的画面处理必须进入可见计划和本地预览。"
-                }
-              },
-              {
-                "@type": "Question",
-                "name": "CreatorCut 和 LectureCast 有什么区别？",
-                "acceptedAnswer": {
-                  "@type": "Answer",
-                  "text": "LectureCast 从一个主题生成完整课程视频；AgentMesh-CreatorCut 从已经录好的口播或产品录屏出发，完成智能后期。"
-                }
-              }
-            ]
-          }
-        ]
+        "@type": "SoftwareApplication",
+        "name": "AgentMesh-CreatorCut",
+        "applicationCategory": "MultimediaApplication",
+        "applicationSubCategory": "AI post-production agent",
+        "operatingSystem": "macOS, Windows, Ubuntu",
+        "url": "https://creatorcut.agentmesh360.com/",
+        "codeRepository": "https://github.com/jiyangnan/AgentMesh-CreatorCut",
+        "isAccessibleForFree": false,
+        "provider": {
+          "@type": "Organization",
+          "name": "AgentMesh360",
+          "url": "https://agentmesh360.com/"
+        },
+        "description": "AgentMesh-CreatorCut performs bilingual transcription, reversible editing, captions, music, and true-color local export for existing talking-head and product screen recordings.",
+        "offers": {
+          "@type": "Offer",
+          "url": "https://agentmesh360.com/app/#pricing",
+          "description": "Local execution uses no cloud credits. A confirmed signed Director edit plan uses 50 AgentMesh credits.",
+          "availability": "https://schema.org/InStock"
+        }
       }
     </script>
   </head>
@@ -174,25 +100,25 @@
     <header class="topbar">
       <div class="wrap nav">
         <div class="brand">
-          <a class="brand-home" href="/" aria-label="AgentMesh-CreatorCut 首页">
+          <a class="brand-home" href="/" aria-label="AgentMesh-CreatorCut home">
             <span class="brand-mark" aria-hidden="true"></span>
             <span>AgentMesh-CreatorCut</span>
           </a>
           <a
             class="brand-parent"
             href="https://agentmesh360.com/"
-            aria-label="返回 AgentMesh360 品牌主站"
+            aria-label="Back to the AgentMesh360 brand website"
             >by AgentMesh360 <span aria-hidden="true">↗</span></a
           >
         </div>
-        <nav class="nav-links" aria-label="主导航">
-          <a href="#features">能力</a>
-          <a href="#boundary">边界</a>
-          <a href="#install">安装</a>
-          <a href="#pricing">价格</a>
-          <span class="lang" aria-label="语言">
-            <span class="active" aria-current="page">中</span>
-            <a href="/en/" hreflang="en">EN</a>
+        <nav class="nav-links" aria-label="Primary">
+          <a href="#features">Features</a>
+          <a href="#boundary">Boundary</a>
+          <a href="#install">Install</a>
+          <a href="#pricing">Pricing</a>
+          <span class="lang" aria-label="Language">
+            <a href="/zh/" hreflang="zh-CN">中</a>
+            <span class="active" aria-current="page">EN</span>
             <a href="/ja/" hreflang="ja">日</a>
             <a href="/ko/" hreflang="ko">한</a>
           </span>
@@ -200,7 +126,7 @@
             class="nav-pass"
             data-purchase-cta
             href="https://agentmesh360.com/app/#pricing"
-            >开通通行证</a
+            >Get a pass</a
           >
         </nav>
       </div>
@@ -212,41 +138,49 @@
           <div>
             <div class="eyebrow">Local production · Cloud Director</div>
             <h1>
-              把口播与<br />
-              产品录屏<br />
-              <span class="marker">剪成成片</span>
+              Record it.<br />
+              Let your Agent<br />
+              <span class="marker">cut it.</span>
             </h1>
             <p class="hero-copy">
-              你负责录，Agent
-              负责后期。<strong>中英双语转写、语义剪辑、字幕、轻快背景音乐、原色导出</strong>，每一步都能预览、确认、撤销。
+              You make the point. The Agent handles post.
+              <strong
+                >Bilingual transcription, semantic edits, captions, upbeat
+                music, and color-faithful export</strong
+              >—with preview, confirmation, and undo at every meaningful step.
             </p>
             <div class="actions">
-              <a class="button primary" href="#quick-install">一条命令安装</a>
+              <a class="button primary" href="#quick-install"
+                >Install in one command</a
+              >
               <a
                 class="button secondary"
                 href="https://github.com/jiyangnan/AgentMesh-CreatorCut"
               >
-                在 GitHub 查看
+                View on GitHub
               </a>
               <a
                 class="button secondary"
                 data-purchase-cta
                 href="https://agentmesh360.com/app/#pricing"
-                >开通通行证</a
+                >Get a pass</a
               >
             </div>
 
             <div class="hero-install" id="quick-install">
               <p class="hero-install-copy">
-                <strong>先选择你的系统，再复制对应命令给 AI Agent。</strong>
-                安装器会完成依赖、自检和签名校验，然后自动进入
-                <code>creatorcut onboard</code
-                >，继续带你登录、选择录屏并创建项目。
+                <strong
+                  >Choose your system, then give its command to your AI
+                  Agent.</strong
+                >
+                The installer handles dependencies, checks, and signature
+                verification, then starts <code>creatorcut onboard</code> to
+                guide login, recording selection, and project creation.
               </p>
               <div
                 class="install-tabs hero-platform-tabs"
                 role="tablist"
-                aria-label="快捷安装平台"
+                aria-label="Quick install platform"
               >
                 <button
                   class="install-tab active"
@@ -278,7 +212,7 @@
               </div>
               <div
                 class="mac-terminal hero-install-command active"
-                aria-label="macOS 一条命令安装"
+                aria-label="One-command macOS installation"
                 data-install-command="macos"
               >
                 <div class="terminal-titlebar">
@@ -299,18 +233,19 @@
                     type="button"
                     data-copy="#hero-install-unix"
                     data-copy-text="curl -fsSL https://raw.githubusercontent.com/jiyangnan/AgentMesh-CreatorCut/main/scripts/install.sh | bash"
-                    data-copied-label="已复制"
+                    data-copied-label="Copied"
                   >
-                    复制
+                    Copy
                   </button>
                 </div>
                 <div class="terminal-next">
-                  安装完成 → 环境自检 → 安全登录 → 选择本地视频 → 开始转写
+                  Installed → environment check → secure login → choose local
+                  video → transcribe
                 </div>
               </div>
               <div
                 class="mac-terminal hero-install-command"
-                aria-label="Windows 一条命令安装"
+                aria-label="One-command Windows installation"
                 data-install-command="windows"
               >
                 <div class="terminal-titlebar">
@@ -331,18 +266,19 @@
                     type="button"
                     data-copy="#hero-install-windows"
                     data-copy-text="irm https://raw.githubusercontent.com/jiyangnan/AgentMesh-CreatorCut/main/scripts/install.ps1 | iex"
-                    data-copied-label="已复制"
+                    data-copied-label="Copied"
                   >
-                    复制
+                    Copy
                   </button>
                 </div>
                 <div class="terminal-next">
-                  安装完成 → 环境自检 → 安全登录 → 选择本地视频 → 开始转写
+                  Installed → environment check → secure login → choose local
+                  video → transcribe
                 </div>
               </div>
               <div
                 class="mac-terminal hero-install-command"
-                aria-label="Ubuntu 一条命令安装"
+                aria-label="One-command Ubuntu installation"
                 data-install-command="ubuntu"
               >
                 <div class="terminal-titlebar">
@@ -363,25 +299,26 @@
                     type="button"
                     data-copy="#hero-install-ubuntu"
                     data-copy-text="curl -fsSL https://raw.githubusercontent.com/jiyangnan/AgentMesh-CreatorCut/main/scripts/install.sh | bash"
-                    data-copied-label="已复制"
+                    data-copied-label="Copied"
                   >
-                    复制
+                    Copy
                   </button>
                 </div>
                 <div class="terminal-next">
-                  安装完成 → 环境自检 → 安全登录 → 选择本地视频 → 开始转写
+                  Installed → environment check → secure login → choose local
+                  video → transcribe
                 </div>
               </div>
             </div>
           </div>
 
-          <div class="edit-desk" aria-label="CreatorCut 时间线示意">
+          <div class="edit-desk" aria-label="CreatorCut timeline illustration">
             <div class="desk-head">
               <span>Project / launch-demo.creatorcut</span>
               <span class="status">Original color</span>
             </div>
             <div class="preview">
-              <div class="caption">这一步，交给 Agent 剪。</div>
+              <div class="caption">Let the Agent cut this part.</div>
             </div>
             <div class="timeline">
               <div class="playhead"></div>
@@ -402,12 +339,12 @@
 
       <div class="marquee" aria-hidden="true">
         <div class="marquee-track">
-          <span>中文 / English / Mixed</span>
+          <span>Chinese / English / Mixed</span>
           <span>Interactive cards</span>
           <span>Original color</span>
           <span>Local media</span>
           <span>Undo / Redo</span>
-          <span>中文 / English / Mixed</span>
+          <span>Chinese / English / Mixed</span>
           <span>Interactive cards</span>
           <span>Original color</span>
           <span>Local media</span>
@@ -418,12 +355,14 @@
       <section class="section" id="features">
         <div class="wrap">
           <div class="section-head">
-            <div class="section-index">01 / 智能后期</div>
+            <div class="section-index">01 / Intelligent post</div>
             <div>
-              <h2>不是套模板，<br />而是读懂你在说什么。</h2>
+              <h2>It understands the take,<br />not just a template.</h2>
               <p class="section-lede">
-                AgentMesh-CreatorCut 面向已经录好的口播和产品演示。云端 Director
-                只接收经过你确认的结构化上下文，返回签名剪辑方案；本地客户端负责真正处理媒体。
+                AgentMesh-CreatorCut starts with a talking-head recording or
+                product demo you already made. The cloud Director receives only
+                approved structured context and returns a signed edit plan. The
+                public client performs the actual media work locally.
               </p>
             </div>
           </div>
@@ -431,35 +370,37 @@
           <div class="feature-grid">
             <article class="feature">
               <span class="num">01 — TRANSCRIBE</span>
-              <h3>中英混合口播，也能转得明白</h3>
+              <h3>Chinese, English, and code-switching</h3>
               <p>
-                本机运行
-                whisper.cpp，支持中文、英文、自动识别和混合模式。你可以先校对文本，再让
-                Director 做剪辑判断。
+                whisper.cpp runs on your machine in Chinese, English, automatic,
+                or mixed mode. Correct the transcript before the Director makes
+                an editing decision.
               </p>
             </article>
             <article class="feature">
               <span class="num">02 — DECIDE</span>
-              <h3>交互式卡片，把模糊要求问准确</h3>
+              <h3>Interactive cards clarify the brief</h3>
               <p>
-                节奏、字幕、音乐和风险操作由 Agent
-                用结构化卡片确认。宿主不支持原生控件时，仍有语义一致的文本回退。
+                Pace, captions, music, and risky operations are confirmed
+                through structured cards, with a semantically identical text
+                fallback.
               </p>
             </article>
             <article class="feature">
               <span class="num">03 — FINISH</span>
-              <h3>轻快配乐，不再是一段嗡嗡声</h3>
+              <h3>Upbeat music—not a low drone</h3>
               <p>
-                MVP
-                提供两套经过试听验收的轻快节奏模板；原声优先，背景音乐按响度边界混合。
+                The MVP ships two listening-tested upbeat templates. Original
+                speech stays primary and music is mixed within a bounded level.
               </p>
             </article>
             <article class="feature">
               <span class="num">04 — EXPORT</span>
-              <h3>保持原色。没有偷偷加滤镜。</h3>
+              <h3>Original color. No secret filter.</h3>
               <p>
-                默认不做自动调色、LUT、HDR 转 SDR
-                或强制色域转换。预览确认后才应用，导出失败可以恢复，已有文件不会被静默覆盖。
+                No automatic LUT, tone map, HDR-to-SDR conversion, or forced
+                color tag. Preview before apply; resume failed exports; never
+                overwrite an existing output silently.
               </p>
             </article>
           </div>
@@ -469,13 +410,13 @@
       <section class="section" id="boundary">
         <div class="wrap">
           <div class="section-head">
-            <div class="section-index">02 / 产品边界</div>
+            <div class="section-index">02 / Product boundary</div>
             <div>
-              <h2>聪明在云端，<br />视频留本地。</h2>
+              <h2>Intelligence in cloud.<br />Video on your machine.</h2>
               <p class="section-lede">
-                这是 AgentMesh360 统一的 Director / Studio
-                分工：策略形成护城河， 媒体处理保护隐私，所有收费动作由 Core
-                统一计量。
+                The AgentMesh360 Director / Studio split keeps private strategy
+                defensible, media processing local, and every paid action
+                consistently metered by Core.
               </p>
             </div>
           </div>
@@ -487,24 +428,24 @@
             data-media="local"
           >
             <article class="boundary-card local">
-              <span class="tag">你的电脑 · Local Studio</span>
-              <h3>公开客户端</h3>
+              <span class="tag">Your machine · Local Studio</span>
+              <h3>Public client</h3>
               <ul>
-                <li>源视频、原声和转写文件</li>
-                <li>FFmpeg / whisper.cpp 本地执行</li>
-                <li>预览、确认、撤销、重做</li>
-                <li>字幕、配乐和最终导出</li>
+                <li>Source video, original audio, transcript</li>
+                <li>Local FFmpeg and whisper.cpp execution</li>
+                <li>Preview, confirmation, undo, redo</li>
+                <li>Captions, music, and final export</li>
               </ul>
             </article>
             <div class="boundary-arrow" aria-hidden="true">↔</div>
             <article class="boundary-card cloud">
               <span class="tag">AgentMesh360 · Cloud Director</span>
-              <h3>私有策略服务</h3>
+              <h3>Private strategy</h3>
               <ul>
-                <li>交互卡片与语义剪辑策略</li>
-                <li>结构化上下文，不接收源媒体</li>
-                <li>签名计划、审阅与恢复</li>
-                <li>Core 身份、权益与 credits</li>
+                <li>Interactive cards and semantic edit policy</li>
+                <li>Structured context, never source media</li>
+                <li>Signed plan, review, and recovery</li>
+                <li>Core identity, entitlement, and credits</li>
               </ul>
             </article>
           </div>
@@ -514,21 +455,25 @@
       <section class="section" id="install">
         <div class="wrap">
           <div class="section-head">
-            <div class="section-index">03 / 一键安装</div>
+            <div class="section-index">03 / One-command install</div>
             <div>
-              <h2>不用配环境。<br />复制，回车，开剪。</h2>
+              <h2>No environment hunt.<br />Copy. Enter. Cut.</h2>
               <p class="section-lede">
-                安装器会处理固定 Node
-                24、Git、FFmpeg、whisper.cpp、多语言模型和安全凭据后端，并验证
-                Core 签名的不可变版本。安装成功后会自动运行
-                <code>creatorcut onboard</code
-                >，不会把你留在一句“安装完成”之后。
+                The installer handles pinned Node 24, Git, FFmpeg, whisper.cpp,
+                the multilingual model, and the secure credential backend, then
+                verifies an immutable Core-signed release. On success it starts
+                <code>creatorcut onboard</code>, so the journey does not end at
+                “installed.”
               </p>
             </div>
           </div>
 
           <div class="install-panel">
-            <div class="install-tabs" role="tablist" aria-label="安装平台">
+            <div
+              class="install-tabs"
+              role="tablist"
+              aria-label="Install platform"
+            >
               <button
                 class="install-tab active"
                 type="button"
@@ -572,9 +517,9 @@
                 type="button"
                 data-copy="#install-macos"
                 data-copy-text="curl -fsSL https://raw.githubusercontent.com/jiyangnan/AgentMesh-CreatorCut/main/scripts/install.sh | bash"
-                data-copied-label="已复制"
+                data-copied-label="Copied"
               >
-                复制
+                Copy
               </button>
             </div>
             <div class="command" role="tabpanel" data-install-command="windows">
@@ -588,9 +533,9 @@
                 type="button"
                 data-copy="#install-windows"
                 data-copy-text="irm https://raw.githubusercontent.com/jiyangnan/AgentMesh-CreatorCut/main/scripts/install.ps1 | iex"
-                data-copied-label="已复制"
+                data-copied-label="Copied"
               >
-                复制
+                Copy
               </button>
             </div>
             <div class="command" role="tabpanel" data-install-command="ubuntu">
@@ -604,34 +549,44 @@
                 type="button"
                 data-copy="#install-ubuntu"
                 data-copy-text="curl -fsSL https://raw.githubusercontent.com/jiyangnan/AgentMesh-CreatorCut/main/scripts/install.sh | bash"
-                data-copied-label="已复制"
+                data-copied-label="Copied"
               >
-                复制
+                Copy
               </button>
             </div>
           </div>
 
-          <div class="onboard-flow" aria-label="安装后的 Agent 引导流程">
+          <div class="onboard-flow" aria-label="Post-install Agent onboarding">
             <article>
               <span>01</span>
-              <b>环境自检</b>
-              <p>确认 Node、FFmpeg、whisper.cpp、模型和安全凭据后端。</p>
+              <b>Check the environment</b>
+              <p>
+                Verify Node, FFmpeg, whisper.cpp, the model, and the secure
+                credential backend.
+              </p>
             </article>
             <article>
               <span>02</span>
-              <b>安全登录</b>
-              <p>API Key 只通过标准输入进入系统 Keychain，不写命令参数。</p>
+              <b>Sign in securely</b>
+              <p>
+                Your API key enters through standard input and stays in the
+                system keychain—not in command arguments.
+              </p>
             </article>
             <article>
               <span>03</span>
-              <b>建立本地项目</b>
-              <p>选择口播或产品录屏，媒体留在设备上并开始多语言转写。</p>
+              <b>Create a local project</b>
+              <p>
+                Choose a talking-head or screen recording. Media stays on your
+                device while multilingual transcription begins.
+              </p>
             </article>
             <article>
               <span>04</span>
-              <b>Agent 接续执行</b>
+              <b>Let the Agent continue</b>
               <p>
-                每一步读取 <code>next_suggested</code>，需要你确认时才暂停。
+                Each step follows <code>next_suggested</code> and pauses only
+                when your confirmation is required.
               </p>
             </article>
           </div>
@@ -656,70 +611,35 @@
       <section class="section" id="pricing">
         <div class="wrap">
           <div class="section-head">
-            <div class="section-index">04 / 清楚计价</div>
+            <div class="section-index">04 / Clear pricing</div>
             <div>
-              <h2>本地剪辑免费，<br />Director 按次计费。</h2>
+              <h2>Local work is free.<br />Director is per plan.</h2>
             </div>
           </div>
-
           <div class="price-row">
             <article class="price">
               <span class="section-index">LOCAL EXECUTION</span>
               <div class="amount">0 <small>credits</small></div>
               <p>
-                安装、转写、媒体导入、预览、应用、字幕、配乐、导出和撤销都在本机完成，不消耗云端
-                credits。
+                Install, transcription, import, preview, apply, captions, music,
+                export, and undo run locally without cloud credits.
               </p>
             </article>
             <article class="price highlight">
               <span class="section-index">SIGNED DIRECTOR PLAN</span>
-              <div class="amount">50 <small>credits / 次</small></div>
+              <div class="amount">50 <small>credits / plan</small></div>
               <p>
-                只有在你确认 Core
-                权威报价后才创建一次可复核、签名的剪辑方案。失败重试遵循幂等规则，失败的付费工作按契约退还
-                credits，不重复扣 credit。
+                A reviewable signed edit plan is created only after you confirm
+                the Core-authoritative quote. Retries are idempotent, and
+                credits for failed paid work are returned by contract without a
+                duplicate credit deduction.
               </p>
               <a
                 class="button price-cta"
                 data-purchase-cta
                 href="https://agentmesh360.com/app/#pricing"
-                >开通 AgentMesh360 通行证</a
+                >Get an AgentMesh360 pass</a
               >
-            </article>
-          </div>
-        </div>
-      </section>
-
-      <section class="section" id="guides">
-        <div class="wrap">
-          <div class="section-head">
-            <div class="section-index">05 / 剪辑指南</div>
-            <div><h2>从素材类型出发，理解智能后期。</h2></div>
-          </div>
-          <div class="feature-grid">
-            <article class="feature">
-              <span class="num">GUIDE — TALKING HEAD</span>
-              <h3>AI 口播视频剪辑怎么做</h3>
-              <p>
-                从转写校对、删除建议、字幕、音乐到真色导出，理解可审阅、可撤销的口播后期流程。
-              </p>
-              <p>
-                <a class="button" href="/guides/talking-head-video-editing/"
-                  >阅读口播剪辑指南</a
-                >
-              </p>
-            </article>
-            <article class="feature">
-              <span class="num">GUIDE — SCREEN RECORDING</span>
-              <h3>产品录屏如何智能剪辑</h3>
-              <p>
-                识别讲解停顿、操作等待和界面关键步骤，在不上传原始媒体的前提下形成结构化剪辑方案。
-              </p>
-              <p>
-                <a class="button" href="/guides/screen-recording-editing/"
-                  >阅读录屏剪辑指南</a
-                >
-              </p>
             </article>
           </div>
         </div>
@@ -728,37 +648,40 @@
       <section class="section" id="faq">
         <div class="wrap">
           <div class="section-head">
-            <div class="section-index">06 / FAQ</div>
-            <div><h2>先把重要的事说清楚。</h2></div>
+            <div class="section-index">05 / FAQ</div>
+            <div><h2>The important things, plainly.</h2></div>
           </div>
           <div class="faq">
             <details>
-              <summary>会把我的视频上传到云端吗？</summary>
+              <summary>Does it upload my video?</summary>
               <p>
-                不会。源视频、音频、转写中间文件、预览和导出都留在本机。只有你检查并确认过的结构化
-                DirectorContext 才会发送给云端策略服务。
+                No. Source media, audio, transcript intermediates, previews, and
+                exports stay local. Only structured DirectorContext you inspect
+                and approve is sent to the strategy service.
               </p>
             </details>
             <details>
-              <summary>它会自动给视频加滤镜或调色吗？</summary>
+              <summary>Does it automatically add a filter?</summary>
               <p>
-                不会。默认保持源视频色彩，不做自动 LUT、曝光增强、HDR 转 SDR
-                或强制
-                BT.709。任何受支持的画面处理都必须进入可见计划和本地预览。
+                No. Source color is preserved by default. There is no automatic
+                LUT, exposure boost, HDR-to-SDR conversion, or forced BT.709
+                tag.
               </p>
             </details>
             <details>
-              <summary>升级会删除我的项目或 API Key 吗？</summary>
+              <summary>Can an update remove projects or my API key?</summary>
               <p>
-                不会。项目和媒体不在安装目录，API Key
-                存在操作系统安全存储中。升级会先验证、构建和烟测，失败则恢复上一版本。
+                No. Projects and media live outside the install root, and the
+                API key lives in operating-system secure storage. Failed updates
+                restore the previous managed version.
               </p>
             </details>
             <details>
-              <summary>和 Lecturecast 有什么区别？</summary>
+              <summary>How is this different from Lecturecast?</summary>
               <p>
-                Lecturecast 从一个主题生成完整课程视频；AgentMesh-CreatorCut
-                从你已经录好的口播或产品录屏出发，做智能后期。
+                Lecturecast creates a course video from a topic.
+                AgentMesh-CreatorCut starts with a talking-head recording or
+                product demo you already recorded and performs intelligent post.
               </p>
             </details>
           </div>
@@ -769,12 +692,12 @@
     <footer class="footer">
       <div class="wrap">
         <div class="footer-grid">
-          <h2>你来表达。<br />Agent 来剪。</h2>
+          <h2>You make the point.<br />Your Agent makes the cut.</h2>
           <div class="footer-links">
-            <a href="#install">安装 AgentMesh-CreatorCut</a>
-            <a href="https://agentmesh360.com/">AgentMesh360 品牌主站 ↗</a>
+            <a href="#install">Install AgentMesh-CreatorCut</a>
+            <a href="https://agentmesh360.com/">AgentMesh360 home ↗</a>
             <a data-purchase-cta href="https://agentmesh360.com/app/#pricing"
-              >开通 AgentMesh360 通行证</a
+              >Get an AgentMesh360 pass</a
             >
             <a href="https://github.com/jiyangnan/AgentMesh-CreatorCut"
               >GitHub</a

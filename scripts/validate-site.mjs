@@ -182,7 +182,9 @@ export function validateSite(rootInput) {
       }
     }
     const brandHomeLinks =
-      html.match(new RegExp(`href=["']${escapeRegExp(brandHome)}["']`, "giu")) ?? [];
+      html.match(
+        new RegExp(`href=["']${escapeRegExp(brandHome)}["']`, "giu"),
+      ) ?? [];
     if (brandHomeLinks.length < 2 || !html.includes('class="brand-parent"')) {
       errors.push(
         `${page}: header and footer must link back to the AgentMesh360 brand website`,
@@ -236,8 +238,11 @@ export function validateSite(rootInput) {
     }
     if (
       (html.match(/data-purchase-cta/gu) ?? []).length < 4 ||
-      (html.match(/https:\/\/agentmesh360\.com\/app\/(?:\?lang=(?:zh-CN|ja|ko))?#pricing/gu) ?? [])
-        .length < 4
+      (
+        html.match(
+          /https:\/\/agentmesh360\.com\/app\/(?:\?lang=(?:zh-CN|ja|ko))?#pricing/gu,
+        ) ?? []
+      ).length < 4
     ) {
       errors.push(
         `${page}: direct AgentMesh360 pass purchase CTAs are missing`,

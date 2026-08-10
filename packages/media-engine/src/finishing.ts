@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { join, posix } from "node:path";
 
 import type { EditFinishingIntent } from "@agentmesh/creatorcut-protocol";
 import type {
@@ -146,9 +146,9 @@ async function persistGenerated(
   name: string,
   bytes: Buffer | string,
 ): Promise<{ relativePath: string; digest: string }> {
-  const relativePath = join(".creatorcut", "generated", name);
+  const relativePath = posix.join("generated", name);
   const path = join(opened.directory, relativePath);
-  await mkdir(join(opened.creatorcutDirectory, "generated"), {
+  await mkdir(join(opened.directory, "generated"), {
     recursive: true,
     mode: 0o700,
   });

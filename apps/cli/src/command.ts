@@ -23,6 +23,8 @@ import {
 } from "@agentmesh/creatorcut-media-engine";
 import {
   approveDirectorContext,
+  adoptLegacyPublicProject,
+  assertPublicStorageAuthority,
   buildDirectorContext,
   inspectDirectorContext,
   openCreatorCutProject,
@@ -32,6 +34,7 @@ import {
   revokeDirectorConsent,
   type LocalTranscript,
   undoLocalRevision,
+  verifyMigratedVisualHandoff,
 } from "@agentmesh/creatorcut-runtime";
 import {
   cancelTranscriptionTask,
@@ -51,7 +54,7 @@ import {
 
 import type { CliEnvelope, CliIo } from "./types.js";
 
-const CURRENT_CLIENT_VERSION = "0.2.1";
+const CURRENT_CLIENT_VERSION = "0.3.0-rc.1";
 const DEFAULT_RELEASE_ENDPOINT =
   "https://api.agentmesh360.com/v1/products/creatorcut/client-release";
 
@@ -370,6 +373,33 @@ export async function executeCli(
   try {
     const parsed = parseArguments(argv);
     commandName = parsed.command.join(" ") || "help";
+    if (commandName === "project adopt-public") {
+      if (parsed.options.get("confirm-local") !== true) {
+        throw new TypeError(
+          "Explicit --confirm-local is required; it confirms all v0.2.1 CreatorCut processes are stopped and no preview, Director, export, or transcription work is in progress",
+        );
+      }
+    }
+    if (
+      commandName === "project migrate-internal" ||
+      commandName === "project rollback-internal"
+    ) {
+      throw new TypeError(
+        "CreatorCut internal storage migration and rollback are disabled: the production native whole-tree swap/WAL gate is not complete",
+      );
+    }
+    if (commandName === "project adopt-public") {
+      const projectDirectory = resolve(
+        option(parsed, "project") ?? dependencies.cwd?.() ?? process.cwd(),
+      );
+      const marker = await adoptLegacyPublicProject(projectDirectory, {
+        confirmLocal: true,
+      });
+      return success(commandName, marker, {
+        revision: marker.current_revision,
+        next: "project status",
+      });
+    }
     const credentials =
       dependencies.credentials ?? createPlatformCredentialStore();
     const projectDirectory = resolve(
@@ -648,7 +678,28 @@ export async function executeCli(
 
     if (commandName === "project status") {
       const opened = await openCreatorCutProject(projectDirectory);
+      const authority = await assertPublicStorageAuthority(
+        opened.creatorcutDirectory,
+      );
       const consent = await readDirectorConsent(opened);
+      const migratedHandoff =
+        authority.source_format ===
+        "creatorcut-internal-project-store/1.0-alpha"
+          ? await verifyMigratedVisualHandoff(projectDirectory)
+          : null;
+      const migratedVisualHandoff =
+        migratedHandoff?.visual_handoff_present === true
+          ? migratedHandoff
+          : null;
+      const next = migratedVisualHandoff
+        ? migratedVisualHandoff.next === "edit_redo"
+          ? "edit redo"
+          : "handoff verify"
+        : opened.transcript.segments.length === 0
+          ? "transcribe start --language auto"
+          : consent
+            ? "director start"
+            : "director context inspect";
       return success(
         commandName,
         {
@@ -658,10 +709,16 @@ export async function executeCli(
           language_mode: opened.transcript.language_mode,
           transcript_segments: opened.transcript.segments.length,
           director_consent: consent !== null,
+          storage_authority: authority?.authority ?? "public-runtime",
+          visual_composition_id: opened.visualComposition?.composition_id,
+          visual_composition_state: opened.visualComposition?.state,
+          visual_handoff_present:
+            migratedHandoff?.visual_handoff_present ?? false,
+          handoff_visual_state: migratedVisualHandoff?.visual_state,
         },
         {
           revision: opened.project.revision,
-          next: consent ? "director start" : "director context inspect",
+          next,
         },
       );
     }
@@ -939,19 +996,19 @@ export async function executeCli(
       });
     }
     if (commandName === "edit preview") {
+      if (option(parsed, "output")) {
+        throw new Error(
+          "CreatorCut edit preview uses a managed project preview path; --output is not accepted",
+        );
+      }
       const director = await adapter();
       const manifest = await director.getVerifiedManifest(projectDirectory);
       const ffmpegPath = option(parsed, "ffmpeg", "CREATORCUT_FFMPEG");
       const ffprobePath = option(parsed, "ffprobe", "CREATORCUT_FFPROBE");
-      const value = await previewSignedManifest(
-        projectDirectory,
-        manifest,
-        option(parsed, "output"),
-        {
-          ...(ffmpegPath ? { ffmpegPath } : {}),
-          ...(ffprobePath ? { ffprobePath } : {}),
-        },
-      );
+      const value = await previewSignedManifest(projectDirectory, manifest, {
+        ...(ffmpegPath ? { ffmpegPath } : {}),
+        ...(ffprobePath ? { ffprobePath } : {}),
+      });
       return success(commandName, value, {
         revision: manifest.base_revision,
         next: `edit apply --confirm-preview ${value.confirmation.confirmation_token}`,
@@ -983,34 +1040,163 @@ export async function executeCli(
     }
     if (commandName === "edit undo") {
       const opened = await undoLocalRevision(projectDirectory);
+      const authority = await assertPublicStorageAuthority(
+        opened.creatorcutDirectory,
+      );
+      const migratedHandoff =
+        authority.source_format ===
+        "creatorcut-internal-project-store/1.0-alpha"
+          ? await verifyMigratedVisualHandoff(projectDirectory)
+          : null;
       return success(
         commandName,
         {
           project_id: opened.project.project_id,
           revision: opened.project.revision,
+          visual_composition_id: opened.visualComposition?.composition_id,
+          visual_composition_state: opened.visualComposition?.state,
         },
         {
           revision: opened.project.revision,
-          next: "export start --output <path.mp4>",
+          next:
+            migratedHandoff?.visual_handoff_present === true
+              ? "handoff verify"
+              : migratedHandoff
+                ? "project status"
+                : "export plan",
         },
       );
     }
     if (commandName === "edit redo") {
       const opened = await redoLocalRevision(projectDirectory);
+      const authority = await assertPublicStorageAuthority(
+        opened.creatorcutDirectory,
+      );
+      const migratedHandoff =
+        authority.source_format ===
+        "creatorcut-internal-project-store/1.0-alpha"
+          ? await verifyMigratedVisualHandoff(projectDirectory)
+          : null;
       return success(
         commandName,
         {
           project_id: opened.project.project_id,
           revision: opened.project.revision,
+          visual_composition_id: opened.visualComposition?.composition_id,
+          visual_composition_state: opened.visualComposition?.state,
         },
         {
           revision: opened.project.revision,
-          next: "export start --output <path.mp4>",
+          next:
+            migratedHandoff?.visual_handoff_present === true
+              ? "handoff verify"
+              : migratedHandoff
+                ? "project status"
+                : "export plan",
         },
       );
     }
 
+    if (commandName === "handoff verify") {
+      const verification = await verifyMigratedVisualHandoff(projectDirectory);
+      if (!verification.visual_handoff_present) {
+        return success(
+          commandName,
+          {
+            ...verification,
+            storage_authority: "public-runtime",
+            director_context_uploaded: false,
+            director_consent_created: false,
+          },
+          {
+            revision: verification.current_revision,
+            next: "project status",
+          },
+        );
+      }
+      const next =
+        verification.next === "export_plan"
+          ? "export plan"
+          : verification.next === "edit_redo"
+            ? "edit redo"
+            : undefined;
+      return success(
+        commandName,
+        {
+          ...verification,
+          storage_authority: "public-runtime",
+          director_context_uploaded: false,
+          director_consent_created: false,
+          visual_render_supported: false,
+        },
+        {
+          revision: verification.current_revision,
+          ...(next ? { next } : {}),
+          ...(verification.next === "handoff_repair"
+            ? {
+                requiresUserAction: true,
+                userPrompt:
+                  "The migrated visual composition needs a verified rebase before it can be planned for export.",
+              }
+            : {}),
+        },
+      );
+    }
+    if (commandName === "export plan") {
+      const opened = await openCreatorCutProject(projectDirectory);
+      const authority = await assertPublicStorageAuthority(
+        opened.creatorcutDirectory,
+      );
+      const migratedHandoff =
+        authority.source_format ===
+        "creatorcut-internal-project-store/1.0-alpha"
+          ? await verifyMigratedVisualHandoff(projectDirectory)
+          : null;
+      const visualBlocked =
+        opened.visualComposition !== undefined ||
+        migratedHandoff?.visual_handoff_present === true;
+      return success(
+        commandName,
+        {
+          project_id: opened.project.project_id,
+          base_revision: opened.project.revision,
+          visual_composition_id: opened.visualComposition?.composition_id,
+          visual_composition_state: opened.visualComposition?.state,
+          ready: !visualBlocked,
+          visual_render_supported: false,
+          blocked_reason: visualBlocked
+            ? "The public renderer cannot yet materialize migrated visual events; exporting would omit the approved visual composition."
+            : null,
+          writes_media: false,
+          starts_export_task: false,
+          output_requested: option(parsed, "output") ?? null,
+        },
+        {
+          revision: opened.project.revision,
+          next: visualBlocked
+            ? "handoff verify"
+            : "export start --output <path.mp4>",
+        },
+      );
+    }
     if (commandName === "export start") {
+      const opened = await openCreatorCutProject(projectDirectory);
+      const authority = await assertPublicStorageAuthority(
+        opened.creatorcutDirectory,
+      );
+      const migratedHandoff =
+        authority.source_format ===
+        "creatorcut-internal-project-store/1.0-alpha"
+          ? await verifyMigratedVisualHandoff(projectDirectory)
+          : null;
+      if (
+        opened.visualComposition ||
+        migratedHandoff?.visual_handoff_present === true
+      ) {
+        throw new Error(
+          "Public export is blocked because migrated visual events are not yet supported by the renderer",
+        );
+      }
       const ffmpegPath = option(parsed, "ffmpeg", "CREATORCUT_FFMPEG");
       const ffprobePath = option(parsed, "ffprobe", "CREATORCUT_FFPROBE");
       const task = await startExportTask(
@@ -1044,6 +1230,20 @@ export async function executeCli(
       });
     }
     if (commandName === "export resume") {
+      const opened = await openCreatorCutProject(projectDirectory);
+      const authority = await assertPublicStorageAuthority(
+        opened.creatorcutDirectory,
+      );
+      if (
+        authority.source_format ===
+          "creatorcut-internal-project-store/1.0-alpha" &&
+        (await verifyMigratedVisualHandoff(projectDirectory))
+          .visual_handoff_present
+      ) {
+        throw new Error(
+          "Public export is blocked because migrated visual events are not yet supported by the renderer",
+        );
+      }
       const task = await resumeExportTask(projectDirectory);
       if (task.state === "failed") {
         throw new Error(task.error?.message ?? "CreatorCut export failed");

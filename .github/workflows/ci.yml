@@ -27,6 +27,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -45,10 +47,28 @@ jobs:
         shell: bash
         run: pnpm verify
 
+      - name: Verify Darwin arm64 secure-swap prototype
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          rustup toolchain install 1.92.0 --profile minimal --no-self-update
+          native_root="$(mktemp -d "$RUNNER_TEMP/creatorcut-native-XXXXXX")"
+          CLANG_PATH="$(xcrun --find clang)" \
+          SDKROOT="$(xcrun --sdk macosx --show-sdk-path)" \
+          RUSTC_PATH="$(rustup which --toolchain 1.92.0 rustc)" \
+          NODE_PATH="$(command -v node)" \
+            scripts/verify-secure-swap-prototype.sh "$native_root"
+
       - name: Verify Windows packages
         if: runner.os == 'Windows'
         shell: bash
         run: pnpm verify:packages
+
+      - name: Verify Windows release installer contract
+        if: runner.os == 'Windows'
+        shell: bash
+        run: node --test tests/public-contract/release-installer.test.mjs
 
       - name: Validate shell installer
         if: runner.os != 'Windows'

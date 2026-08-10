@@ -25,10 +25,13 @@ import {
 import {
   buildDirectorContext,
   clearDirectorState,
+  compareAndSwapLocalArtifact,
   openCreatorCutProject,
+  readLocalArtifact,
   readDirectorState,
   requireDirectorConsent,
   writeDirectorState,
+  type OpenedCreatorCutProject,
 } from "@agentmesh/creatorcut-runtime";
 
 import type {
@@ -77,6 +80,9 @@ function httpTransport(endpoint: string, apiKey: string): DirectorTransport {
           ? {}
           : { "content-type": "application/json" }),
         ...(request.authenticated ? { authorization: `Bearer ${apiKey}` } : {}),
+        ...(request.idempotencyKey
+          ? { "idempotency-key": request.idempotencyKey }
+          : {}),
       },
       ...(request.body === undefined
         ? {}
@@ -109,6 +115,24 @@ function emptyState(context: DirectorContext, now: Date): PublicDirectorState {
     planning_input_digest: digestJcs(context),
     updated_at: now.toISOString(),
   };
+}
+
+const REMOTE_EFFECT_PATH = "tasks/director-remote-effect.json";
+
+interface DirectorRemoteEffect {
+  schema_version: "creatorcut-director-remote-effect/1.0";
+  effect_id: string;
+  effect_kind: string;
+  project_id: string;
+  base_revision: number;
+  planning_input_digest: string;
+  request_digest: string;
+  status: "pending" | "remote_committed" | "completed";
+  remote_response_digest?: string;
+  remote_session_id?: string;
+  remote_generation_id?: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export class CloudDirectorAdapter {
@@ -198,11 +222,158 @@ export class CloudDirectorAdapter {
     return value;
   }
 
+  async #remoteEffectRequest<T>(input: {
+    opened: OpenedCreatorCutProject;
+    context: DirectorContext;
+    effectKind: string;
+    request: DirectorTransportRequest;
+    recover?: (error: unknown) => Promise<T>;
+  }): Promise<{
+    value: T;
+    effect: DirectorRemoteEffect;
+    opened: OpenedCreatorCutProject;
+  }> {
+    const requestDigest = digestJcs({
+      method: input.request.method,
+      path: input.request.path,
+      body: input.request.body ?? null,
+    });
+    const existing = await readLocalArtifact<DirectorRemoteEffect>(
+      input.opened.directory,
+      REMOTE_EFFECT_PATH,
+    );
+    let effect: DirectorRemoteEffect;
+    let opened = input.opened;
+    if (existing && existing.status !== "completed") {
+      if (
+        existing.schema_version !== "creatorcut-director-remote-effect/1.0" ||
+        existing.effect_kind !== input.effectKind ||
+        existing.project_id !== input.context.project_id ||
+        existing.base_revision !== input.context.base_revision ||
+        existing.planning_input_digest !== digestJcs(input.context) ||
+        existing.request_digest !== requestDigest
+      ) {
+        throw new Error(
+          "Another CreatorCut Director remote effect requires recovery",
+        );
+      }
+      effect = existing;
+    } else {
+      const timestamp = this.#now().toISOString();
+      effect = {
+        schema_version: "creatorcut-director-remote-effect/1.0",
+        effect_id: `director-effect:${this.#uuid()}`,
+        effect_kind: input.effectKind,
+        project_id: input.context.project_id,
+        base_revision: input.context.base_revision,
+        planning_input_digest: digestJcs(input.context),
+        request_digest: requestDigest,
+        status: "pending",
+        created_at: timestamp,
+        updated_at: timestamp,
+      };
+      const begun = await compareAndSwapLocalArtifact<
+        DirectorRemoteEffect,
+        undefined
+      >(
+        opened.directory,
+        REMOTE_EFFECT_PATH,
+        {
+          projectId: opened.project.project_id,
+          revision: opened.project.revision,
+          authorityGeneration: opened.authorityGeneration,
+          artifactDigest: digestJcs(existing),
+          mutationKind: "director_remote_effect",
+        },
+        async () => ({ nextArtifact: effect, value: undefined }),
+      );
+      opened = await openCreatorCutProject(opened.directory);
+      if (opened.authorityGeneration !== begun.authorityGeneration) {
+        throw new Error("Director remote effect authority changed");
+      }
+    }
+
+    const value = await this.#request<T>({
+      ...input.request,
+      idempotencyKey: effect.effect_id,
+    }).catch((error: unknown) =>
+      input.recover ? input.recover(error) : Promise.reject(error),
+    );
+    const responseRecord =
+      value !== null && typeof value === "object"
+        ? (value as Record<string, unknown>)
+        : {};
+    const committed: DirectorRemoteEffect = {
+      ...effect,
+      status: "remote_committed",
+      remote_response_digest: digestJcs(value),
+      ...(typeof responseRecord.session_id === "string"
+        ? { remote_session_id: responseRecord.session_id }
+        : {}),
+      ...(typeof responseRecord.generation_id === "string"
+        ? { remote_generation_id: responseRecord.generation_id }
+        : {}),
+      updated_at: this.#now().toISOString(),
+    };
+    const current = await openCreatorCutProject(opened.directory);
+    await compareAndSwapLocalArtifact<DirectorRemoteEffect, undefined>(
+      current.directory,
+      REMOTE_EFFECT_PATH,
+      {
+        projectId: current.project.project_id,
+        revision: current.project.revision,
+        authorityGeneration: current.authorityGeneration,
+        artifactDigest: digestJcs(effect),
+        mutationKind: "director_remote_effect",
+      },
+      async () => ({ nextArtifact: committed, value: undefined }),
+    );
+    return {
+      value,
+      effect: committed,
+      opened: await openCreatorCutProject(current.directory),
+    };
+  }
+
+  async #completeRemoteEffect(
+    projectDirectory: string,
+    effect: DirectorRemoteEffect,
+  ): Promise<void> {
+    const opened = await openCreatorCutProject(projectDirectory);
+    const current = await readLocalArtifact<DirectorRemoteEffect>(
+      projectDirectory,
+      REMOTE_EFFECT_PATH,
+    );
+    if (!current || current.effect_id !== effect.effect_id) {
+      throw new Error("CreatorCut Director remote effect identity changed");
+    }
+    if (current.status === "completed") return;
+    await compareAndSwapLocalArtifact<DirectorRemoteEffect, undefined>(
+      projectDirectory,
+      REMOTE_EFFECT_PATH,
+      {
+        projectId: opened.project.project_id,
+        revision: opened.project.revision,
+        authorityGeneration: opened.authorityGeneration,
+        artifactDigest: digestJcs(current),
+        mutationKind: "director_remote_effect",
+      },
+      async () => ({
+        nextArtifact: {
+          ...current,
+          status: "completed",
+          updated_at: this.#now().toISOString(),
+        },
+        value: undefined,
+      }),
+    );
+  }
+
   async start(input: {
     projectDirectory: string;
     signal?: AbortSignal;
   }): Promise<PublicDirectorState> {
-    const opened = await openCreatorCutProject(input.projectDirectory);
+    let opened = await openCreatorCutProject(input.projectDirectory);
     const context = buildDirectorContext(opened, {
       hostType: this.#hostType,
     });
@@ -221,6 +392,7 @@ export class CloudDirectorAdapter {
     ) {
       state = emptyState(context, this.#now());
     }
+    let remoteEffect: DirectorRemoteEffect | undefined;
     const session = state.session_id
       ? await this.#request<DirectorSessionView>({
           method: "GET",
@@ -228,12 +400,21 @@ export class CloudDirectorAdapter {
           authenticated: true,
           ...(input.signal === undefined ? {} : { signal: input.signal }),
         })
-      : await this.#request<DirectorSessionView>({
-          method: "POST",
-          path: "/v1/director/sessions",
-          authenticated: true,
-          body: context,
-          ...(input.signal === undefined ? {} : { signal: input.signal }),
+      : await this.#remoteEffectRequest<DirectorSessionView>({
+          opened,
+          context,
+          effectKind: "session_start",
+          request: {
+            method: "POST",
+            path: "/v1/director/sessions",
+            authenticated: true,
+            body: context,
+            ...(input.signal === undefined ? {} : { signal: input.signal }),
+          },
+        }).then((result) => {
+          opened = result.opened;
+          remoteEffect = result.effect;
+          return result.value;
         });
     this.#assertSession(session, context, state.session_id);
     const currentCard = session.current_card_envelope
@@ -259,6 +440,9 @@ export class CloudDirectorAdapter {
       updated_at: this.#now().toISOString(),
     };
     await writeDirectorState(opened, state);
+    if (remoteEffect) {
+      await this.#completeRemoteEffect(input.projectDirectory, remoteEffect);
+    }
     return state;
   }
 
@@ -290,7 +474,7 @@ export class CloudDirectorAdapter {
     submission: HostCardSubmission;
     presentation?: HostCardPresentation;
   }): Promise<PublicDirectorState> {
-    const opened = await openCreatorCutProject(input.projectDirectory);
+    let opened = await openCreatorCutProject(input.projectDirectory);
     const context = buildDirectorContext(opened, { hostType: this.#hostType });
     await requireDirectorConsent(opened, context);
     const state = await this.#requireState(opened, context);
@@ -331,12 +515,19 @@ export class CloudDirectorAdapter {
         answers,
       },
     );
-    const session = await this.#request<DirectorSessionView>({
-      method: "POST",
-      path: `/v1/director/sessions/${encodeURIComponent(state.session_id)}/answers`,
-      authenticated: true,
-      body: answerSet,
+    const remote = await this.#remoteEffectRequest<DirectorSessionView>({
+      opened,
+      context,
+      effectKind: "cards_submit",
+      request: {
+        method: "POST",
+        path: `/v1/director/sessions/${encodeURIComponent(state.session_id)}/answers`,
+        authenticated: true,
+        body: answerSet,
+      },
     });
+    opened = remote.opened;
+    const session = remote.value;
     this.#assertSession(session, context, state.session_id);
     const nextCard = session.current_card_envelope
       ? this.#verifyEnvelope<SemanticDecisionCardSet>({
@@ -362,24 +553,32 @@ export class CloudDirectorAdapter {
       updated_at: this.#now().toISOString(),
     };
     await writeDirectorState(opened, next);
+    await this.#completeRemoteEffect(input.projectDirectory, remote.effect);
     return next;
   }
 
   async quote(projectDirectory: string): Promise<DirectorEnvelope<CostQuote>> {
-    const opened = await openCreatorCutProject(projectDirectory);
+    let opened = await openCreatorCutProject(projectDirectory);
     const context = buildDirectorContext(opened, { hostType: this.#hostType });
     await requireDirectorConsent(opened, context);
     const state = await this.#requireState(opened, context);
     if (!state.session_id || state.current_card_envelope) {
       throw new Error("CreatorCut Director cards must finish before quote");
     }
-    const result = await this.#request<{
+    const remote = await this.#remoteEffectRequest<{
       quote_envelope: DirectorEnvelope<CostQuote>;
     }>({
-      method: "POST",
-      path: `/v1/director/sessions/${encodeURIComponent(state.session_id)}/quote`,
-      authenticated: true,
+      opened,
+      context,
+      effectKind: "quote_create",
+      request: {
+        method: "POST",
+        path: `/v1/director/sessions/${encodeURIComponent(state.session_id)}/quote`,
+        authenticated: true,
+      },
     });
+    opened = remote.opened;
+    const result = remote.value;
     const quote = this.#verifyEnvelope<CostQuote>({
       value: result.quote_envelope,
       context,
@@ -410,6 +609,7 @@ export class CloudDirectorAdapter {
       last_sequence: quote.sequence,
       updated_at: this.#now().toISOString(),
     });
+    await this.#completeRemoteEffect(projectDirectory, remote.effect);
     return quote;
   }
 
@@ -420,7 +620,7 @@ export class CloudDirectorAdapter {
     if (!input.confirmationId.trim()) {
       throw new TypeError("CreatorCut quote confirmation ID is required");
     }
-    const opened = await openCreatorCutProject(input.projectDirectory);
+    let opened = await openCreatorCutProject(input.projectDirectory);
     const context = buildDirectorContext(opened, { hostType: this.#hostType });
     await requireDirectorConsent(opened, context);
     const state = await this.#requireState(opened, context);
@@ -434,29 +634,38 @@ export class CloudDirectorAdapter {
         generation_id: generationId,
         updated_at: this.#now().toISOString(),
       });
+      opened = await openCreatorCutProject(input.projectDirectory);
     }
-    const generation = await this.#request<DirectorGenerationView>({
-      method: "POST",
-      path: `/v1/director/sessions/${encodeURIComponent(state.session_id)}/generations`,
-      authenticated: true,
-      body: {
-        generation_id: generationId,
-        quote_id: state.quote_envelope.payload.quote_id,
-        quote_envelope_digest: digestJcs(state.quote_envelope),
-        explicit_confirmation_id: input.confirmationId,
-        planning_input_digest: digestJcs(context),
+    const remote = await this.#remoteEffectRequest<DirectorGenerationView>({
+      opened,
+      context,
+      effectKind: "generation_create",
+      request: {
+        method: "POST",
+        path: `/v1/director/sessions/${encodeURIComponent(state.session_id)}/generations`,
+        authenticated: true,
+        body: {
+          generation_id: generationId,
+          quote_id: state.quote_envelope.payload.quote_id,
+          quote_envelope_digest: digestJcs(state.quote_envelope),
+          explicit_confirmation_id: input.confirmationId,
+          planning_input_digest: digestJcs(context),
+        },
       },
-    }).catch(async (error: unknown) => {
-      try {
-        return await this.#request<DirectorGenerationView>({
-          method: "GET",
-          path: `/v1/director/generations/${encodeURIComponent(generationId)}`,
-          authenticated: true,
-        });
-      } catch {
-        throw error;
-      }
+      recover: async (error) => {
+        try {
+          return await this.#request<DirectorGenerationView>({
+            method: "GET",
+            path: `/v1/director/generations/${encodeURIComponent(generationId)}`,
+            authenticated: true,
+          });
+        } catch {
+          throw error;
+        }
+      },
     });
+    opened = remote.opened;
+    const generation = remote.value;
     this.#assertGeneration(generation, context, {
       generationId,
       sessionId: state.session_id,
@@ -468,6 +677,7 @@ export class CloudDirectorAdapter {
       generation_state: generation.state,
       updated_at: this.#now().toISOString(),
     });
+    await this.#completeRemoteEffect(input.projectDirectory, remote.effect);
     return generation;
   }
 
@@ -562,7 +772,7 @@ export class CloudDirectorAdapter {
     projectDirectory: string,
     input: FinalizeDirectorInput,
   ): Promise<DirectorEnvelope<EditDecisionManifest>> {
-    const opened = await openCreatorCutProject(projectDirectory);
+    let opened = await openCreatorCutProject(projectDirectory);
     const context = buildDirectorContext(opened, { hostType: this.#hostType });
     const state = await this.#requireState(opened, context);
     if (
@@ -587,17 +797,33 @@ export class CloudDirectorAdapter {
     ) {
       throw new TypeError("CreatorCut review decisions binding mismatch");
     }
-    await this.#request<DirectorGenerationView>({
-      method: "POST",
-      path: `/v1/director/generations/${encodeURIComponent(state.generation_id)}/review-decisions`,
-      authenticated: true,
-      body: decisions,
-    });
-    let generation = await this.#request<DirectorGenerationView>({
-      method: "POST",
-      path: `/v1/director/generations/${encodeURIComponent(state.generation_id)}/finalize`,
-      authenticated: true,
-    });
+    const decisionEffect =
+      await this.#remoteEffectRequest<DirectorGenerationView>({
+        opened,
+        context,
+        effectKind: "review_decisions_submit",
+        request: {
+          method: "POST",
+          path: `/v1/director/generations/${encodeURIComponent(state.generation_id)}/review-decisions`,
+          authenticated: true,
+          body: decisions,
+        },
+      });
+    await this.#completeRemoteEffect(projectDirectory, decisionEffect.effect);
+    opened = await openCreatorCutProject(projectDirectory);
+    const finalizeEffect =
+      await this.#remoteEffectRequest<DirectorGenerationView>({
+        opened,
+        context,
+        effectKind: "generation_finalize",
+        request: {
+          method: "POST",
+          path: `/v1/director/generations/${encodeURIComponent(state.generation_id)}/finalize`,
+          authenticated: true,
+        },
+      });
+    opened = finalizeEffect.opened;
+    let generation = finalizeEffect.value;
     for (
       let attempt = 0;
       !generation.manifest_envelope && attempt < this.#finalizePollAttempts;
@@ -662,6 +888,7 @@ export class CloudDirectorAdapter {
       manifest_envelope: manifest,
       updated_at: this.#now().toISOString(),
     });
+    await this.#completeRemoteEffect(projectDirectory, finalizeEffect.effect);
     return manifest;
   }
 
@@ -697,16 +924,28 @@ export class CloudDirectorAdapter {
   }
 
   async deleteSession(projectDirectory: string): Promise<void> {
-    const opened = await openCreatorCutProject(projectDirectory);
+    let opened = await openCreatorCutProject(projectDirectory);
+    const context = buildDirectorContext(opened, { hostType: this.#hostType });
     const state = await readDirectorState<PublicDirectorState>(opened);
+    let remoteEffect: DirectorRemoteEffect | undefined;
     if (state?.session_id) {
-      await this.#request({
-        method: "DELETE",
-        path: `/v1/director/sessions/${encodeURIComponent(state.session_id)}`,
-        authenticated: true,
+      const remote = await this.#remoteEffectRequest<unknown>({
+        opened,
+        context,
+        effectKind: "session_delete",
+        request: {
+          method: "DELETE",
+          path: `/v1/director/sessions/${encodeURIComponent(state.session_id)}`,
+          authenticated: true,
+        },
       });
+      opened = remote.opened;
+      remoteEffect = remote.effect;
     }
     await clearDirectorState(opened);
+    if (remoteEffect) {
+      await this.#completeRemoteEffect(projectDirectory, remoteEffect);
+    }
   }
 
   async #requireState(

@@ -67,7 +67,9 @@ const privateDirectory = resolve(privateDirectoryValue);
 const privateRelative = relative(repositoryRoot, privateDirectory);
 if (
   privateRelative === "" ||
-  (!privateRelative.startsWith(`..${sep}`) && privateRelative !== "..")
+  (!isAbsolute(privateRelative) &&
+    !privateRelative.startsWith(`..${sep}`) &&
+    privateRelative !== "..")
 ) {
   fail("--private-dir must be outside the public repository");
 }

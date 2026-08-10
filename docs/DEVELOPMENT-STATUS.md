@@ -221,3 +221,81 @@ evidence is recorded in
 - A4-A6 did not run a new real FFmpeg or real-host smoke. The earlier Batch 2
   FFmpeg smoke remains the media evidence; subsequent Codex/OpenClaw/generic
   evidence closes B-D. Claude Code remains post-M1 experimental.
+
+## M1.1 single-authority hardening checkpoint (2026-08-09)
+
+- Public authority markers now bind the exact internal source and staged
+  canonical digests. A committed migration stage is deleted only after its
+  complete shape, canonical bytes and installed public state all verify; a
+  same-ID rebound stage or private extra file remains preserved and fails
+  closed.
+- Metadata reads bind the opened no-follow file handle and every trusted
+  ancestor before reading bytes. Rollback restore rebuilds nested revision
+  files through no-replace handles. Migration stage `1.1` also carries a
+  metadata-only, source-digest-bound rollback snapshot, so a new process can
+  recover an interrupted legacy deletion even when the external backup path
+  has subsequently changed.
+- Transcription task transitions use revision/generation/artifact-digest CAS.
+  The final transcript replacement and completed task transition share one
+  public mutation WAL, so cancellation or a late worker error cannot publish a
+  stale transcript or overwrite `cancelled`.
+- Preview and transcription intermediates share a private-work helper that
+  rejects symlink components and binds directory identities on every supported
+  platform. POSIX hosts additionally tighten directories to `0700` and files to
+  `0600`; Windows operates under the project directory's inherited ACL because
+  POSIX mode bits cannot establish or verify a Windows DACL. Cross-user privacy
+  therefore requires the project tree itself to be current-user-private.
+  Transcription work no longer uses the public
+  `generated/transcription-work` path.
+- Node 24 synthetic/temp verification at this checkpoint: storage-authority
+  security `135/135`, runtime `204 passed / 13 skipped`, transcription `11/11`,
+  and media-engine `40/40`. No real dogfood project, media, token, preview or
+  export was read or written. Those counts describe the pre-release checkpoint;
+  final release gates are rerun against the exact v0.3.0 candidate bytes.
+
+## M1 whole-tree swap synthetic checkpoint (2026-08-10)
+
+- `project migrate-internal` and `project rollback-internal` fail closed
+  immediately after argument parsing, before credentials, cwd/project
+  resolution, or adapters are initialized. Their mutators are not exported
+  from the runtime package root. `project adopt-public --confirm-local` is the
+  sole public compatibility path: it verifies and marks an unmodified v0.2.1
+  public project without copying, deleting, or migrating canonical metadata.
+- `packages/runtime/native/secure-swap-prototype/` is an isolated Darwin arm64
+  prototype, not product wiring. Its only tree mutation is one whole-tree
+  `renameatx_np(..., RENAME_SWAP, ...)`; it exposes no unlink, recursive remove,
+  cleanup, reverse-swap, copy fallback, or arbitrary rename operation. A stable
+  fail-fast writer lock, descriptor/path bindings, exact tree digest v2, and a
+  durable `PREPARED -> SWAPPED -> COMMITTED` hash-chain WAL authorize only
+  forward recovery. The old internal tree is retained as quarantine.
+- The fixed Node `24.18.0` preflight used direct arm64 clang/rustc paths in a
+  deny-network sandbox whose writes were confined to a nonce temp root. The
+  SHA-256 suite passed `2/2`, helper unit suite `3/3`, and retained crash and
+  adversarial harness `37/37`. The retained evidence copies and hashes the
+  candidate helpers and reviewed sources under one candidate digest.
+- The earlier prototype-only checkpoint packed runtime/CLI outside repository
+  `dist` and proved that private storage-authority subpaths were inaccessible.
+  The v0.3.0 release candidate intentionally adds only the explicit public
+  adoption export. The final Node 24 gate passed `423` Vitest cases with `13`
+  intentionally skipped native-platform cases plus `23/23` public-contract
+  cases; runtime passed `308/308`, CLI `16/16`, and media-engine `40/40`.
+- The final isolated package gate clean-built and packed all `12/12` workspace
+  tarballs, installed them offline, and passed `35/35` black-box assertions.
+  It proved the runtime root exposes adoption only, the private authority
+  subpath is not exported, blocked commands fail before cwd/credential access,
+  and a synthetic contiguous v0.2.1 project adopts without changing an outside
+  sentinel.
+- The production JavaScript `project.lock` is a cooperative same-UID
+  coordination mechanism, not a hostile-process sandbox. It rejects static
+  symlink/identity substitution, serializes current writers with a crash-safe
+  SQLite transaction, and publishes a complete generation-unique guard that
+  frozen v0.2.1 readers can see. The guard remains present through the whole
+  operation; mixed-version contention fails closed. A malicious same-UID
+  process that swaps lock-directory ancestors between validation and a pathname
+  syscall is explicitly outside the v0.3.0 RC threat model; closing that window
+  requires the still-unwired dirfd-based native boundary.
+- This checkpoint used synthetic/temp fixtures only. It did not read or mutate
+  a real CreatorCut project or run media/Director work. Publishing the reviewed
+  source does not activate native migration: packaging, immutable installation,
+  signing, x64 and non-Darwin policy, power-loss tests, and product caller
+  integration remain blocking work.

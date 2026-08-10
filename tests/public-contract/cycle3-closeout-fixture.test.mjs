@@ -274,12 +274,9 @@ test("verified remove_range fixture previews and applies transactionally", async
     );
   }
   const directory = await localFixtureProject();
-  const result = await mediaEngine.previewSignedManifest(
-    directory,
-    manifest,
-    undefined,
-    { runner: fixtureMediaRunner() },
-  );
+  const result = await mediaEngine.previewSignedManifest(directory, manifest, {
+    runner: fixtureMediaRunner(),
+  });
   const applied = await mediaEngine.applyPreviewedManifest(
     directory,
     manifest,

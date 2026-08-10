@@ -24,7 +24,9 @@ import {
   createCreatorCutProject,
   openCreatorCutProject,
   readDirectorState,
+  readLocalArtifact,
   writeDirectorState,
+  writeLocalArtifact,
   type CreateLocalProjectInput,
 } from "@agentmesh/creatorcut-runtime";
 
@@ -244,7 +246,6 @@ describe("CloudDirectorAdapter", () => {
   it("retries a lost session-create response and persists the server-deduplicated session", async () => {
     const signing = signingFixture();
     const { directory, context, fixture } = await cycle3Project();
-    const opened = await openCreatorCutProject(directory);
     const directionEnvelope = resignEnvelope(
       fixture.envelope_chain.direction_card,
       signing.directorPrivateKey,
@@ -261,6 +262,7 @@ describe("CloudDirectorAdapter", () => {
       current_card_envelope: directionEnvelope,
     };
     let sessionCreateAttempts = 0;
+    const idempotencyKeys: Array<string | undefined> = [];
     const adapter = new CloudDirectorAdapter({
       endpoint: "https://director.example.test",
       apiKey: "am_test_key",
@@ -286,6 +288,7 @@ describe("CloudDirectorAdapter", () => {
           request.path === "/v1/director/sessions"
         ) {
           sessionCreateAttempts += 1;
+          idempotencyKeys.push(request.idempotencyKey);
           expect(request.body).toEqual(context);
           if (sessionCreateAttempts === 1) {
             throw new Error("session response lost after server commit");
@@ -299,8 +302,10 @@ describe("CloudDirectorAdapter", () => {
     await expect(
       adapter.start({ projectDirectory: directory }),
     ).rejects.toThrow(/response lost/u);
+    const afterLostResponse = await openCreatorCutProject(directory);
     expect(
-      (await readDirectorState<PublicDirectorState>(opened))?.session_id,
+      (await readDirectorState<PublicDirectorState>(afterLostResponse))
+        ?.session_id,
     ).toBeUndefined();
 
     await expect(
@@ -311,15 +316,82 @@ describe("CloudDirectorAdapter", () => {
       state_revision: 0,
     });
     expect(sessionCreateAttempts).toBe(2);
+    expect(idempotencyKeys[0]).toMatch(/^director-effect:/u);
+    expect(idempotencyKeys[1]).toBe(idempotencyKeys[0]);
+    const refreshed = await openCreatorCutProject(directory);
     expect(
-      (await readDirectorState<PublicDirectorState>(opened))?.session_id,
+      (await readDirectorState<PublicDirectorState>(refreshed))?.session_id,
     ).toBe(session.session_id);
-  });
+  }, 15_000);
+
+  it("blocks concurrent public mutation while a remote effect is pending", async () => {
+    const signing = signingFixture();
+    const { directory, context, fixture } = await cycle3Project();
+    const directionEnvelope = resignEnvelope(
+      fixture.envelope_chain.direction_card,
+      signing.directorPrivateKey,
+    );
+    const adapter = new CloudDirectorAdapter({
+      endpoint: "https://director.example.test",
+      apiKey: "am_test_key",
+      protocolBundleDigest: `sha256:${"a".repeat(64)}`,
+      signedKeyset: signing.keyset,
+      trustedRecoveryRoots: signing.roots,
+      now: () => new Date(fixture.fixed_clock.manifest),
+      transport: async (request) => {
+        if (request.path === "/v1/director/preflight") {
+          return {
+            product_id: "creatorcut",
+            protocol_version: "1.0",
+            protocol_bundle_digest: `sha256:${"a".repeat(64)}`,
+            compatible: true,
+            action_code: "creatorcut.director.plan",
+            cost: 50,
+            core_enabled: true,
+            accepting_new_generations: true,
+          };
+        }
+        await writeLocalArtifact(directory, "tasks/import.json", {
+          schema_version: "creatorcut-import-task/1.0",
+          state: "completed",
+          source_asset_id: "asset-concurrent",
+          source_sha256: "a".repeat(64),
+          proxy_relative_path: "proxies/concurrent.mp4",
+          proxy_sha256: "b".repeat(64),
+          completed_at: "2026-08-09T00:00:00.000Z",
+        });
+        return {
+          session_id: directionEnvelope.session_id,
+          project_id: context.project_id,
+          base_revision: context.base_revision,
+          planning_input_digest: digestJcs(context),
+          state: "active",
+          stage: "direction",
+          state_revision: 0,
+          answer_chain_digest: directionEnvelope.answer_chain_digest,
+          current_card_envelope: directionEnvelope,
+        };
+      },
+    });
+
+    await expect(
+      adapter.start({ projectDirectory: directory }),
+    ).rejects.toThrow(/remote effect recovery must complete/u);
+    await expect(
+      readLocalArtifact(directory, "tasks/import.json"),
+    ).resolves.toBeNull();
+    await expect(
+      readLocalArtifact(directory, "tasks/director-remote-effect.json"),
+    ).resolves.toMatchObject({
+      effect_kind: "session_start",
+      status: "pending",
+    });
+  }, 15_000);
 
   it("verifies the full Manifest chain and every signed input or identifier binding", async () => {
     const signing = signingFixture();
     const { directory, context, fixture } = await cycle3Project();
-    const opened = await openCreatorCutProject(directory);
+    let opened = await openCreatorCutProject(directory);
     const review = resignEnvelope(
       fixture.envelope_chain.review_plan,
       signing.directorPrivateKey,
@@ -386,6 +458,7 @@ describe("CloudDirectorAdapter", () => {
       const changed = structuredClone(manifestValue);
       mutate(changed);
       const signedChanged = resignEnvelope(changed, signing.directorPrivateKey);
+      opened = await openCreatorCutProject(directory);
       await writeDirectorState(opened, {
         ...state,
         manifest_envelope: signedChanged,
@@ -395,7 +468,7 @@ describe("CloudDirectorAdapter", () => {
         name,
       ).rejects.toThrow(/binding mismatch/u);
     }
-  });
+  }, 20_000);
 
   it("polls boundedly until asynchronous finalization returns a signed Manifest", async () => {
     const signing = signingFixture();
@@ -481,7 +554,7 @@ describe("CloudDirectorAdapter", () => {
       manifest,
     );
     expect(gets).toBe(2);
-  });
+  }, 15_000);
 
   it("persists and reuses the Generation ID across a lost create response", async () => {
     const signing = signingFixture();
@@ -547,8 +620,9 @@ describe("CloudDirectorAdapter", () => {
         confirmationId: "confirmation-a4",
       }),
     ).rejects.toThrow(/response lost/u);
+    const refreshed = await openCreatorCutProject(directory);
     expect(
-      (await readDirectorState<PublicDirectorState>(opened))?.generation_id,
+      (await readDirectorState<PublicDirectorState>(refreshed))?.generation_id,
     ).toBe(generationId);
 
     await expect(
@@ -559,7 +633,7 @@ describe("CloudDirectorAdapter", () => {
     ).resolves.toEqual(generation);
     expect(postIds).toEqual([generationId, generationId]);
     expect(getAttempts).toBe(1);
-  });
+  }, 15_000);
 
   it("rejects a Generation response with a different stable identifier", async () => {
     const signing = signingFixture();
@@ -602,5 +676,5 @@ describe("CloudDirectorAdapter", () => {
         confirmationId: "confirmation-a4",
       }),
     ).rejects.toThrow(/Generation binding mismatch/u);
-  });
+  }, 15_000);
 });

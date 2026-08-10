@@ -38,13 +38,39 @@ import, starts multilingual transcription, and then returns the exact
 `next_suggested` action. Run the same command at any time to resume from the
 first incomplete stage.
 
+When a project was created by v0.2.1, v0.3.0 requires a one-time, explicit
+metadata adoption before status or mutation commands:
+
+```bash
+creatorcut project adopt-public \
+  --project /path/to/project.creatorcut \
+  --confirm-local
+```
+
+This verifies the existing public history and writes only local authority
+metadata. It does not invoke the experimental internal-project migration.
+`--confirm-local` also confirms that every v0.2.1 CreatorCut process has exited
+and that no legacy preview, Director request, export, or transcription task is
+still in progress. Do not open the project concurrently in v0.2.1 after
+adoption. Completed legacy generated assets, previews, and transcription work
+remain byte-for-byte in place and outside metadata backup, digest, and rollback
+deletion. Windows v0.2.1 generated-asset paths are validated without rewriting
+their stored bytes; moving such a project to a POSIX host before adoption is
+not a supported path-translation workflow.
+The project state must be on a local filesystem with same-volume atomic rename
+and reliable SQLite/OS file locking; FAT/exFAT, network shares, and
+cloud-synchronized virtual filesystems are not supported project locations in
+v0.3.
+
 See [supported platforms](docs/SUPPORTED-PLATFORMS.md) for the exact macOS,
 Ubuntu, Windows, architecture, and dependency contract.
 
 ## Current status
 
-AgentMesh-CreatorCut M1 Cycle 1–5 is complete and public stable `v0.2.1` is
-available through the signed managed-install channel. Production cloud
+AgentMesh-CreatorCut M1 Cycle 1–5 is complete and public stable releases are
+available through the signed managed-install channel. The exact activated
+version and artifact are recorded by the signed AgentMesh Core policy and
+`release/production-smoke-lock.json`. Production cloud
 admission is open for the Director main feature at the AgentMesh Core
 authoritative price of 50 credits. This repository contains the
 frozen public Protocol v1 plus a
@@ -52,6 +78,11 @@ source-buildable local runtime, Director verification code, cross-platform
 secure credential adapters, stable JSON CLI, public MCP server, semantic card/text
 presentation adapters, local media import, Chinese/English/mixed whisper.cpp
 transcription, local Manifest preview/apply/undo/redo, and resumable export.
+
+v0.3.0 adds digest/generation-bound public mutation recovery and verified
+v0.2.1 public-project adoption. Internal-project migration and rollback remain
+disabled until their native packaging, installation, platform, and recovery
+gates are complete.
 
 Batch 3 now includes the independent `creatorcut-operations/1.0` contract,
 immutable `*_ref` resolution, a real Server-generated signed `remove_range`

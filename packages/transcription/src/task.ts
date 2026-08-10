@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { access, mkdir, readFile, realpath, rm } from "node:fs/promises";
+import { readFile, realpath, rm } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve } from "node:path";
 
 import {
@@ -8,12 +8,20 @@ import {
   type ProcessRunner,
 } from "@agentmesh/creatorcut-media-engine";
 import {
+  compareAndSwapLocalArtifact,
+  localArtifactDigest,
   openCreatorCutProject,
+  finalizePrivateWorkFile,
+  preparePrivateWorkDirectory,
+  privateWorkPath,
   readLocalArtifact,
-  replaceLocalTranscript,
+  redactPrivateText,
+  releasePrivateWorkDirectory,
+  removePrivateWorkNamespace,
   writeLocalArtifact,
   type LocalTranscript,
   type LocalTranscriptSilenceInterval,
+  type PrivateWorkDirectoryLease,
 } from "@agentmesh/creatorcut-runtime";
 
 import { detectTranscriptLanguage, parseWhisperJson } from "./whisper-json.js";
@@ -114,11 +122,17 @@ async function runCandidate(input: {
   projectRevision: number;
   sourceAssetId: string;
   languageMode: LanguageMode;
+  workLease: PrivateWorkDirectoryLease;
   signal?: AbortSignal;
 }): Promise<Candidate> {
   const prefix = `${input.outputPrefix}-${input.language}`;
   const outputPath = `${prefix}.json`;
-  const cached = await readFile(outputPath, "utf8").catch(() => null);
+  const cached = await finalizePrivateWorkFile(input.workLease, outputPath)
+    .then(() => readFile(outputPath, "utf8"))
+    .catch((error: NodeJS.ErrnoException) => {
+      if (error.code === "ENOENT") return null;
+      throw error;
+    });
   let raw: WhisperJson;
   if (cached) {
     raw = JSON.parse(cached) as WhisperJson;
@@ -142,7 +156,12 @@ async function runCandidate(input: {
       args.push("--prompt", input.glossary.join(", "));
     }
     let result = await input.runner(input.whisperPath, args, input.signal);
-    let output = await readFile(outputPath, "utf8").catch(() => null);
+    let output = await finalizePrivateWorkFile(input.workLease, outputPath)
+      .then(() => readFile(outputPath, "utf8"))
+      .catch((error: NodeJS.ErrnoException) => {
+        if (error.code === "ENOENT") return null;
+        throw error;
+      });
     if (result.exitCode !== 0 || !output) {
       await rm(outputPath, { force: true });
       result = await input.runner(
@@ -150,7 +169,12 @@ async function runCandidate(input: {
         [...args, "-ng"],
         input.signal,
       );
-      output = await readFile(outputPath, "utf8").catch(() => null);
+      output = await finalizePrivateWorkFile(input.workLease, outputPath)
+        .then(() => readFile(outputPath, "utf8"))
+        .catch((error: NodeJS.ErrnoException) => {
+          if (error.code === "ENOENT") return null;
+          throw error;
+        });
     }
     if (result.exitCode !== 0 || !output) {
       throw new Error(
@@ -173,9 +197,30 @@ async function runCandidate(input: {
 
 async function persistTask(
   projectDirectory: string,
+  expected: TranscriptionTask | null,
   task: TranscriptionTask,
-): Promise<void> {
-  await writeLocalArtifact(projectDirectory, TASK_PATH, task);
+  transcript?: LocalTranscript,
+): Promise<TranscriptionTask> {
+  const opened = await openCreatorCutProject(projectDirectory);
+  const result = await compareAndSwapLocalArtifact<TranscriptionTask, null>(
+    opened.directory,
+    TASK_PATH,
+    {
+      projectId: opened.project.project_id,
+      revision: opened.project.revision,
+      authorityGeneration: opened.authorityGeneration,
+      artifactDigest: localArtifactDigest(expected),
+      mutationKind: transcript
+        ? "transcription_complete"
+        : "transcription_task_transition",
+    },
+    async () => ({
+      nextArtifact: task,
+      value: null,
+      ...(transcript ? { nextTranscript: transcript } : {}),
+    }),
+  );
+  return result.artifact;
 }
 
 export async function transcribeProject(
@@ -209,7 +254,8 @@ export async function transcribeProject(
     created_at: now,
     updated_at: now,
   };
-  await persistTask(opened.directory, task);
+  const previousTask = await readTranscriptionTask(opened.directory);
+  let current = await persistTask(opened.directory, previousTask, task);
   const locator: TranscriptionLocator = {
     schema_version: "creatorcut-transcription-locator/1.0",
     source_path: sourcePath,
@@ -230,25 +276,25 @@ export async function transcribeProject(
     )
     .digest("hex")
     .slice(0, 24);
-  const work = join(
-    opened.creatorcutDirectory,
-    "tasks",
-    "transcription-work",
+  const workLease = await preparePrivateWorkDirectory(opened.directory, [
+    "transcription",
     workKey,
-  );
-  await mkdir(work, { recursive: true, mode: 0o700 });
-  const audioPath = join(work, "audio.wav");
-  let current: TranscriptionTask = {
-    ...task,
+  ]);
+  const work = workLease.directory;
+  const audioPath = privateWorkPath(workLease, "audio.wav");
+  current = await persistTask(opened.directory, current, {
+    ...current,
     state: "running",
     progress_millis: 50,
     updated_at: new Date().toISOString(),
-  };
-  await persistTask(opened.directory, current);
+  });
   try {
-    const preparedExists = await access(audioPath)
+    const preparedExists = await finalizePrivateWorkFile(workLease, audioPath)
       .then(() => true)
-      .catch(() => false);
+      .catch((error: NodeJS.ErrnoException) => {
+        if (error.code === "ENOENT") return false;
+        throw error;
+      });
     if (!preparedExists) {
       const prepared = await runner(
         locator.ffmpeg_path,
@@ -276,14 +322,14 @@ export async function transcribeProject(
           `CreatorCut audio preparation failed: ${prepared.stderr.trim()}`,
         );
       }
+      await finalizePrivateWorkFile(workLease, audioPath);
     }
-    current = {
+    current = await persistTask(opened.directory, current, {
       ...current,
       progress_millis: 250,
       completed_steps: ["audio_prepared"],
       updated_at: new Date().toISOString(),
-    };
-    await persistTask(opened.directory, current);
+    });
     const silenceRun = await runner(
       locator.ffmpeg_path,
       [
@@ -304,13 +350,12 @@ export async function transcribeProject(
       source.asset_id,
       source.duration_us,
     );
-    current = {
+    current = await persistTask(opened.directory, current, {
       ...current,
       progress_millis: 350,
       completed_steps: ["audio_prepared", "silence_detected"],
       updated_at: new Date().toISOString(),
-    };
-    await persistTask(opened.directory, current);
+    });
     const languages: Array<"auto" | "zh" | "en"> =
       options.languageMode === "mixed"
         ? ["auto", "zh", "en"]
@@ -330,16 +375,16 @@ export async function transcribeProject(
           projectRevision: opened.project.revision,
           sourceAssetId: source.asset_id,
           languageMode: options.languageMode,
+          workLease,
           ...(options.signal ? { signal: options.signal } : {}),
         }),
       );
-      current = {
+      current = await persistTask(opened.directory, current, {
         ...current,
         progress_millis: Math.min(850, current.progress_millis + 150),
         completed_steps: [...current.completed_steps, `candidate_${language}`],
         updated_at: new Date().toISOString(),
-      };
-      await persistTask(opened.directory, current);
+      });
     }
     const selected = [...candidates].sort(
       (left, right) => candidateScore(right) - candidateScore(left),
@@ -350,11 +395,6 @@ export async function transcribeProject(
       ...selected.transcript,
       silence_intervals: silence,
     };
-    const latest = await readTranscriptionTask(opened.directory);
-    if (latest?.state === "cancelled") {
-      throw new Error("CreatorCut transcription was cancelled");
-    }
-    await replaceLocalTranscript(opened.directory, transcript);
     const completed: TranscriptionTask = {
       ...current,
       state: "completed",
@@ -371,24 +411,32 @@ export async function transcribeProject(
         ),
       },
     };
-    await persistTask(opened.directory, completed);
-    return completed;
+    return await persistTask(opened.directory, current, completed, transcript);
   } catch (error) {
+    const latest = await readTranscriptionTask(opened.directory);
+    if (latest?.task_id === task.task_id && latest.state === "cancelled") {
+      return latest;
+    }
     const failed: TranscriptionTask = {
       ...current,
-      state:
-        (await readTranscriptionTask(opened.directory))?.state === "cancelled"
-          ? "cancelled"
-          : "failed",
+      state: "failed",
       updated_at: new Date().toISOString(),
       error: {
         code: "transcription_failed",
-        message:
+        message: redactPrivateText(
           error instanceof Error ? error.message : "Transcription failed",
+        ),
       },
     };
-    await persistTask(opened.directory, failed);
-    return failed;
+    if (latest?.task_id !== task.task_id) return failed;
+    try {
+      return await persistTask(opened.directory, latest, failed);
+    } catch {
+      const raced = await readTranscriptionTask(opened.directory);
+      return raced?.task_id === task.task_id ? raced : failed;
+    }
+  } finally {
+    await releasePrivateWorkDirectory(workLease);
   }
 }
 
@@ -411,19 +459,43 @@ export async function cancelTranscriptionTask(
     state: "cancelled",
     updated_at: new Date().toISOString(),
   };
-  await persistTask(projectDirectory, cancelled);
-  return cancelled;
+  try {
+    return await persistTask(projectDirectory, task, cancelled);
+  } catch (error) {
+    const latest = await readTranscriptionTask(projectDirectory);
+    if (latest?.task_id === task.task_id && latest.state === "cancelled") {
+      return latest;
+    }
+    if (latest?.task_id === task.task_id && latest.state === "completed") {
+      throw new Error("Completed CreatorCut transcription cannot be cancelled");
+    }
+    throw error;
+  }
 }
 
 export async function resumeTranscriptionTask(
   projectDirectory: string,
   options: Pick<TranscribeProjectOptions, "runner" | "signal"> = {},
 ): Promise<TranscriptionTask> {
-  const locator = await readLocalArtifact<TranscriptionLocator>(
-    projectDirectory,
-    LOCATOR_PATH,
-  );
-  const task = await readTranscriptionTask(projectDirectory);
+  let locator: TranscriptionLocator | null;
+  let task: TranscriptionTask | null;
+  try {
+    locator = await readLocalArtifact<TranscriptionLocator>(
+      projectDirectory,
+      LOCATOR_PATH,
+    );
+    task = await readTranscriptionTask(projectDirectory);
+  } catch (error) {
+    if (
+      error instanceof TypeError &&
+      error.message === `CreatorCut artifact is stale: ${TASK_PATH}`
+    ) {
+      throw new Error(
+        "CreatorCut transcription recovery state is stale for the current revision",
+      );
+    }
+    throw error;
+  }
   if (!locator || !task)
     throw new Error("CreatorCut transcription recovery state is missing");
   const opened = await openCreatorCutProject(projectDirectory);
@@ -457,11 +529,7 @@ export async function resumeTranscriptionTask(
 export async function clearTranscriptionWork(
   projectDirectory: string,
 ): Promise<void> {
-  const opened = await openCreatorCutProject(projectDirectory);
-  await rm(join(opened.creatorcutDirectory, "tasks", "transcription-work"), {
-    recursive: true,
-    force: true,
-  });
+  await removePrivateWorkNamespace(projectDirectory, "transcription");
 }
 
 export { parseSilence };

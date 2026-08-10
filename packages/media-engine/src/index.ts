@@ -3,6 +3,8 @@ export {
   cancelExportTask,
   readExportTask,
   resumeExportTask,
+  runExportTask,
+  type ExportLocator,
   startExportTask,
   type ExportTask,
 } from "./export-task.js";

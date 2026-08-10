@@ -108,11 +108,11 @@ $ModelPath = if ($env:CREATORCUT_WHISPER_MODEL) {
 $SkipDependencies = $env:CREATORCUT_SKIP_DEPENDENCY_INSTALL -eq "1"
 
 function Write-Info([string]$Message) {
-    Write-Host "▶ $Message" -ForegroundColor Cyan
+    Write-Host "[INFO] $Message" -ForegroundColor Cyan
 }
 
 function Write-Ok([string]$Message) {
-    Write-Host "✓ $Message" -ForegroundColor Green
+    Write-Host "[OK] $Message" -ForegroundColor Green
 }
 
 function Fail([string]$Message) {
@@ -387,9 +387,32 @@ try {
         Fail "release tag does not resolve to the signed commit."
     }
     $archivePath = Join-Path $WorkDir "canonical-release.tar"
-    & $GitPath -C $NextDir -c tar.umask=002 -c core.attributesFile=NUL `
-        archive --format=tar -o $archivePath $GitCommit
-    Assert-LastExit "canonical release archive"
+    $gitArchiveEnvironment = @{}
+    $gitArchiveIsolationVariables = @(
+        "GIT_CONFIG_NOSYSTEM",
+        "GIT_ATTR_NOSYSTEM",
+        "GIT_NO_REPLACE_OBJECTS"
+    )
+    foreach ($variableName in $gitArchiveIsolationVariables) {
+        $gitArchiveEnvironment[$variableName] =
+            [Environment]::GetEnvironmentVariable($variableName, "Process")
+    }
+    try {
+        foreach ($variableName in $gitArchiveIsolationVariables) {
+            [Environment]::SetEnvironmentVariable($variableName, "1", "Process")
+        }
+        & $GitPath -C $NextDir -c tar.umask=002 -c core.attributesFile=NUL `
+            archive --format=tar -o $archivePath $GitCommit
+        Assert-LastExit "canonical release archive"
+    } finally {
+        foreach ($variableName in $gitArchiveIsolationVariables) {
+            [Environment]::SetEnvironmentVariable(
+                $variableName,
+                $gitArchiveEnvironment[$variableName],
+                "Process"
+            )
+        }
+    }
     Assert-Sha256 $archivePath $ArchiveSha256
     & $GitPath -C $NextDir checkout -q --detach $GitCommit
     Assert-LastExit "release checkout"
@@ -400,8 +423,7 @@ try {
     try {
         & $CorepackPath "pnpm@10.30.3" install --frozen-lockfile
         Assert-LastExit "package installation"
-        & $CorepackPath "pnpm@10.30.3" --filter "!agentmesh-creatorcut" `
-            -r --if-present build
+        & $CorepackPath "pnpm@10.30.3" build
         Assert-LastExit "package build"
     } finally {
         Pop-Location

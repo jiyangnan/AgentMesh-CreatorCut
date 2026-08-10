@@ -16,7 +16,9 @@ import {
   requireDirectorConsent,
   undoLocalRevision,
   writeLocalArtifact,
+  writeDirectorState,
 } from "../src/index.js";
+import { adoptLegacyPublicProject } from "../src/storage-authority.js";
 
 async function fixtureProject(): Promise<string> {
   const root = await mkdtemp(join(tmpdir(), "creatorcut-public-runtime-"));
@@ -28,7 +30,7 @@ async function fixtureProject(): Promise<string> {
     schema_version: "1.0-alpha",
     project_id: "project-public-1",
     name: "Public fixture",
-    revision: 2,
+    revision: 0,
     assets: [
       {
         asset_id: "asset-1",
@@ -47,7 +49,7 @@ async function fixtureProject(): Promise<string> {
     schema_version: "1.0-alpha",
     timeline_id: "timeline-1",
     project_id: "project-public-1",
-    revision: 2,
+    revision: 0,
     duration_us: 5_000_000,
     canvas: { width: 1920, height: 1080 },
     tracks: [
@@ -71,7 +73,7 @@ async function fixtureProject(): Promise<string> {
     schema_version: "1.0-alpha",
     transcript_id: "transcript-1",
     project_id: "project-public-1",
-    revision: 2,
+    revision: 0,
     language_mode: "mixed",
     segments: [
       {
@@ -105,11 +107,33 @@ async function fixtureProject(): Promise<string> {
     schema_version: "1.0-alpha",
     brief_id: "brief-1",
     project_id: "project-public-1",
-    base_revision: 2,
+    base_revision: 0,
     audio_mode: "original",
     caption_style_id: "caption_clean",
     approved: true,
   });
+  const [project, timeline, transcript, editBrief] = await Promise.all(
+    ["project.json", "timeline.json", "transcript.json", "edit-brief.json"].map(
+      async (name) => JSON.parse(await readFile(join(state, name), "utf8")),
+    ),
+  );
+  await mkdir(join(state, "versions"));
+  await write("history.json", {
+    schema_version: "creatorcut-local-history/1.0",
+    current_revision: 0,
+    undo_stack: [],
+    redo_stack: [],
+  });
+  await writeFile(join(state, "operations.jsonl"), "", "utf8");
+  await write("versions/0.json", {
+    schema_version: "creatorcut-local-snapshot/1.0",
+    revision: 0,
+    project,
+    timeline,
+    transcript,
+    edit_brief: editBrief,
+  });
+  await adoptLegacyPublicProject(root, { confirmLocal: true });
   return root;
 }
 
@@ -239,5 +263,33 @@ describe("public CreatorCut runtime", () => {
     await expect(
       readLocalArtifact(opened.directory, "../escape.json"),
     ).rejects.toThrow(/escapes the project/u);
+  });
+
+  it("rejects stale Director responses after revision or generation changes", async () => {
+    const revisionDirectory = await fixtureProject();
+    const revisionOpened = await openCreatorCutProject(revisionDirectory);
+    await commitLocalRevision(revisionDirectory, {
+      baseRevision: revisionOpened.project.revision,
+      nextTimeline: revisionOpened.timeline,
+      operationIds: ["operation-concurrent-revision"],
+    });
+    await expect(
+      writeDirectorState(revisionOpened, { remote: "stale-revision" }),
+    ).rejects.toThrow(/stale.*revision.*generation/u);
+
+    const generationDirectory = await fixtureProject();
+    const generationOpened = await openCreatorCutProject(generationDirectory);
+    await writeLocalArtifact(generationDirectory, "tasks/import.json", {
+      schema_version: "creatorcut-import-task/1.0",
+      state: "completed",
+      source_asset_id: "asset-generation-change",
+      source_sha256: "a".repeat(64),
+      proxy_relative_path: "proxies/generation-change.mp4",
+      proxy_sha256: "b".repeat(64),
+      completed_at: "2026-08-09T00:00:00.000Z",
+    });
+    await expect(
+      writeDirectorState(generationOpened, { remote: "stale-generation" }),
+    ).rejects.toThrow(/stale.*revision.*generation/u);
   });
 });

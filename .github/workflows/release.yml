@@ -32,9 +32,11 @@ jobs:
       - name: Verify release source
         run: |
           set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          notes="docs/releases/v${version}.md"
+          test -f "$notes"
           pnpm install --frozen-lockfile
           pnpm verify
-          version="${GITHUB_REF_NAME#v}"
           actual="$(
             node apps/cli/dist/src/main.js version |
               node -e 'let v="";process.stdin.on("data",d=>v+=d).on("end",()=>process.stdout.write(JSON.parse(v).data.version))'
@@ -43,6 +45,7 @@ jobs:
           release_commit="$(git rev-parse "${GITHUB_REF_NAME}^{commit}")"
           test "$release_commit" = "$(git rev-parse HEAD)"
           printf 'RELEASE_COMMIT=%s\n' "$release_commit" >> "$GITHUB_ENV"
+          printf 'RELEASE_NOTES=%s\n' "$notes" >> "$GITHUB_ENV"
 
       - name: Build canonical release archive
         run: |
@@ -59,8 +62,14 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          set -euo pipefail
+          release_flags=()
+          if [[ "$GITHUB_REF_NAME" == *-* ]]; then
+            release_flags+=(--prerelease --latest=false)
+          fi
           gh release create "$GITHUB_REF_NAME" \
             "$ARCHIVE" SHA256SUMS \
             --verify-tag \
-            --generate-notes \
+            --notes-file "$RELEASE_NOTES" \
+            "${release_flags[@]}" \
             --title "AgentMesh-CreatorCut $GITHUB_REF_NAME"

@@ -159,6 +159,16 @@ describe("CreatorCut MCP App", () => {
     const renderTool = tools.tools.find(
       (tool) => tool.name === "creatorcut_director_cards_render",
     );
+    for (const name of [
+      "creatorcut_edit_quote",
+      "creatorcut_edit_status",
+      "creatorcut_edit_review",
+    ]) {
+      expect(
+        tools.tools.find((tool) => tool.name === name)?.annotations
+          ?.readOnlyHint,
+      ).toBe(false);
+    }
     expect(dataTool).toBeDefined();
     expect(dataTool?._meta).toBeUndefined();
     expect(renderTool?._meta).toMatchObject({

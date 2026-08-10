@@ -175,6 +175,32 @@
       project boundaries and rejects symlink escape.
 - [x] Transcription resume validates project ID, source digest and task/project
       `base_revision` before even returning a completed checkpoint.
+- [x] Transcription state transitions compare project revision, authority
+      generation and exact task digest; final transcript persistence and task
+      completion are one recoverable authority mutation.
+- [x] A slow or failing worker cannot overwrite a concurrent cancellation or
+      persist a transcript after cancellation; public error state is redacted.
+
+## TC-M1.1-AUTHORITY-PRIVATE-WORK-001: migration and local-work safety
+
+- [x] Public open preserves and rejects a committed same-ID authority stage
+      whose canonical bytes are rebound or whose root contains private extras.
+- [x] Metadata ancestor ABA is rejected before the opened handle returns any
+      outside bytes.
+- [x] A backup change after final validation but before legacy deletion fails
+      migration and restores the exact legacy head; rollback parent replacement
+      cannot overwrite an outside sentinel.
+- [x] A crash after legacy deletion recovers from the stage-bound metadata-only
+      rollback source even if the external backup is later rebound, and an
+      explicit rollback removes the exact staging root.
+- [x] Preview and transcription private-work roots reject root and namespace
+      symlinks on every supported platform. POSIX tests tighten existing
+      directories to `0700` and leave intermediate and published media files at
+      `0600`; Windows tests preserve the same no-follow/identity boundary while
+      operating under the project directory's inherited ACL. The RC does not
+      claim to create or verify a Windows DACL.
+- [x] All cases use synthetic/temp projects only; they do not prove a real M1.1
+      media export or dogfood acceptance.
 
 ## TC-PUBLIC-HOST-001: M1 supported-host fixed fixture
 
@@ -268,3 +294,62 @@ production dark deployment, approved paid canary/refund rollback, persistent
 stable ReleaseManifest and formal public-channel reinstall passed. Public
 managed installation is live; Core and Server paid-new-work gates remain
 closed by policy.
+
+## TC-STORAGE-SWAP-001: synthetic whole-tree authority handoff
+
+- [x] A normal helper build exposes only PROBE/capabilities and rejects both
+      mutating opcodes; only the explicitly synthetic build contains inherited
+      FD crash barriers.
+- [x] One fail-fast stable flock covers tree resolution through durable commit;
+      after acquisition, all held parent/root/control/WAL/lock descriptors repeat
+      ACL/xattr checks and identity/name binding before mutation.
+- [x] Tree digest v2 rejects symlinks, hardlinks, special files, mount crossing,
+      unsafe ownership/modes/ACLs/xattrs, limits traversal, and binds the exact
+      bounded `com.apple.provenance` value when the host attaches it.
+- [x] The `37/37` synthetic matrix covers five deterministic `SIGKILL` points,
+      response loss, forward-only recovery, malformed/torn/hash-invalid WALs,
+      third mappings, parent/root/WAL/stage replacement, metadata mutation after
+      `PREPARED`, lock contention, and exact public-stage inventory rejection.
+- [x] Retained evidence copies and hashes the three executed binaries and six
+      reviewed source files; OWNER and SUMMARY bind the same build ID and
+      candidate digest instead of referring only to mutable output paths.
+- [x] Fixed Node 24 regression gates pass: native unit suites `2/2` and `3/3`,
+      CLI `16/16`, runtime `308/308` with `13` intentionally skipped
+      native-platform cases, and public contracts `23/23`, using synthetic temp
+      projects only.
+- [x] All `12/12` workspace tarballs install offline in a temp-only package
+      fixture and pass `35/35` black-box assertions: the public runtime root
+      exports only the explicit public-adoption compatibility mutator, the
+      private storage-authority subpath is not exported, internal migrate and
+      rollback fail before project/cwd mutation, and confirmed adoption accepts
+      only a synthetic contiguous v0.2.1 history.
+- [x] The complete Node 24 storage-authority security file passes `222/222`:
+      frozen v0.2.1 Windows
+      finishing paths retain their exact JSON bytes, new producers emit POSIX
+      paths, verified `target.<pid>.tmp` files and completed generated/preview/
+      transcription-work bytes remain in place, and pending preview, Director,
+      export, transcription, unknown, orphan, or inconsistent completed task
+      state fails before authority or journal publication. A real
+      adopt-then-commit recovery fixture advances to revision 1 without hashing,
+      moving, restoring, or deleting retained runtime bytes.
+- [x] The cooperative project lock uses a persistent SQLite transaction for
+      current-current exclusion and a generation-unique, frozen-v1-visible
+      guard. Deterministic barriers cover an old writer entering before guard
+      publication, equal-birthtime raw UUID ordering, retired fixed-marker
+      cleanup, late-v1 timeout, and sustained mixed-version fail-closed.
+- [ ] Production native artifacts are not built, signed, packaged, installed,
+      updated, or tested on both Darwin architectures; Linux/Windows support or
+      formal platform restriction remains undecided.
+- [ ] Hostile same-UID protection still requires an immutable root-owned helper
+      or a signed XPC/service boundary. The production JavaScript project lock
+      is explicitly limited to cooperative same-UID writers: static
+      symlink/identity substitution is rejected and detected replacement fails
+      closed, but an attacker racing ancestor replacement inside a pathname
+      syscall window is outside the v0.3.0 RC threat model.
+- [ ] Hardware power-loss, unsupported FAT/exFAT/network project volumes,
+      sanitizer/fuzz, and updater rollback gates remain open. v0.3 fails closed
+      unless project state supports same-volume atomic rename and reliable
+      local SQLite/OS file locking.
+- [ ] No real CreatorCut project has been opened or migrated. Source release of
+      these hardening changes does not authorize real internal migration or
+      native product wiring.

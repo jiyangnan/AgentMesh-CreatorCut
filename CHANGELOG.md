@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.3.0-rc.1
+
+- Add generation- and digest-bound public storage authority plus a durable
+  mutation journal for local runtime, Director, media, transcription, CLI, and
+  MCP writes.
+- Preserve existing v0.2.1 public projects through an explicit, metadata-only
+  `project adopt-public --confirm-local` flow, including strict verification of
+  legacy commit, undo, and redo history.
+- Keep internal-project migration and rollback disabled until the production
+  native whole-tree swap, immutable installer, platform, and recovery gates are
+  complete.
+- Clean generated package output before every release build so managed updates
+  cannot retain stale code from an older checkout.
+
 ## 0.2.1
 
 - Add resumable `creatorcut onboard` guidance from dependency checks through

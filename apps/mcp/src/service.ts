@@ -23,6 +23,7 @@ import {
   inspectDirectorContext,
   openCreatorCutProject,
   readDirectorConsent,
+  redactPrivateText,
   redoLocalRevision,
   undoLocalRevision,
 } from "@agentmesh/creatorcut-runtime";
@@ -44,6 +45,20 @@ export interface McpCardPayload {
 
 export interface McpCardWidgetPayload extends McpCardPayload {
   answer_set_id: string;
+}
+
+function redactTaskForPublic<T>(value: T): T {
+  const visit = (current: unknown): unknown => {
+    if (typeof current === "string") return redactPrivateText(current);
+    if (Array.isArray(current)) return current.map(visit);
+    if (current && typeof current === "object") {
+      return Object.fromEntries(
+        Object.entries(current).map(([key, item]) => [key, visit(item)]),
+      );
+    }
+    return current;
+  };
+  return visit(value) as T;
 }
 
 export class CreatorCutMcpService {
@@ -183,15 +198,11 @@ export class CreatorCutMcpService {
     };
   }
 
-  async preview(outputPath?: string): Promise<Record<string, unknown>> {
+  async preview(): Promise<Record<string, unknown>> {
     const adapter = await this.getAdapter();
     const manifest = await adapter.getVerifiedManifest(this.projectDirectory);
     return {
-      ...(await previewSignedManifest(
-        this.projectDirectory,
-        manifest,
-        outputPath,
-      )),
+      ...(await previewSignedManifest(this.projectDirectory, manifest)),
     };
   }
 
@@ -231,24 +242,30 @@ export class CreatorCutMcpService {
     confirmOverwrite: boolean,
   ): Promise<Record<string, unknown>> {
     return {
-      task: await startExportTask(this.projectDirectory, outputPath, {
-        overwrite: confirmOverwrite,
-      }),
+      task: redactTaskForPublic(
+        await startExportTask(this.projectDirectory, outputPath, {
+          overwrite: confirmOverwrite,
+        }),
+      ),
     };
   }
 
   async exportStatus(): Promise<Record<string, unknown>> {
     const task = await readExportTask(this.projectDirectory);
     if (!task) throw new Error("CreatorCut export task is missing");
-    return { task };
+    return { task: redactTaskForPublic(task) };
   }
 
   async exportResume(): Promise<Record<string, unknown>> {
-    return { task: await resumeExportTask(this.projectDirectory) };
+    return {
+      task: redactTaskForPublic(await resumeExportTask(this.projectDirectory)),
+    };
   }
 
   async exportCancel(): Promise<Record<string, unknown>> {
-    return { task: await cancelExportTask(this.projectDirectory) };
+    return {
+      task: redactTaskForPublic(await cancelExportTask(this.projectDirectory)),
+    };
   }
 
   async transcriptionStart(input: {
@@ -257,26 +274,36 @@ export class CreatorCutMcpService {
     glossary: string[];
   }): Promise<Record<string, unknown>> {
     return {
-      task: await transcribeProject({
-        projectDirectory: this.projectDirectory,
-        modelPath: input.modelPath,
-        languageMode: input.languageMode,
-        glossary: input.glossary,
-      }),
+      task: redactTaskForPublic(
+        await transcribeProject({
+          projectDirectory: this.projectDirectory,
+          modelPath: input.modelPath,
+          languageMode: input.languageMode,
+          glossary: input.glossary,
+        }),
+      ),
     };
   }
 
   async transcriptionStatus(): Promise<Record<string, unknown>> {
     const task = await readTranscriptionTask(this.projectDirectory);
     if (!task) throw new Error("CreatorCut transcription task is missing");
-    return { task };
+    return { task: redactTaskForPublic(task) };
   }
 
   async transcriptionResume(): Promise<Record<string, unknown>> {
-    return { task: await resumeTranscriptionTask(this.projectDirectory) };
+    return {
+      task: redactTaskForPublic(
+        await resumeTranscriptionTask(this.projectDirectory),
+      ),
+    };
   }
 
   async transcriptionCancel(): Promise<Record<string, unknown>> {
-    return { task: await cancelTranscriptionTask(this.projectDirectory) };
+    return {
+      task: redactTaskForPublic(
+        await cancelTranscriptionTask(this.projectDirectory),
+      ),
+    };
   }
 }

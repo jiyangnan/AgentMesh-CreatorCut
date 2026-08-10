@@ -1,6 +1,18 @@
-import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import {
+  access,
+  chmod,
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  realpath,
+  rm,
+  stat,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
+import { platform, tmpdir } from "node:os";
+import { dirname, join } from "node:path";
 
 import type {
   DirectorEnvelope,
@@ -11,20 +23,28 @@ import {
   commitLocalRevision,
   createCreatorCutProject,
   openCreatorCutProject,
+  readLocalArtifact,
   writeLocalArtifact,
 } from "@agentmesh/creatorcut-runtime";
 import { describe, expect, it } from "vitest";
+import { adoptLegacyPublicProject } from "../../runtime/src/storage-authority.js";
 
 import {
   applyEditOperations,
   applyPreviewedManifest,
+  cancelExportTask,
   importMedia,
   previewSignedManifest,
+  readExportTask,
   renderTimeline,
   resumeExportTask,
+  runExportTask,
   startExportTask,
   synthesizeLocalMusicBedWav,
   type ProcessRunner,
+  type MediaToolOptions,
+  type ExportLocator,
+  type ExportTask,
 } from "../src/index.js";
 
 const probeJson = JSON.stringify({
@@ -204,6 +224,39 @@ async function projectFixture(): Promise<string> {
   });
   await writeFile(join(directory, "media", "source.mp4"), "source-media");
   return directory;
+}
+
+async function activateVisualComposition(directory: string): Promise<void> {
+  const state = join(directory, ".creatorcut");
+  const visual = {
+    schema_version: "creatorcut-visual-composition/1.0",
+    composition_id: "visual-media-active",
+    project_id: "project-media-1",
+    timeline_id: "timeline-media-1",
+    rough_cut_revision: 0,
+    project_revision: 0,
+    state: "active",
+    visual_catalog_version: "creatorcut-visual-catalog/1.0",
+    visual_catalog_digest: `sha256:${"b".repeat(64)}`,
+    visual_events: [],
+    provenance: {
+      fine_cut_chain_id: "fine-chain-media",
+      answer_digest: `sha256:${"c".repeat(64)}`,
+      origin: "local_rule",
+    },
+    created_at: "2026-08-09T00:00:00.000Z",
+    updated_at: "2026-08-09T00:00:00.000Z",
+  };
+  const versionPath = join(state, "versions", "0.json");
+  const version = JSON.parse(await readFile(versionPath, "utf8"));
+  version.visual_composition = visual;
+  await Promise.all([
+    rm(join(state, "storage-authority.json")),
+    rm(join(state, "storage-mutations.jsonl")),
+    writeFile(versionPath, JSON.stringify(version)),
+    writeFile(join(state, "visual-composition.json"), JSON.stringify(visual)),
+  ]);
+  await adoptLegacyPublicProject(directory, { confirmLocal: true });
 }
 
 function envelope(): DirectorEnvelope<EditDecisionManifest> {
@@ -444,12 +497,9 @@ describe("public local media execution", () => {
 
   it("requires an unchanged rendered preview before committing a Manifest", async () => {
     const directory = await projectFixture();
-    const preview = await previewSignedManifest(
-      directory,
-      envelope(),
-      undefined,
-      { runner: mediaRunner },
-    );
+    const preview = await previewSignedManifest(directory, envelope(), {
+      runner: mediaRunner,
+    });
     expect((await openCreatorCutProject(directory)).project.revision).toBe(0);
     await expect(
       applyPreviewedManifest(directory, envelope(), "wrong-token"),
@@ -471,6 +521,122 @@ describe("public local media execution", () => {
     expect((await openCreatorCutProject(directory)).project.revision).toBe(1);
   });
 
+  it("keeps preview output managed and refuses caller-controlled paths", async () => {
+    const directory = await projectFixture();
+    const protectedPaths = [
+      join(directory, ".creatorcut", "project.json"),
+      join(directory, "media", "source.mp4"),
+      join(directory, "external-target.mp4"),
+    ];
+    for (const outputPath of protectedPaths) {
+      const before = await access(outputPath)
+        .then(() => readFile(outputPath))
+        .catch(() => null);
+      await expect(
+        previewSignedManifest(directory, envelope(), {
+          runner: mediaRunner,
+          outputPath,
+        } as MediaToolOptions & { outputPath: string }),
+      ).rejects.toThrow(/does not accept caller-controlled option/u);
+      const after = await access(outputPath)
+        .then(() => readFile(outputPath))
+        .catch(() => null);
+      expect(after).toEqual(before);
+    }
+    expect(
+      await readdir(join(directory, "previews")).catch(
+        (error: NodeJS.ErrnoException) => {
+          if (error.code === "ENOENT") return [];
+          throw error;
+        },
+      ),
+    ).toEqual([]);
+    expect(
+      await readLocalArtifact(directory, "preview-confirmation.json"),
+    ).toBeNull();
+  });
+
+  it("does not publish a preview when revision or authority changes during render", async () => {
+    const directory = await projectFixture();
+    let changed = false;
+    const delayedRunner: ProcessRunner = async (command, args) => {
+      if (command.includes("ffprobe")) {
+        return { exitCode: 0, stdout: probeJson, stderr: "" };
+      }
+      const output = args.at(-1)!;
+      await writeFile(output, "rendered-media");
+      if (!changed) {
+        changed = true;
+        const current = await openCreatorCutProject(directory);
+        await commitLocalRevision(directory, {
+          baseRevision: current.project.revision,
+          nextTimeline: current.timeline,
+          operationIds: ["concurrent-preview-edit"],
+        });
+      }
+      return { exitCode: 0, stdout: "", stderr: "" };
+    };
+
+    await expect(
+      previewSignedManifest(directory, envelope(), { runner: delayedRunner }),
+    ).rejects.toThrow(/compare-and-swap authority changed/u);
+    expect((await openCreatorCutProject(directory)).project.revision).toBe(1);
+    expect(await readdir(join(directory, "previews"))).toEqual([]);
+    expect(
+      await readLocalArtifact(directory, "preview-confirmation.json"),
+    ).toBeNull();
+  });
+
+  for (const attack of ["root", "previews"] as const) {
+    it(`rejects a ${attack} private preview symlink without writing outside`, async () => {
+      const directory = await projectFixture();
+      const outside = await mkdtemp(
+        join(tmpdir(), "creatorcut-preview-private-outside-"),
+      );
+      const sentinel = join(outside, "sentinel.txt");
+      const sentinelBytes = Buffer.from("outside-preview-must-remain");
+      await writeFile(sentinel, sentinelBytes);
+      const privateRoot = join(directory, ".creatorcut-work");
+      if (attack === "root") {
+        await symlink(outside, privateRoot);
+      } else {
+        await mkdir(privateRoot, { mode: 0o700 });
+        await symlink(outside, join(privateRoot, "previews"));
+      }
+      const before = (await readdir(outside)).sort();
+
+      await expect(
+        previewSignedManifest(directory, envelope(), { runner: mediaRunner }),
+      ).rejects.toThrow(/private work|symbolic link|trusted/u);
+      expect((await readdir(outside)).sort()).toEqual(before);
+      expect(await readFile(sentinel)).toEqual(sentinelBytes);
+      expect(
+        await readLocalArtifact(directory, "preview-confirmation.json"),
+      ).toBeNull();
+    });
+  }
+
+  it.runIf(platform() !== "win32")(
+    "tightens private preview directories and rendered files",
+    async () => {
+      const directory = await projectFixture();
+      const privateRoot = join(directory, ".creatorcut-work");
+      const privatePreviews = join(privateRoot, "previews");
+      await mkdir(privatePreviews, { recursive: true, mode: 0o755 });
+      await chmod(privateRoot, 0o755);
+      await chmod(privatePreviews, 0o755);
+
+      const preview = await previewSignedManifest(directory, envelope(), {
+        runner: mediaRunner,
+      });
+      expect((await stat(privateRoot)).mode & 0o777).toBe(0o700);
+      expect((await stat(privatePreviews)).mode & 0o777).toBe(0o700);
+      expect((await stat(preview.preview.output_path)).mode & 0o777).toBe(
+        0o600,
+      );
+    },
+  );
+
   it("materializes signed captions, original voice, and local upbeat music before apply", async () => {
     const directory = await projectFixture();
     const signed = envelope();
@@ -484,9 +650,12 @@ describe("public local media execution", () => {
         template_id: "light_tech",
       },
     };
-    const preview = await previewSignedManifest(directory, signed, undefined, {
+    const preview = await previewSignedManifest(directory, signed, {
       runner: mediaRunner,
     });
+    expect(await realpath(dirname(preview.preview.output_path))).toBe(
+      await realpath(join(directory, "previews")),
+    );
     expect(preview.confirmation.planned_project_digest).toMatch(
       /^sha256:[a-f0-9]{64}$/u,
     );
@@ -518,6 +687,9 @@ describe("public local media execution", () => {
       asset.asset_id.includes("asset_music_light_tech"),
     );
     expect(music).toBeDefined();
+    expect(music!.relative_path).toMatch(/^generated\//u);
+    expect(music!.relative_path).not.toContain("\\");
+    expect(music!.relative_path).not.toContain(".creatorcut");
     expect(
       await readFile(join(directory, music!.relative_path), "ascii"),
     ).toMatch(/^RIFF/u);
@@ -546,7 +718,7 @@ describe("public local media execution", () => {
       return { exitCode: 0, stdout: "", stderr: "" };
     };
 
-    await previewSignedManifest(directory, signed, undefined, { runner });
+    await previewSignedManifest(directory, signed, { runner });
 
     const filterIndex = ffmpegArgs.indexOf("-filter_complex");
     expect(filterIndex).toBeGreaterThanOrEqual(0);
@@ -654,7 +826,6 @@ describe("public local media execution", () => {
     const changedPreview = await previewSignedManifest(
       changedPreviewDirectory,
       envelope(),
-      undefined,
       { runner: mediaRunner },
     );
     await writeFile(changedPreview.preview.output_path, "tampered-preview");
@@ -670,7 +841,6 @@ describe("public local media execution", () => {
     const changedManifestPreview = await previewSignedManifest(
       changedManifestDirectory,
       envelope(),
-      undefined,
       { runner: mediaRunner },
     );
     const changedManifest = envelope();
@@ -687,7 +857,6 @@ describe("public local media execution", () => {
     const changedRevisionPreview = await previewSignedManifest(
       changedRevisionDirectory,
       envelope(),
-      undefined,
       { runner: mediaRunner },
     );
     const opened = await openCreatorCutProject(changedRevisionDirectory);
@@ -742,7 +911,7 @@ describe("public local media execution", () => {
       },
     });
     expect(await readFile(assetPath, "utf8")).toBe("source-media");
-  });
+  }, 15_000);
 
   it("resumes an interrupted export with the same task identity", async () => {
     const directory = await projectFixture();
@@ -768,7 +937,7 @@ describe("public local media execution", () => {
       result: { output_path: output },
     });
     expect(await readFile(output, "utf8")).toBe("rendered-media");
-  });
+  }, 15_000);
 
   it("finalizes a previously materialized export without rerendering", async () => {
     const directory = await projectFixture();
@@ -799,7 +968,7 @@ describe("public local media execution", () => {
     });
     expect(processCalls).toBe(0);
     expect(await readFile(output, "utf8")).toBe("rendered-media");
-  });
+  }, 15_000);
 
   it("rejects a tampered recovery locator even when a project asset has the expected export bytes", async () => {
     const directory = await projectFixture();
@@ -829,5 +998,251 @@ describe("public local media execution", () => {
       },
     });
     expect(await readFile(assetPath, "utf8")).toBe("rendered-media");
+  }, 15_000);
+
+  it("blocks start, resume, and direct export without mutating task state when visual rendering is unsupported", async () => {
+    const directory = await projectFixture();
+    await activateVisualComposition(directory);
+    const output = join(directory, "exports", "visual-blocked.mp4");
+    const taskPath = join(directory, ".creatorcut", "tasks", "export.json");
+
+    await expect(
+      startExportTask(directory, output, { runner: mediaRunner }),
+    ).rejects.toThrow(/cannot materialize the active visual composition/u);
+    await expect(access(taskPath)).rejects.toMatchObject({ code: "ENOENT" });
+
+    const task: ExportTask = {
+      schema_version: "creatorcut-export-task/1.0",
+      task_id: "export:visual-bypass",
+      project_id: "project-media-1",
+      base_revision: 0,
+      state: "queued",
+      progress_millis: 0,
+      created_at: "2026-08-09T00:00:00.000Z",
+      updated_at: "2026-08-09T00:00:00.000Z",
+    };
+    const locator: ExportLocator = {
+      schema_version: "creatorcut-export-locator/1.0",
+      output_path: output,
+      ffmpeg_path: "ffmpeg",
+      ffprobe_path: "ffprobe",
+      overwrite: false,
+    };
+    await writeLocalArtifact(directory, "tasks/export.json", task);
+    await writeLocalArtifact(directory, "tasks/export-locator.json", locator);
+    const before = await readFile(taskPath);
+    let processCalls = 0;
+    const forbiddenRunner: ProcessRunner = async () => {
+      processCalls += 1;
+      throw new Error("renderer must not run");
+    };
+
+    await expect(
+      resumeExportTask(directory, { runner: forbiddenRunner }),
+    ).rejects.toThrow(/cannot materialize the active visual composition/u);
+    expect(await readFile(taskPath)).toEqual(before);
+    expect(processCalls).toBe(0);
+    expect(
+      await access(output)
+        .then(() => true)
+        .catch(() => false),
+    ).toBe(false);
+
+    await expect(
+      runExportTask(directory, task, locator, { runner: forbiddenRunner }),
+    ).rejects.toThrow(/cannot materialize the active visual composition/u);
+    expect(await readFile(taskPath)).toEqual(before);
+    expect(processCalls).toBe(0);
   });
+
+  it("rejects export output paths inside .creatorcut before creating a task", async () => {
+    const directory = await projectFixture();
+    const output = join(directory, ".creatorcut", "exports", "forbidden.mp4");
+    await expect(startExportTask(directory, output)).rejects.toThrow(
+      /cannot be inside \.creatorcut/u,
+    );
+    expect(await readLocalArtifact(directory, "tasks/export.json")).toBeNull();
+    expect(
+      await access(output)
+        .then(() => true)
+        .catch(() => false),
+    ).toBe(false);
+  });
+
+  it("does not publish a final export when the project revision changes during rendering", async () => {
+    const directory = await projectFixture();
+    const output = join(directory, "exports", "revision-race.mp4");
+    let releaseRender!: () => void;
+    let notifyRenderStarted!: () => void;
+    const renderGate = new Promise<void>((resolve) => {
+      releaseRender = resolve;
+    });
+    const renderStarted = new Promise<void>((resolve) => {
+      notifyRenderStarted = resolve;
+    });
+    const delayedRunner: ProcessRunner = async (command, args) => {
+      if (command.includes("ffprobe")) {
+        return { exitCode: 0, stdout: probeJson, stderr: "" };
+      }
+      const partial = args.at(-1);
+      if (partial && partial !== "-")
+        await writeFile(partial, "rendered-media");
+      notifyRenderStarted();
+      await renderGate;
+      return { exitCode: 0, stdout: "", stderr: "" };
+    };
+
+    const exportPromise = startExportTask(directory, output, {
+      runner: delayedRunner,
+    });
+    await renderStarted;
+    const opened = await openCreatorCutProject(directory);
+    await commitLocalRevision(directory, {
+      baseRevision: opened.project.revision,
+      nextTimeline: opened.timeline,
+      operationIds: ["operation-during-export"],
+    });
+    releaseRender();
+
+    const result = await exportPromise;
+    expect(result.state).toBe("failed");
+    await expect(access(output)).rejects.toMatchObject({ code: "ENOENT" });
+    expect(
+      (await readdir(join(directory, "exports"))).some((name) =>
+        name.includes(".partial.mp4"),
+      ),
+    ).toBe(true);
+  }, 15_000);
+
+  it("keeps cancellation authoritative at the final export gate", async () => {
+    const directory = await projectFixture();
+    const output = join(directory, "exports", "cancel-race.mp4");
+    let releaseRender!: () => void;
+    let notifyRenderStarted!: () => void;
+    const renderGate = new Promise<void>((resolve) => {
+      releaseRender = resolve;
+    });
+    const renderStarted = new Promise<void>((resolve) => {
+      notifyRenderStarted = resolve;
+    });
+    const delayedRunner: ProcessRunner = async (command, args) => {
+      if (command.includes("ffprobe")) {
+        return { exitCode: 0, stdout: probeJson, stderr: "" };
+      }
+      const partial = args.at(-1);
+      if (partial && partial !== "-")
+        await writeFile(partial, "rendered-media");
+      notifyRenderStarted();
+      await renderGate;
+      return { exitCode: 0, stdout: "", stderr: "" };
+    };
+
+    const exportPromise = startExportTask(directory, output, {
+      runner: delayedRunner,
+    });
+    await renderStarted;
+    const cancelled = await cancelExportTask(directory);
+    expect(cancelled.state).toBe("cancelled");
+    releaseRender();
+
+    const result = await exportPromise;
+    expect(result.state).toBe("cancelled");
+    expect(await readExportTask(directory)).toMatchObject({
+      task_id: cancelled.task_id,
+      state: "cancelled",
+    });
+    await expect(access(output)).rejects.toMatchObject({ code: "ENOENT" });
+  }, 15_000);
+
+  it("rejects a same-revision authority generation change before final publish", async () => {
+    const directory = await projectFixture();
+    const output = join(directory, "exports", "generation-race.mp4");
+    let releaseRender!: () => void;
+    let notifyRenderStarted!: () => void;
+    const renderGate = new Promise<void>((resolve) => {
+      releaseRender = resolve;
+    });
+    const renderStarted = new Promise<void>((resolve) => {
+      notifyRenderStarted = resolve;
+    });
+    const delayedRunner: ProcessRunner = async (command, args) => {
+      if (command.includes("ffprobe")) {
+        return { exitCode: 0, stdout: probeJson, stderr: "" };
+      }
+      const partial = args.at(-1);
+      if (partial && partial !== "-")
+        await writeFile(partial, "rendered-media");
+      notifyRenderStarted();
+      await renderGate;
+      return { exitCode: 0, stdout: "", stderr: "" };
+    };
+
+    const exportPromise = startExportTask(directory, output, {
+      runner: delayedRunner,
+    });
+    await renderStarted;
+    await writeLocalArtifact(directory, "tasks/import.json", {
+      schema_version: "creatorcut-import-task/1.0",
+      state: "completed",
+      source_asset_id: "asset-generation-change",
+      source_sha256: "a".repeat(64),
+      proxy_relative_path: "proxies/generation-change.mp4",
+      proxy_sha256: "b".repeat(64),
+      completed_at: "2026-08-09T00:00:00.000Z",
+    });
+    releaseRender();
+
+    const result = await exportPromise;
+    expect(result).toMatchObject({
+      state: "failed",
+      error: { message: expect.stringMatching(/authority changed/u) },
+    });
+    await expect(access(output)).rejects.toMatchObject({ code: "ENOENT" });
+  }, 15_000);
+
+  it("does not overwrite a replacement task that appears during rendering", async () => {
+    const directory = await projectFixture();
+    const output = join(directory, "exports", "task-replacement.mp4");
+    let releaseRender!: () => void;
+    let notifyRenderStarted!: () => void;
+    const renderGate = new Promise<void>((resolve) => {
+      releaseRender = resolve;
+    });
+    const renderStarted = new Promise<void>((resolve) => {
+      notifyRenderStarted = resolve;
+    });
+    const delayedRunner: ProcessRunner = async (command, args) => {
+      if (command.includes("ffprobe")) {
+        return { exitCode: 0, stdout: probeJson, stderr: "" };
+      }
+      const partial = args.at(-1);
+      if (partial && partial !== "-")
+        await writeFile(partial, "rendered-media");
+      notifyRenderStarted();
+      await renderGate;
+      return { exitCode: 0, stdout: "", stderr: "" };
+    };
+
+    const exportPromise = startExportTask(directory, output, {
+      runner: delayedRunner,
+    });
+    await renderStarted;
+    const replacement: ExportTask = {
+      schema_version: "creatorcut-export-task/1.0",
+      task_id: "export:replacement",
+      project_id: "project-media-1",
+      base_revision: 0,
+      state: "queued",
+      progress_millis: 0,
+      created_at: "2026-08-09T00:00:00.000Z",
+      updated_at: "2026-08-09T00:00:00.000Z",
+    };
+    await writeLocalArtifact(directory, "tasks/export.json", replacement);
+    releaseRender();
+
+    const result = await exportPromise;
+    expect(result.state).toBe("failed");
+    expect(await readExportTask(directory)).toEqual(replacement);
+    await expect(access(output)).rejects.toMatchObject({ code: "ENOENT" });
+  }, 15_000);
 });

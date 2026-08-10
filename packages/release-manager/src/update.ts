@@ -170,10 +170,6 @@ async function installAndBuild(
   await runChecked(run, root, corepack.command, [
     ...corepack.prefix,
     "pnpm@10.30.3",
-    "--filter",
-    "!agentmesh-creatorcut",
-    "-r",
-    "--if-present",
     "build",
   ]);
 }

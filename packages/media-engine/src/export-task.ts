@@ -1,5 +1,13 @@
 import { randomUUID } from "node:crypto";
-import { access, link, realpath, rename, rm } from "node:fs/promises";
+import {
+  access,
+  link,
+  lstat,
+  mkdir,
+  realpath,
+  rename,
+  rm,
+} from "node:fs/promises";
 import {
   basename,
   dirname,
@@ -10,10 +18,14 @@ import {
 } from "node:path";
 
 import {
+  assertPublicStorageAuthority,
+  compareAndSwapLocalArtifact,
   openCreatorCutProject,
   readLocalArtifact,
+  verifyMigratedVisualHandoff,
   writeLocalArtifact,
 } from "@agentmesh/creatorcut-runtime";
+import { digestJcs } from "@agentmesh/creatorcut-protocol";
 
 import { sha256File } from "./import.js";
 import { renderTimeline } from "./render.js";
@@ -21,6 +33,13 @@ import type { MediaToolOptions, RenderTimelineResult } from "./types.js";
 
 const TASK_PATH = "tasks/export.json";
 const LOCATOR_PATH = "tasks/export-locator.json";
+
+interface OutputParentIdentity {
+  path: string;
+  realPath: string;
+  dev: bigint;
+  ino: bigint;
+}
 
 export interface ExportTask {
   schema_version: "creatorcut-export-task/1.0";
@@ -38,7 +57,7 @@ export interface ExportTask {
   result?: RenderTimelineResult;
 }
 
-interface ExportLocator {
+export interface ExportLocator {
   schema_version: "creatorcut-export-locator/1.0";
   output_path: string;
   ffmpeg_path: string;
@@ -70,6 +89,7 @@ async function assertOutputIsSafe(
   recoverableSha256?: string,
 ): Promise<void> {
   const output = resolve(outputPath);
+  await assertOutputOutsideState(opened.creatorcutDirectory, output);
   const outputRealPath = await realpath(output).catch(() => null);
   const assetPaths = await Promise.all(
     opened.project.assets.map(async (asset) => {
@@ -103,6 +123,133 @@ async function assertOutputIsSafe(
       throw new Error("CreatorCut will not overwrite an existing output");
     }
   }
+}
+
+async function canonicalFuturePath(path: string): Promise<string> {
+  let cursor = resolve(path);
+  const missing: string[] = [];
+  while (!(await exists(cursor))) {
+    missing.unshift(basename(cursor));
+    const parent = dirname(cursor);
+    if (parent === cursor) break;
+    cursor = parent;
+  }
+  return resolve(await realpath(cursor), ...missing);
+}
+
+async function assertOutputOutsideState(
+  creatorcutDirectory: string,
+  outputPath: string,
+): Promise<void> {
+  const output = await canonicalFuturePath(outputPath);
+  const creatorcut = await realpath(creatorcutDirectory);
+  const fromCreatorCutState = relative(creatorcut, output);
+  if (
+    fromCreatorCutState === "" ||
+    (!fromCreatorCutState.startsWith("..") && !isAbsolute(fromCreatorCutState))
+  ) {
+    throw new Error(
+      "CreatorCut export output cannot be inside .creatorcut state",
+    );
+  }
+}
+
+async function assertVisualExportSupported(
+  projectDirectory: string,
+  opened: Awaited<ReturnType<typeof openCreatorCutProject>>,
+): Promise<void> {
+  if (opened.visualComposition) {
+    throw new Error(
+      "CreatorCut export is blocked because the public renderer cannot materialize the active visual composition",
+    );
+  }
+  const authority = await assertPublicStorageAuthority(
+    opened.creatorcutDirectory,
+  );
+  if (
+    authority.source_format === "creatorcut-internal-project-store/1.0-alpha"
+  ) {
+    const handoff = await verifyMigratedVisualHandoff(projectDirectory);
+    if (handoff.visual_handoff_present) {
+      throw new Error(
+        "CreatorCut export is blocked because the public renderer cannot materialize the migrated visual handoff",
+      );
+    }
+  }
+}
+
+async function captureOutputParent(
+  outputPath: string,
+): Promise<OutputParentIdentity> {
+  const parent = resolve(dirname(outputPath));
+  await mkdir(parent, { recursive: true, mode: 0o700 });
+  const info = await lstat(parent, { bigint: true });
+  if (info.isSymbolicLink() || !info.isDirectory()) {
+    throw new Error(
+      "CreatorCut export output parent is not a trusted local directory",
+    );
+  }
+  return {
+    path: parent,
+    realPath: await realpath(parent),
+    dev: info.dev,
+    ino: info.ino,
+  };
+}
+
+async function assertOutputParent(
+  identity: OutputParentIdentity,
+): Promise<void> {
+  const info = await lstat(identity.path, { bigint: true });
+  if (
+    info.isSymbolicLink() ||
+    !info.isDirectory() ||
+    info.dev !== identity.dev ||
+    info.ino !== identity.ino ||
+    (await realpath(identity.path)) !== identity.realPath
+  ) {
+    throw new Error(
+      "CreatorCut export output parent changed before final publish",
+    );
+  }
+}
+
+async function compareAndSwapExportTask<V>(
+  projectDirectory: string,
+  opened: Awaited<ReturnType<typeof openCreatorCutProject>>,
+  expected: ExportTask,
+  operation: (current: ExportTask) => Promise<{ next: ExportTask; value: V }>,
+): Promise<{ task: ExportTask; value: V; authorityGeneration: number }> {
+  const completed = await compareAndSwapLocalArtifact<ExportTask, V>(
+    projectDirectory,
+    TASK_PATH,
+    {
+      projectId: opened.project.project_id,
+      revision: opened.project.revision,
+      authorityGeneration: opened.authorityGeneration,
+      artifactDigest: digestJcs(expected),
+    },
+    async ({ currentArtifact }) => {
+      if (
+        !currentArtifact ||
+        currentArtifact.task_id !== expected.task_id ||
+        currentArtifact.project_id !== expected.project_id ||
+        currentArtifact.base_revision !== expected.base_revision ||
+        currentArtifact.state !== expected.state
+      ) {
+        throw new Error(
+          "CreatorCut export task compare-and-swap state changed",
+        );
+      }
+      const result = await operation(currentArtifact);
+      return { nextArtifact: result.next, value: result.value };
+    },
+  );
+  return {
+    task: completed.artifact,
+    value: completed.value,
+    authorityGeneration: completed.authorityGeneration,
+  };
 }
 
 async function persist(
@@ -169,33 +316,95 @@ async function materializeOutput(
   return completedTask(task);
 }
 
-async function runExportTask(
+export async function runExportTask(
   projectDirectory: string,
   task: ExportTask,
   locator: ExportLocator,
   options: Pick<MediaToolOptions, "runner" | "signal"> = {},
 ): Promise<ExportTask> {
-  const opened = await openCreatorCutProject(projectDirectory);
+  const initialOpened = await openCreatorCutProject(projectDirectory);
+  await assertVisualExportSupported(projectDirectory, initialOpened);
   if (
-    opened.project.project_id !== task.project_id ||
-    opened.project.revision !== task.base_revision
+    initialOpened.project.project_id !== task.project_id ||
+    initialOpened.project.revision !== task.base_revision
   ) {
     throw new Error(
       "CreatorCut export task is stale after a project revision change",
     );
   }
+  await assertOutputOutsideState(
+    initialOpened.creatorcutDirectory,
+    locator.output_path,
+  );
 
   try {
+    const stored = await readExportTask(projectDirectory);
+    if (
+      !stored ||
+      stored.task_id !== task.task_id ||
+      stored.project_id !== task.project_id ||
+      stored.base_revision !== task.base_revision
+    ) {
+      throw new Error("CreatorCut export task identity changed");
+    }
     await assertOutputIsSafe(
-      opened,
+      initialOpened,
       locator.output_path,
       locator.overwrite,
-      task.output_sha256,
+      stored.output_sha256,
     );
-    const materialized = await materializeOutput(locator, task);
-    if (materialized) {
-      await persist(projectDirectory, materialized);
-      return materialized;
+    const outputParent = await captureOutputParent(locator.output_path);
+
+    if (stored.result && stored.output_sha256 && stored.output_path) {
+      const recoveryOpened = await openCreatorCutProject(projectDirectory);
+      const recoveryTransition =
+        stored.state === "finalizing"
+          ? {
+              task: stored,
+              authorityGeneration: recoveryOpened.authorityGeneration,
+            }
+          : await compareAndSwapExportTask(
+              projectDirectory,
+              recoveryOpened,
+              stored,
+              async (current) => ({
+                next: {
+                  ...current,
+                  state: "finalizing",
+                  progress_millis: 900,
+                  updated_at: new Date().toISOString(),
+                },
+                value: undefined,
+              }),
+            );
+      const recovering = recoveryTransition.task;
+      const finalOpened = {
+        ...recoveryOpened,
+        authorityGeneration: recoveryTransition.authorityGeneration,
+      };
+      return (
+        await compareAndSwapExportTask(
+          projectDirectory,
+          finalOpened,
+          recovering,
+          async (current) => {
+            await assertOutputParent(outputParent);
+            await assertOutputIsSafe(
+              finalOpened,
+              locator.output_path,
+              locator.overwrite,
+              current.output_sha256,
+            );
+            const completed = await materializeOutput(locator, current);
+            if (!completed) {
+              throw new Error(
+                "CreatorCut export finalization state is missing",
+              );
+            }
+            return { next: completed, value: completed };
+          },
+        )
+      ).value;
     }
 
     const temporary = temporaryOutputPath(locator.output_path, task.task_id);
@@ -206,18 +415,27 @@ async function runExportTask(
       output_sha256: _outputSha256,
       result: _result,
       ...taskWithoutPriorAttempt
-    } = task;
-    const running: ExportTask = {
-      ...taskWithoutPriorAttempt,
-      state: "running",
-      progress_millis: 100,
-      updated_at: new Date().toISOString(),
-    };
-    await persist(projectDirectory, running);
+    } = stored;
+    const runningOpened = await openCreatorCutProject(projectDirectory);
+    const runningTransition = await compareAndSwapExportTask(
+      projectDirectory,
+      runningOpened,
+      stored,
+      async () => {
+        const next: ExportTask = {
+          ...taskWithoutPriorAttempt,
+          state: "running",
+          progress_millis: 100,
+          updated_at: new Date().toISOString(),
+        };
+        return { next, value: next };
+      },
+    );
+    const running = runningTransition.value;
     const rendered = await renderTimeline({
-      projectDirectory: opened.directory,
-      project: opened.project,
-      timeline: opened.timeline,
+      projectDirectory: runningOpened.directory,
+      project: runningOpened.project,
+      timeline: runningOpened.timeline,
       outputPath: temporary,
       quality: "export",
       overwrite: true,
@@ -226,41 +444,119 @@ async function runExportTask(
       ...(options.runner ? { runner: options.runner } : {}),
       ...(options.signal ? { signal: options.signal } : {}),
     });
-    const latestAfterRender = await readExportTask(projectDirectory);
-    if (latestAfterRender?.state === "cancelled") {
-      throw new Error("CreatorCut export was cancelled");
-    }
-    const finalizing: ExportTask = {
-      ...running,
-      state: "finalizing",
-      progress_millis: 900,
-      output_sha256: rendered.output_sha256,
-      output_path: resolve(locator.output_path),
-      result: {
-        ...rendered,
-        output_path: resolve(locator.output_path),
-      },
-      updated_at: new Date().toISOString(),
+    const finalizingOpened = {
+      ...runningOpened,
+      authorityGeneration: runningTransition.authorityGeneration,
     };
-    await persist(projectDirectory, finalizing);
-    const completed = await materializeOutput(locator, finalizing);
-    if (!completed) {
-      throw new Error("CreatorCut export finalization state is missing");
-    }
-    await persist(projectDirectory, completed);
-    return completed;
+    const finalizingTransition = await compareAndSwapExportTask(
+      projectDirectory,
+      finalizingOpened,
+      running,
+      async (current) => {
+        const next: ExportTask = {
+          ...current,
+          state: "finalizing",
+          progress_millis: 900,
+          output_sha256: rendered.output_sha256,
+          output_path: resolve(locator.output_path),
+          result: {
+            ...rendered,
+            output_path: resolve(locator.output_path),
+          },
+          updated_at: new Date().toISOString(),
+        };
+        return { next, value: next };
+      },
+    );
+    const finalizing = finalizingTransition.value;
+    const completedOpened = {
+      ...runningOpened,
+      authorityGeneration: finalizingTransition.authorityGeneration,
+    };
+    return (
+      await compareAndSwapExportTask(
+        projectDirectory,
+        completedOpened,
+        finalizing,
+        async (current) => {
+          await assertOutputParent(outputParent);
+          await assertOutputIsSafe(
+            completedOpened,
+            locator.output_path,
+            locator.overwrite,
+            current.output_sha256,
+          );
+          const completed = await materializeOutput(locator, current);
+          if (!completed) {
+            throw new Error("CreatorCut export finalization state is missing");
+          }
+          return { next: completed, value: completed };
+        },
+      )
+    ).value;
   } catch (error) {
-    const latest = (await readExportTask(projectDirectory)) ?? task;
+    let latest: ExportTask | null;
+    try {
+      latest = await readExportTask(projectDirectory);
+    } catch (artifactError) {
+      const currentOpened = await openCreatorCutProject(projectDirectory).catch(
+        () => null,
+      );
+      if (
+        currentOpened &&
+        (currentOpened.project.project_id !== task.project_id ||
+          currentOpened.project.revision !== task.base_revision)
+      ) {
+        return {
+          ...task,
+          state: "failed",
+          updated_at: new Date().toISOString(),
+          error: {
+            code: "export_failed",
+            message: error instanceof Error ? error.message : "Export failed",
+          },
+        };
+      }
+      throw artifactError;
+    }
+    if (latest?.state === "cancelled" || latest?.state === "completed") {
+      return latest;
+    }
     const failed: ExportTask = {
-      ...latest,
-      state: latest.state === "cancelled" ? "cancelled" : "failed",
+      ...(latest?.task_id === task.task_id ? latest : task),
+      state: "failed",
       updated_at: new Date().toISOString(),
       error: {
         code: "export_failed",
         message: error instanceof Error ? error.message : "Export failed",
       },
     };
-    await persist(projectDirectory, failed);
+    if (latest?.task_id !== task.task_id) return failed;
+    const currentOpened = await openCreatorCutProject(projectDirectory).catch(
+      () => null,
+    );
+    if (
+      !currentOpened ||
+      currentOpened.project.project_id !== task.project_id ||
+      currentOpened.project.revision !== task.base_revision
+    ) {
+      return failed;
+    }
+    try {
+      return (
+        await compareAndSwapExportTask(
+          projectDirectory,
+          currentOpened,
+          latest,
+          async () => ({ next: failed, value: failed }),
+        )
+      ).value;
+    } catch {
+      const raced = await readExportTask(projectDirectory);
+      if (raced?.state === "cancelled" || raced?.state === "completed") {
+        return raced;
+      }
+    }
     return failed;
   }
 }
@@ -271,6 +567,8 @@ export async function startExportTask(
   options: MediaToolOptions & { overwrite?: boolean } = {},
 ): Promise<ExportTask> {
   const opened = await openCreatorCutProject(projectDirectory);
+  await assertVisualExportSupported(projectDirectory, opened);
+  await assertOutputOutsideState(opened.creatorcutDirectory, outputPath);
   const now = new Date().toISOString();
   const task: ExportTask = {
     schema_version: "creatorcut-export-task/1.0",
@@ -303,18 +601,28 @@ export function readExportTask(
 export async function cancelExportTask(
   projectDirectory: string,
 ): Promise<ExportTask> {
+  const opened = await openCreatorCutProject(projectDirectory);
   const task = await readExportTask(projectDirectory);
   if (!task) throw new Error("CreatorCut export task is missing");
   if (task.state === "completed") {
     throw new Error("Completed CreatorCut export cannot be cancelled");
   }
-  const cancelled: ExportTask = {
-    ...task,
-    state: "cancelled",
-    updated_at: new Date().toISOString(),
-  };
-  await persist(projectDirectory, cancelled);
-  return cancelled;
+  if (task.state === "cancelled") return task;
+  return (
+    await compareAndSwapExportTask(
+      projectDirectory,
+      opened,
+      task,
+      async (current) => {
+        const cancelled: ExportTask = {
+          ...current,
+          state: "cancelled",
+          updated_at: new Date().toISOString(),
+        };
+        return { next: cancelled, value: cancelled };
+      },
+    )
+  ).value;
 }
 
 export async function resumeExportTask(

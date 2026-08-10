@@ -101,12 +101,17 @@ export interface LocalTranscript {
   project_id: string;
   revision: number;
   language_mode: DirectorContext["transcript"]["language_mode"];
+  detected_language?: "zh" | "en" | "mixed" | "other";
+  glossary?: string[];
+  migration_status?: "preserved" | "missing_current" | "missing_historical";
+  source_revision?: number;
   segments: Array<{
     segment_id: string;
     source_asset_id: string;
     start_us: number;
     end_us: number;
     display_text: string;
+    raw_text?: string;
     tokens: LocalTranscriptToken[];
   }>;
   silence_intervals?: LocalTranscriptSilenceInterval[];
@@ -126,6 +131,7 @@ export interface LocalTranscriptSilenceInterval {
   source_asset_id: string;
   start_us: number;
   end_us: number;
+  detector?: "ffmpeg_silencedetect";
 }
 
 export interface LocalEditBrief {
@@ -139,6 +145,18 @@ export interface LocalEditBrief {
   [key: string]: unknown;
 }
 
+export interface LocalVisualComposition {
+  composition_id: string;
+  project_id: string;
+  timeline_id: string;
+  rough_cut_revision: number;
+  project_revision: number;
+  state: "active" | "needs_rebase";
+  visual_events: unknown[];
+  provenance: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
 export interface LocalProjectSnapshot {
   schema_version: "creatorcut-local-snapshot/1.0";
   revision: number;
@@ -146,6 +164,8 @@ export interface LocalProjectSnapshot {
   timeline: LocalTimeline;
   transcript: LocalTranscript;
   edit_brief: LocalEditBrief;
+  visual_composition?: LocalVisualComposition;
+  restored_from_revision?: number;
 }
 
 export interface LocalRevisionHistory {
@@ -157,11 +177,13 @@ export interface LocalRevisionHistory {
 
 export interface LocalOperationLogEntry {
   schema_version: "creatorcut-local-operation-log/1.0";
+  kind: "commit" | "undo" | "redo";
   revision: number;
   base_revision: number;
   operation_ids: string[];
   manifest_digest?: string;
   committed_at: string;
+  restored_from_revision?: number;
 }
 
 export interface CreateLocalProjectInput {
@@ -183,10 +205,108 @@ export interface CommitLocalRevisionInput {
 export interface OpenedCreatorCutProject {
   directory: string;
   creatorcutDirectory: string;
+  authorityGeneration: number;
   project: LocalMediaProject;
   timeline: LocalTimeline;
   transcript: LocalTranscript;
   editBrief: LocalEditBrief;
+  visualComposition?: LocalVisualComposition;
+}
+
+export interface StorageAuthorityMarker {
+  schema_version: "creatorcut-storage-authority/1.0";
+  authority: "public-runtime";
+  generation: number;
+  handoff_generation: number;
+  migration_id: string;
+  project_id: string;
+  adopted_revision: number;
+  current_revision: number;
+  source_format:
+    | "creatorcut-internal-project-store/1.0-alpha"
+    | "creatorcut-public-runtime/1.0";
+  backup_manifest_digest: string;
+  handoff_source_files_digest: string | null;
+  handoff_stage_files_digest: string | null;
+  canonical_state_digest: string;
+  activated_at: string;
+  updated_at: string;
+}
+
+export type AuthorityMigrationFailureStage =
+  | "after_pending_write"
+  | "after_staging_write"
+  | "after_versions_replace"
+  | "after_mirrors_replace"
+  | "after_legacy_head_remove"
+  | "after_legacy_report_remove"
+  | "after_legacy_import_remove"
+  | "after_legacy_studio_remove"
+  | "after_legacy_director_consent_remove"
+  | "after_legacy_director_state_remove"
+  | "after_legacy_preview_confirmation_remove"
+  | "before_initial_journal"
+  | "after_initial_journal"
+  | "before_authority_marker"
+  | "after_authority_marker"
+  | "after_initial_pending_remove_before_stage_cleanup"
+  | "after_recovery_pending_remove_before_stage_cleanup";
+
+export type PublicMutationFailureStage =
+  | "before_mutation_pending_write"
+  | "after_mutation_pending_write"
+  | "after_mutation_body"
+  | "after_mutation_journal"
+  | "after_mutation_marker"
+  | "after_mutation_stage_cleanup_before_pending_remove"
+  | "after_mutation_pending_remove_before_stage_cleanup";
+
+export interface MigrateLegacyInternalProjectInput {
+  backupDirectory: string;
+  migrationId?: string;
+  failureStage?: AuthorityMigrationFailureStage;
+}
+
+export interface StorageAuthorityMigrationResult {
+  status: "migrated" | "already_migrated" | "rolled_back";
+  project_id: string;
+  revision: number;
+  migration_id: string;
+  authority: "public-runtime" | "internal-project-store";
+  backup_directory: string;
+  recovered: boolean;
+}
+
+export type MigratedVisualHandoffVerification =
+  | MigratedVisualHandoffPresentVerification
+  | MigratedVisualHandoffAbsentVerification;
+
+export interface MigratedVisualHandoffPresentVerification {
+  schema_version: "creatorcut-handoff-verification/1.0";
+  project_id: string;
+  current_revision: number;
+  migration_id: string;
+  visual_handoff_present: true;
+  fine_cut_chain_id: string;
+  candidate_composition_id: string;
+  applied_revision: number;
+  preview_approval_present: true;
+  preview_binding_valid: true;
+  preview_token_digest: string;
+  preview_sha256: string;
+  visual_state: "active" | "needs_rebase" | "redo_available";
+  current_visual_composition_id?: string;
+  redo_revision?: number;
+  next: "export_plan" | "edit_redo" | "handoff_repair";
+}
+
+export interface MigratedVisualHandoffAbsentVerification {
+  schema_version: "creatorcut-handoff-verification/1.0";
+  project_id: string;
+  current_revision: number;
+  migration_id: string;
+  visual_handoff_present: false;
+  next: "public_workflow";
 }
 
 export interface DirectorContextInspection {

@@ -12,7 +12,7 @@
     "format": "prettier --write .",
     "lint": "prettier --check .",
     "typecheck": "pnpm build && pnpm -r --if-present typecheck",
-    "build": "pnpm -r --if-present build",
+    "build": "node scripts/clean-dist.mjs && pnpm -r --if-present build",
     "test": "pnpm build && pnpm -r --if-present test && node --test tests/public-contract/*.test.mjs",
     "operations:digest": "node scripts/operations-bundle.mjs",
     "pack:operations": "pnpm --filter @agentmesh/creatorcut-operations-contract pack",

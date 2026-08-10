@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { access, mkdir } from "node:fs/promises";
-import { dirname, join, resolve } from "node:path";
+import { access, lstat, mkdir, realpath, rename, rm } from "node:fs/promises";
+import { join, resolve } from "node:path";
 
 import {
   assertPublicProtocol,
@@ -9,10 +9,15 @@ import {
   type EditDecisionManifest,
 } from "@agentmesh/creatorcut-protocol";
 import {
+  assertPrivateWorkDirectory,
+  compareAndSwapLocalArtifact,
   commitLocalRevision,
+  finalizePrivateWorkFile,
   openCreatorCutProject,
+  preparePrivateWorkDirectory,
+  privateWorkPath,
   readLocalArtifact,
-  writeLocalArtifact,
+  releasePrivateWorkDirectory,
 } from "@agentmesh/creatorcut-runtime";
 
 import { sha256File } from "./import.js";
@@ -55,9 +60,16 @@ function assertManifestBinding(
 export async function previewSignedManifest(
   projectDirectory: string,
   envelope: DirectorEnvelope<EditDecisionManifest>,
-  outputPath?: string,
   options: MediaToolOptions = {},
 ): Promise<{ preview: RenderTimelineResult; confirmation: PreviewRecord }> {
+  const unknownOption = Object.keys(options).find(
+    (key) => !["ffmpegPath", "ffprobePath", "runner", "signal"].includes(key),
+  );
+  if (unknownOption) {
+    throw new TypeError(
+      `CreatorCut preview does not accept caller-controlled option: ${unknownOption}`,
+    );
+  }
   const opened = await openCreatorCutProject(projectDirectory);
   const manifest = assertManifestBinding(opened, envelope);
   const timeline = applyEditOperations({
@@ -72,43 +84,113 @@ export async function previewSignedManifest(
     manifest.finishing,
     manifestDigest,
   );
-  const previewPath = resolve(
-    outputPath ??
-      join(
-        opened.creatorcutDirectory,
-        "previews",
-        `${manifest.manifest_id}.mp4`,
-      ),
+  const previewId = randomUUID();
+  const previewDirectory = resolve(opened.directory, "previews");
+  await mkdir(previewDirectory, { recursive: true, mode: 0o700 });
+  const workLease = await preparePrivateWorkDirectory(opened.directory, [
+    "previews",
+  ]);
+  const previewDirectoryInfo = await lstat(previewDirectory, { bigint: true });
+  if (
+    previewDirectoryInfo.isSymbolicLink() ||
+    !previewDirectoryInfo.isDirectory() ||
+    (await realpath(previewDirectory)) !== previewDirectory
+  ) {
+    throw new Error(
+      "CreatorCut preview directory is not a trusted local directory",
+    );
+  }
+  const previewPath = join(previewDirectory, `preview-${previewId}.mp4`);
+  const temporaryPreviewPath = privateWorkPath(
+    workLease,
+    `preview-${previewId}.partial.mp4`,
   );
-  await mkdir(dirname(previewPath), { recursive: true, mode: 0o700 });
-  const preview = await renderTimeline({
-    ...options,
-    projectDirectory: opened.directory,
-    project: materialized.project,
-    timeline: materialized.timeline,
-    outputPath: previewPath,
-    quality: "preview",
-    overwrite: true,
-  });
-  const confirmation: PreviewRecord = {
-    schema_version: "creatorcut-preview-confirmation/1.0",
-    project_id: opened.project.project_id,
-    base_revision: opened.project.revision,
-    manifest_digest: manifestDigest,
-    planned_project_digest: digestJcs(materialized.project),
-    planned_timeline_digest: digestJcs(materialized.timeline),
-    planned_edit_brief_digest: digestJcs(materialized.editBrief),
-    preview_path: preview.output_path,
-    preview_sha256: preview.output_sha256,
-    confirmation_token: randomUUID(),
-    created_at: new Date().toISOString(),
-  };
-  await writeLocalArtifact(
-    projectDirectory,
-    "preview-confirmation.json",
-    confirmation,
-  );
-  return { preview, confirmation };
+  try {
+    const rendered = await renderTimeline({
+      ...options,
+      projectDirectory: opened.directory,
+      project: materialized.project,
+      timeline: materialized.timeline,
+      outputPath: temporaryPreviewPath,
+      quality: "preview",
+      overwrite: true,
+    });
+    await finalizePrivateWorkFile(workLease, temporaryPreviewPath);
+    const preview: RenderTimelineResult = {
+      ...rendered,
+      output_path: previewPath,
+    };
+    const confirmation: PreviewRecord = {
+      schema_version: "creatorcut-preview-confirmation/1.0",
+      project_id: opened.project.project_id,
+      base_revision: opened.project.revision,
+      manifest_digest: manifestDigest,
+      planned_project_digest: digestJcs(materialized.project),
+      planned_timeline_digest: digestJcs(materialized.timeline),
+      planned_edit_brief_digest: digestJcs(materialized.editBrief),
+      preview_path: preview.output_path,
+      preview_sha256: preview.output_sha256,
+      confirmation_token: randomUUID(),
+      created_at: new Date().toISOString(),
+    };
+    const previousConfirmation = await readLocalArtifact<PreviewRecord>(
+      projectDirectory,
+      "preview-confirmation.json",
+    );
+    const completed = await compareAndSwapLocalArtifact<
+      PreviewRecord,
+      {
+        preview: RenderTimelineResult;
+        confirmation: PreviewRecord;
+      }
+    >(
+      projectDirectory,
+      "preview-confirmation.json",
+      {
+        projectId: opened.project.project_id,
+        revision: opened.project.revision,
+        authorityGeneration: opened.authorityGeneration,
+        artifactDigest: digestJcs(previousConfirmation),
+      },
+      async () => {
+        await assertPrivateWorkDirectory(workLease);
+        await finalizePrivateWorkFile(workLease, temporaryPreviewPath);
+        const currentDirectoryInfo = await lstat(previewDirectory, {
+          bigint: true,
+        });
+        if (
+          currentDirectoryInfo.isSymbolicLink() ||
+          !currentDirectoryInfo.isDirectory() ||
+          currentDirectoryInfo.dev !== previewDirectoryInfo.dev ||
+          currentDirectoryInfo.ino !== previewDirectoryInfo.ino ||
+          (await realpath(previewDirectory)) !== previewDirectory
+        ) {
+          throw new Error(
+            "CreatorCut preview directory changed before final publish",
+          );
+        }
+        if (
+          await access(previewPath)
+            .then(() => true)
+            .catch(() => false)
+        ) {
+          throw new Error("CreatorCut managed preview path already exists");
+        }
+        await rename(temporaryPreviewPath, previewPath);
+        if ((await sha256File(previewPath)) !== preview.output_sha256) {
+          await rm(previewPath, { force: true });
+          throw new Error("CreatorCut preview publish digest mismatch");
+        }
+        return {
+          nextArtifact: confirmation,
+          value: { preview, confirmation },
+        };
+      },
+    );
+    return completed.value;
+  } finally {
+    await releasePrivateWorkDirectory(workLease);
+  }
 }
 
 export async function applyPreviewedManifest(

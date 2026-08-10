@@ -13,6 +13,15 @@ The source may compile elsewhere, but that does not create a support
 commitment. Installers fail explicitly on unsupported operating systems or
 architectures.
 
+CreatorCut v0.3 project metadata must reside on a local filesystem that
+supports same-volume atomic rename and reliable local SQLite/OS file locking
+(for example APFS, NTFS, or ext4). FAT/exFAT, network shares, and
+cloud-synchronized virtual filesystems are not supported project locations for
+this release. The CLI fails closed if it cannot initialize or acquire the
+project lock rather than continuing without one. Media may still be imported
+from other volumes; this restriction applies to the `.creatorcut` project
+state.
+
 ## Managed local dependencies
 
 The installer owns the supported runtime combination:

@@ -16,7 +16,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsc --project tsconfig.build.json",
+    "build": "node ../../scripts/clean-workspace-dist.mjs && tsc --project tsconfig.build.json",
     "typecheck": "tsc --project tsconfig.json",
     "test": "vitest run"
   },

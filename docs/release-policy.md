@@ -52,9 +52,11 @@ change one another.
 Initial trust material is generated with `pnpm release:generate-trust` after
 the Protocol package is built. The command requires an absolute private output
 directory outside the public repository, refuses to overwrite any existing
-material, writes private files with mode `0600`, and emits only public file
-digests. The recovery private key remains offline; only the online Release seed
-is injected into Core's server-only signing-key registry.
+material, and emits only public file digests. On POSIX it writes private files
+with mode `0600`; on Windows the chosen private location must inherit a
+current-user-private ACL because `chmod` is not a DACL boundary. The
+recovery private key remains offline; only the online Release seed is injected
+into Core's server-only signing-key registry.
 
 ## Core authority
 

@@ -17,6 +17,7 @@ export interface DirectorTransportRequest {
   path: string;
   authenticated: boolean;
   body?: unknown;
+  idempotencyKey?: string;
   signal?: AbortSignal;
 }
 

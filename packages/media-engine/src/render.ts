@@ -1,6 +1,14 @@
 import { randomUUID } from "node:crypto";
-import { access, mkdir, realpath, rm, writeFile } from "node:fs/promises";
-import { dirname, isAbsolute, relative, resolve } from "node:path";
+import {
+  access,
+  mkdir,
+  mkdtemp,
+  realpath,
+  rm,
+  writeFile,
+} from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 
 import type {
   LocalMediaAsset,
@@ -378,14 +386,10 @@ export async function renderTimeline(
   }
 
   let subtitleFile: string | undefined;
+  let subtitleDirectory: string | undefined;
   if ((options.timeline.captions?.length ?? 0) > 0) {
-    subtitleFile = resolve(
-      options.projectDirectory,
-      ".creatorcut",
-      "generated",
-      `captions-${randomUUID()}.ass`,
-    );
-    await mkdir(dirname(subtitleFile), { recursive: true });
+    subtitleDirectory = await mkdtemp(join(tmpdir(), "creatorcut-captions-"));
+    subtitleFile = resolve(subtitleDirectory, `captions-${randomUUID()}.ass`);
     await writeFile(
       subtitleFile,
       subtitleDocument(options.timeline, options.timeline.captions ?? []),
@@ -449,6 +453,8 @@ export async function renderTimeline(
       quality: options.quality,
     };
   } finally {
-    if (subtitleFile) await rm(subtitleFile, { force: true });
+    if (subtitleDirectory) {
+      await rm(subtitleDirectory, { recursive: true, force: true });
+    }
   }
 }

@@ -294,7 +294,7 @@ info "Installing $PRODUCT_NAME packages"
 (
   cd "$NEXT_DIR"
   "$COREPACK_PATH" pnpm@10.30.3 install --frozen-lockfile
-  "$COREPACK_PATH" pnpm@10.30.3 --filter '!agentmesh-creatorcut' -r --if-present build
+  "$COREPACK_PATH" pnpm@10.30.3 build
 )
 
 mkdir -p "$NEXT_DIR/release"

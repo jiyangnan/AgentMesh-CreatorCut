@@ -344,7 +344,7 @@ export function createCreatorCutMcpServer(
       inputSchema: {},
       outputSchema: { quote_envelope: z.record(z.string(), z.unknown()) },
       annotations: {
-        readOnlyHint: true,
+        readOnlyHint: false,
         destructiveHint: false,
         idempotentHint: true,
         openWorldHint: true,
@@ -372,7 +372,7 @@ export function createCreatorCutMcpServer(
       inputSchema: {},
       outputSchema: { status: z.record(z.string(), z.unknown()) },
       annotations: {
-        readOnlyHint: true,
+        readOnlyHint: false,
         destructiveHint: false,
         idempotentHint: true,
         openWorldHint: true,
@@ -397,7 +397,7 @@ export function createCreatorCutMcpServer(
       inputSchema: {},
       outputSchema: { review_envelope: z.record(z.string(), z.unknown()) },
       annotations: {
-        readOnlyHint: true,
+        readOnlyHint: false,
         destructiveHint: false,
         idempotentHint: true,
         openWorldHint: true,
@@ -422,7 +422,7 @@ export function createCreatorCutMcpServer(
       title: "Render CreatorCut Signed Manifest Preview",
       description:
         "Re-verify the current signed Manifest, deterministically apply it to an in-memory timeline, and render a local preview. It never changes the project revision.",
-      inputSchema: { output_path: z.string().min(1).optional() },
+      inputSchema: {},
       outputSchema: {
         preview: z.record(z.string(), z.unknown()),
         confirmation: z.record(z.string(), z.unknown()),
@@ -434,9 +434,9 @@ export function createCreatorCutMcpServer(
         openWorldHint: false,
       },
     },
-    async ({ output_path }) => {
+    async () => {
       try {
-        const output = await service.preview(output_path);
+        const output = await service.preview();
         return response(
           output,
           "Review the local CreatorCut preview. Use its exact confirmation token only after the media matches the user's intent.",

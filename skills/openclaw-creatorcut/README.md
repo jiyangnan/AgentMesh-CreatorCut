@@ -13,7 +13,7 @@ intended agent is not the default. It does not install globally; use `--global`
 only when every local agent should receive this Skill.
 
 The CreatorCut CLI and OpenClaw Skill must come from the same verified release
-archive. Before using v0.3.0-rc.3, reinstall this matching Skill from that RC
+archive. Before using v0.3.0, reinstall this matching Skill from that release
 archive; the CLI deliberately rejects old OpenClaw Skills that execute
 display-only `next_suggested` text instead of the fixed bridge. This protects
 project paths and prevents shell interpolation during a mixed-version update.

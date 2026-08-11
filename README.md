@@ -52,7 +52,8 @@ the same project-scoped `onboard` flow and explicit local dependency
 overrides.
 The OpenClaw Skill and CreatorCut CLI must be installed from the same verified
 release archive. A mismatched older Skill fails closed before project access;
-until the matching Skill reaches ClawHub, reinstall it from the RC archive.
+until the matching Skill reaches ClawHub, reinstall it from the same verified
+release archive.
 `next_suggested` is display-only and uses placeholders when user input is still
 required. Run the same command at any time to resume from the first incomplete
 stage.

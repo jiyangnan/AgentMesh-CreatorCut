@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.3.0
+
+- Add generation- and digest-bound public storage authority, durable mutation
+  recovery, and explicit byte-preserving adoption for v0.2.1 public projects.
+- Make guided setup and agent continuations preserve project scope, cwd, and
+  non-secret local dependency overrides without shell interpolation.
+- Make `doctor` discover local tools consistently with runtime execution,
+  honor explicit CLI paths, and fail closed for empty or missing dependency
+  option values before credential, project, adapter, or media side effects.
+- Keep stable JSON output clean by filtering only Node's expected
+  `node:sqlite` experimental warning while preserving unrelated warnings.
+- Keep internal-project migration and rollback disabled; this release does not
+  widen the supported platform matrix or the cooperative same-user threat
+  model.
+
 ## 0.3.0-rc.3
 
 - Make `doctor` and `onboard` honor explicit `--ffmpeg`, `--ffprobe`,

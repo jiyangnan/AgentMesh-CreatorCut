@@ -141,9 +141,14 @@ describe("CreatorCut shell-free next process", () => {
         },
       );
       expect(executed.stderr).toBe("");
-      expect(JSON.parse(executed.stdout)).toEqual({
+      const executedPayload = JSON.parse(executed.stdout) as {
+        argv: string[];
+        cwd: string;
+        environment: Record<string, string | null>;
+      };
+      expect(executedPayload).toEqual({
         argv: ["project", "status", "--project", project],
-        cwd: await realpath(directory),
+        cwd: expect.any(String),
         environment: {
           path: managedPath,
           install: directory,
@@ -152,6 +157,9 @@ describe("CreatorCut shell-free next process", () => {
           unrelated: null,
         },
       });
+      expect(await realpath(executedPayload.cwd)).toBe(
+        await realpath(directory),
+      );
     } finally {
       await rm(directory, { force: true, recursive: true });
     }

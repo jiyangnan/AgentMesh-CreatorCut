@@ -1207,6 +1207,8 @@ describe("creatorcut CLI", () => {
 
   it("returns the stable answer id with every card presentation", async () => {
     const presentationDigest = `sha256:${"d".repeat(64)}`;
+    const projectInput = "/synthetic/project";
+    const projectDirectory = resolve(projectInput);
     const adapter = {
       getCards: async () => ({
         envelope: { artifact_id: "cards-cli" },
@@ -1217,7 +1219,7 @@ describe("creatorcut CLI", () => {
       }),
     } as unknown as CloudDirectorAdapter;
     const result = await executeCli(
-      ["cards", "get", "--project", "/synthetic/project"],
+      ["cards", "get", "--project", projectInput],
       io(),
       {
         adapterFactory: async () => adapter,
@@ -1228,7 +1230,7 @@ describe("creatorcut CLI", () => {
       ok: true,
       requires_user_action: true,
       next_suggested: "cards submit --project PROJECT_DIRECTORY",
-      next_argv: ["cards", "submit", "--project", "/synthetic/project"],
+      next_argv: ["cards", "submit", "--project", projectDirectory],
       data: {
         answer_set_id: `answers:${"d".repeat(32)}`,
         presentation: { presentation_digest: presentationDigest },

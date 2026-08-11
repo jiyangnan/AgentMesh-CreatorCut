@@ -55,7 +55,7 @@ import {
 import { isApiKeyArgument } from "./next-process.js";
 import type { CliEnvelope, CliIo } from "./types.js";
 
-const CURRENT_CLIENT_VERSION = "0.3.0-rc.3";
+const CURRENT_CLIENT_VERSION = "0.3.0";
 const DEFAULT_RELEASE_ENDPOINT =
   "https://api.agentmesh360.com/v1/products/creatorcut/client-release";
 

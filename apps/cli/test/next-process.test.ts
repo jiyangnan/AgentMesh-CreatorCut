@@ -439,7 +439,7 @@ describe("CreatorCut shell-free next process", () => {
     expect(JSON.parse(invoked.stdout)).toMatchObject({
       ok: true,
       command: "version",
-      data: { version: "0.3.0-rc.3" },
+      data: { version: "0.3.0" },
     });
   });
 

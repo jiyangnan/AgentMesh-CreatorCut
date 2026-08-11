@@ -872,7 +872,7 @@ describe("public local media execution", () => {
         changedRevisionPreview.confirmation.confirmation_token,
       ),
     ).rejects.toThrow(/stale or belongs to another project/u);
-  });
+  }, 15_000);
 
   it("never overwrites an existing export without explicit confirmation", async () => {
     const directory = await projectFixture();

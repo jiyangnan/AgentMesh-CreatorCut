@@ -147,7 +147,7 @@ function commandName(argv: string[]): string {
       continue;
     }
     const next = argv[index + 1];
-    if (next && !next.startsWith("--")) index += 1;
+    if (next !== undefined && !next.startsWith("--")) index += 1;
   }
   return command.slice(0, 2).join(" ");
 }

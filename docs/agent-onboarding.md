@@ -52,8 +52,10 @@ continuation text.
    on stdin from a private user-controlled terminal. It is stored in macOS
    Keychain, Windows DPAPI, or Linux Secret Service. Never place it in argv, a
    project, a prompt, an Agent tool call, a log or shell history. OpenClaw then
-   resumes through the fixed bridge with `auth status --project P`; the
-   returned structured continuation restores the same scoped `onboard` flow.
+   retains the non-secret `auth login` continuation, changes only its command
+   pair to `auth status`, and sends it through the fixed bridge after login;
+   the returned structured continuation restores the same scoped `onboard`
+   flow, project and explicit local dependency overrides.
 4. Import the recording with `media import`, then run local transcription with
    `transcribe start --language zh|en|auto|mixed`. Resume the same task after an
    interruption; do not invent a transcript.

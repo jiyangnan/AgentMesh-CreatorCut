@@ -55,7 +55,7 @@ import {
 import { isApiKeyArgument } from "./next-process.js";
 import type { CliEnvelope, CliIo } from "./types.js";
 
-const CURRENT_CLIENT_VERSION = "0.3.0-rc.2";
+const CURRENT_CLIENT_VERSION = "0.3.0-rc.3";
 const DEFAULT_RELEASE_ENDPOINT =
   "https://api.agentmesh360.com/v1/products/creatorcut/client-release";
 
@@ -90,6 +90,13 @@ interface SuccessOptions {
   userPrompt?: string;
 }
 
+const LOCAL_DEPENDENCY_OPTIONS = [
+  "ffmpeg",
+  "ffprobe",
+  "whisper",
+  "model",
+] as const;
+
 function parseArguments(argv: string[]): ParsedArguments {
   const command: string[] = [];
   const options = new Map<string, string | true>();
@@ -106,7 +113,7 @@ function parseArguments(argv: string[]): ParsedArguments {
       );
     }
     const next = argv[index + 1];
-    if (next && !next.startsWith("--")) {
+    if (next !== undefined && !next.startsWith("--")) {
       options.set(token.slice(2), next);
       index += 1;
     } else {
@@ -123,6 +130,9 @@ function option(
 ): string | undefined {
   const value = parsed.options.get(name);
   if (typeof value === "string") return value;
+  if (value === true) {
+    throw new TypeError(`CreatorCut requires a value for --${name}`);
+  }
   return environmentName ? process.env[environmentName] : undefined;
 }
 
@@ -137,6 +147,33 @@ function requiredOption(
       `CreatorCut requires --${name}${
         environmentName ? ` or ${environmentName}` : ""
       }`,
+    );
+  }
+  return value;
+}
+
+function localDependencyArguments(parsed: ParsedArguments): string[] {
+  const argv: string[] = [];
+  for (const name of LOCAL_DEPENDENCY_OPTIONS) {
+    const value = parsed.options.get(name);
+    if (typeof value === "string") argv.push(`--${name}`, value);
+    else if (value === true) {
+      throw new TypeError(`CreatorCut requires a value for --${name}`);
+    }
+  }
+  return argv;
+}
+
+function executionToolPath(
+  parsed: ParsedArguments,
+  name: "ffmpeg" | "ffprobe" | "whisper",
+  environmentName:
+    "CREATORCUT_FFMPEG" | "CREATORCUT_FFPROBE" | "CREATORCUT_WHISPER",
+): string | undefined {
+  const value = option(parsed, name, environmentName);
+  if (value === "") {
+    throw new TypeError(
+      `CreatorCut --${name} or ${environmentName} must be a non-empty executable path`,
     );
   }
   return value;
@@ -345,7 +382,10 @@ async function inspectExecutable(
   configuredPath: string | undefined,
   defaultCommand: string,
 ) {
-  const requested = configuredPath || defaultCommand;
+  if (configuredPath === "") {
+    return { path: "", ready: false };
+  }
+  const requested = configuredPath ?? defaultCommand;
   for (const candidate of executableCandidates(requested)) {
     if (process.platform === "win32") {
       const extension = extname(candidate).toUpperCase();
@@ -358,7 +398,7 @@ async function inspectExecutable(
     }
   }
   return {
-    path: configuredPath || null,
+    path: configuredPath ?? null,
     ready: false,
   };
 }
@@ -389,11 +429,11 @@ async function inspectLocalDependencies(parsed: ParsedArguments) {
   };
 }
 
-async function transcriptionSuggestion(): Promise<TranscriptionSuggestion> {
-  const dependencies = await inspectLocalDependencies({
-    command: [],
-    options: new Map(),
-  });
+async function transcriptionSuggestion(
+  parsed: ParsedArguments,
+  dependencyArguments: string[],
+): Promise<TranscriptionSuggestion> {
+  const dependencies = await inspectLocalDependencies(parsed);
   const missing = Object.entries(dependencies)
     .filter(([, dependency]) => !dependency.ready)
     .map(([name]) =>
@@ -408,13 +448,19 @@ async function transcriptionSuggestion(): Promise<TranscriptionSuggestion> {
   if (missing.length === 0) {
     return {
       next: "transcribe start --language auto",
-      argv: ["transcribe", "start", "--language", "auto"],
+      argv: [
+        "transcribe",
+        "start",
+        "--language",
+        "auto",
+        ...dependencyArguments,
+      ],
       requiresUserAction: false,
     };
   }
   return {
     next: "doctor",
-    argv: ["doctor"],
+    argv: ["doctor", ...dependencyArguments],
     requiresUserAction: true,
     userPrompt: `CreatorCut local transcription dependencies are incomplete (${missing.join(
       ", ",
@@ -423,13 +469,11 @@ async function transcriptionSuggestion(): Promise<TranscriptionSuggestion> {
 }
 
 async function inspectOnboardingState(
+  parsed: ParsedArguments,
   projectDirectory: string,
   credentials: CredentialStore,
 ) {
-  const localDependencies = await inspectLocalDependencies({
-    command: [],
-    options: new Map(),
-  });
+  const localDependencies = await inspectLocalDependencies(parsed);
   const directorPaths = {
     keyset: process.env.CREATORCUT_DIRECTOR_KEYSET,
     recovery_roots: process.env.CREATORCUT_DIRECTOR_RECOVERY_ROOTS,
@@ -501,6 +545,7 @@ export async function executeCli(
         "CreatorCut internal storage migration and rollback are disabled: the production native whole-tree swap/WAL gate is not complete",
       );
     }
+    const dependencyArguments = localDependencyArguments(parsed);
     if (commandName === "project adopt-public") {
       const projectDirectory = resolve(
         option(parsed, "project") ?? dependencies.cwd?.() ?? process.cwd(),
@@ -562,11 +607,13 @@ export async function executeCli(
 
     if (commandName === "doctor") {
       const checks = await inspectOnboardingState(
+        parsed,
         projectDirectory,
         credentials,
       );
       const next = projectNextCommand(parsed, projectDirectory, "onboard", [
         "onboard",
+        ...dependencyArguments,
       ]);
       return success(commandName, checks, {
         next: next.suggested,
@@ -576,6 +623,7 @@ export async function executeCli(
 
     if (commandName === "onboard") {
       const checks = await inspectOnboardingState(
+        parsed,
         projectDirectory,
         credentials,
       );
@@ -583,6 +631,7 @@ export async function executeCli(
       if (!checks.dependencies_ready) {
         const next = projectNextCommand(parsed, projectDirectory, "doctor", [
           "doctor",
+          ...dependencyArguments,
         ]);
         return success(
           commandName,
@@ -605,7 +654,7 @@ export async function executeCli(
           parsed,
           projectDirectory,
           "auth login",
-          ["auth", "login"],
+          ["auth", "login", ...dependencyArguments],
         );
         return success(
           commandName,
@@ -653,9 +702,15 @@ export async function executeCli(
               ? "director start"
               : "director context inspect",
         opened.transcript.segments.length === 0
-          ? ["transcribe", "start", "--language", "auto"]
+          ? [
+              "transcribe",
+              "start",
+              "--language",
+              "auto",
+              ...dependencyArguments,
+            ]
           : !checks.director_configuration_ready
-            ? ["doctor"]
+            ? ["doctor", ...dependencyArguments]
             : consent
               ? ["director", "start"]
               : ["director", "context", "inspect"],
@@ -826,6 +881,7 @@ export async function executeCli(
         { stored_in: credentials.storage, authenticated: true },
         {
           next: "onboard",
+          nextArgv: ["onboard", ...dependencyArguments],
         },
       );
     }
@@ -838,10 +894,13 @@ export async function executeCli(
           storage: credentials.storage,
         },
         authenticated
-          ? { next: "onboard", nextArgv: ["onboard"] }
+          ? {
+              next: "onboard",
+              nextArgv: ["onboard", ...dependencyArguments],
+            }
           : {
               next: "auth login",
-              nextArgv: ["auth", "login"],
+              nextArgv: ["auth", "login", ...dependencyArguments],
               requiresUserAction: true,
               userPrompt:
                 "No AgentMesh API key is stored. Run creatorcut auth login in a private user-controlled terminal, then resume through auth status with the same project scope.",
@@ -872,7 +931,7 @@ export async function executeCli(
           : null;
       const transcription =
         !migratedVisualHandoff && opened.transcript.segments.length === 0
-          ? await transcriptionSuggestion()
+          ? await transcriptionSuggestion(parsed, dependencyArguments)
           : null;
       const next = projectNextCommand(
         parsed,
@@ -931,7 +990,7 @@ export async function executeCli(
       const opened = await openCreatorCutProject(projectDirectory);
       const transcription =
         opened.transcript.segments.length === 0
-          ? await transcriptionSuggestion()
+          ? await transcriptionSuggestion(parsed, dependencyArguments)
           : null;
       const next = projectNextCommand(
         parsed,
@@ -965,8 +1024,16 @@ export async function executeCli(
     if (commandName === "project create" || commandName === "media import") {
       const sourcePath = requiredOption(parsed, "source");
       const projectName = option(parsed, "name");
-      const ffmpegPath = option(parsed, "ffmpeg", "CREATORCUT_FFMPEG");
-      const ffprobePath = option(parsed, "ffprobe", "CREATORCUT_FFPROBE");
+      const ffmpegPath = executionToolPath(
+        parsed,
+        "ffmpeg",
+        "CREATORCUT_FFMPEG",
+      );
+      const ffprobePath = executionToolPath(
+        parsed,
+        "ffprobe",
+        "CREATORCUT_FFPROBE",
+      );
       const imported = await importMedia({
         sourcePath,
         projectDirectory,
@@ -974,7 +1041,10 @@ export async function executeCli(
         ...(ffmpegPath ? { ffmpegPath } : {}),
         ...(ffprobePath ? { ffprobePath } : {}),
       });
-      const transcription = await transcriptionSuggestion();
+      const transcription = await transcriptionSuggestion(
+        parsed,
+        dependencyArguments,
+      );
       const next = projectNextCommand(
         parsed,
         projectDirectory,
@@ -999,9 +1069,21 @@ export async function executeCli(
           "CreatorCut transcription language must be zh, en, mixed, or auto",
         );
       }
-      const whisperPath = option(parsed, "whisper", "CREATORCUT_WHISPER");
-      const ffmpegPath = option(parsed, "ffmpeg", "CREATORCUT_FFMPEG");
-      const ffprobePath = option(parsed, "ffprobe", "CREATORCUT_FFPROBE");
+      const whisperPath = executionToolPath(
+        parsed,
+        "whisper",
+        "CREATORCUT_WHISPER",
+      );
+      const ffmpegPath = executionToolPath(
+        parsed,
+        "ffmpeg",
+        "CREATORCUT_FFMPEG",
+      );
+      const ffprobePath = executionToolPath(
+        parsed,
+        "ffprobe",
+        "CREATORCUT_FFPROBE",
+      );
       const task = await transcribeProject({
         projectDirectory,
         modelPath: requiredOption(parsed, "model", "CREATORCUT_WHISPER_MODEL"),
@@ -1234,10 +1316,18 @@ export async function executeCli(
           "CreatorCut edit preview uses a managed project preview path; --output is not accepted",
         );
       }
+      const ffmpegPath = executionToolPath(
+        parsed,
+        "ffmpeg",
+        "CREATORCUT_FFMPEG",
+      );
+      const ffprobePath = executionToolPath(
+        parsed,
+        "ffprobe",
+        "CREATORCUT_FFPROBE",
+      );
       const director = await adapter();
       const manifest = await director.getVerifiedManifest(projectDirectory);
-      const ffmpegPath = option(parsed, "ffmpeg", "CREATORCUT_FFMPEG");
-      const ffprobePath = option(parsed, "ffprobe", "CREATORCUT_FFPROBE");
       const value = await previewSignedManifest(projectDirectory, manifest, {
         ...(ffmpegPath ? { ffmpegPath } : {}),
         ...(ffprobePath ? { ffprobePath } : {}),
@@ -1413,6 +1503,16 @@ export async function executeCli(
       );
     }
     if (commandName === "export start") {
+      const ffmpegPath = executionToolPath(
+        parsed,
+        "ffmpeg",
+        "CREATORCUT_FFMPEG",
+      );
+      const ffprobePath = executionToolPath(
+        parsed,
+        "ffprobe",
+        "CREATORCUT_FFPROBE",
+      );
       const opened = await openCreatorCutProject(projectDirectory);
       const authority = await assertPublicStorageAuthority(
         opened.creatorcutDirectory,
@@ -1430,8 +1530,6 @@ export async function executeCli(
           "Public export is blocked because migrated visual events are not yet supported by the renderer",
         );
       }
-      const ffmpegPath = option(parsed, "ffmpeg", "CREATORCUT_FFMPEG");
-      const ffprobePath = option(parsed, "ffprobe", "CREATORCUT_FFPROBE");
       const task = await startExportTask(
         projectDirectory,
         requiredOption(parsed, "output"),

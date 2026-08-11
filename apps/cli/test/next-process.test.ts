@@ -243,6 +243,14 @@ describe("CreatorCut shell-free next process", () => {
     expect(() =>
       resolveOpenClawBridgeInvocation([OPENCLAW_BRIDGE_ARGUMENT], {
         [OPENCLAW_REQUEST_ENVIRONMENT]: JSON.stringify({
+          argv: ["--ffmpeg", "", "auth", "login"],
+          stdin_mode: "none",
+        }),
+      }),
+    ).toThrow(/never transports API keys/iu);
+    expect(() =>
+      resolveOpenClawBridgeInvocation([OPENCLAW_BRIDGE_ARGUMENT], {
+        [OPENCLAW_REQUEST_ENVIRONMENT]: JSON.stringify({
           argv: ["cards", "submit"],
           stdin_mode: "none",
         }),
@@ -431,7 +439,7 @@ describe("CreatorCut shell-free next process", () => {
     expect(JSON.parse(invoked.stdout)).toMatchObject({
       ok: true,
       command: "version",
-      data: { version: "0.3.0-rc.2" },
+      data: { version: "0.3.0-rc.3" },
     });
   });
 

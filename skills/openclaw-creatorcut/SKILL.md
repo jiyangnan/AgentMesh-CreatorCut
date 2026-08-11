@@ -36,10 +36,13 @@ fixed bridge, never concatenate the example into shell text.
   `process.write`, and finish it with `process.submit`. Do not paste the JSON
   into a shell command. The bridge disables PTY echo and enforces the stated
   byte limit. Never transport an API key this way: `auth login` must be run by
-  the user in a private terminal. After it completes, resume through the fixed
-  bridge with argv `["auth", "status", "--project", "<same project>"]` (omit
-  `--project` only when the original workflow had none). The returned
-  structured continuation resumes the scoped `onboard` flow.
+  the user in a private terminal. Before stopping, retain the exact non-secret
+  `next_argv` returned for `auth login`. After login completes, replace only
+  its first two array items, `"auth", "login"`, with `"auth", "status"`; leave
+  every remaining dependency override and project item byte-for-byte
+  unchanged, then send that argv through the fixed bridge. Never include the
+  API key. The returned structured continuation resumes the same scoped
+  `onboard` flow with those exact local dependency overrides.
 - Stop on `ok: false` and report its stable error. Retry only when
   `retryable: true`.
 - A `requires_user_action: true` result is a real confirmation boundary. Do not

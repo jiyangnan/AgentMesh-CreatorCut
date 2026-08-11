@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.3.0-rc.3
+
+- Make `doctor` and `onboard` honor explicit `--ffmpeg`, `--ffprobe`,
+  `--whisper`, and `--model` paths instead of silently discarding them.
+- Preserve those non-secret dependency overrides through every structured
+  onboarding continuation, including the private-terminal authentication
+  handoff and the resumed OpenClaw `auth status` flow.
+- Treat an explicitly empty executable configuration as invalid instead of
+  falling back to `PATH`, and reject missing dependency-option values before
+  credential, project, adapter, or media side effects.
+
 ## 0.3.0-rc.2
 
 - Make `creatorcut --version` return the same stable JSON envelope as

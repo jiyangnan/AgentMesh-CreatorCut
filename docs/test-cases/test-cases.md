@@ -56,9 +56,11 @@
 - [x] `--key` is rejected and the attempted secret is absent from output.
 - [x] `auth logout` removes only the local Keychain item and explicitly reports
       that the remote Core API key was not revoked.
-- [x] After private-terminal login, `auth status --project P` returns a
-      structured, project-scoped `onboard` continuation; a missing credential
-      remains a user-action boundary and never enters the OpenClaw bridge.
+- [x] After private-terminal login, OpenClaw changes only the `auth login`
+      command pair in the retained non-secret continuation to `auth status`.
+      Its structured, project-scoped `onboard` continuation preserves every
+      explicit local dependency override; a missing credential remains a
+      user-action boundary and never enters the OpenClaw bridge.
 
 ## TC-PUBLIC-PRIVACY-001: context inspection and consent
 

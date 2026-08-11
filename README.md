@@ -46,8 +46,10 @@ tool. That object always uses the fixed literal command
 environment field. For the two non-secret JSON-input steps, follow the returned
 PTY `json-line-v1` contract. API keys never use the bridge and remain a manual,
 private-terminal input.
-After that private login, OpenClaw resumes with structured `auth status` argv;
-the returned continuation restores the same project-scoped `onboard` flow.
+After that private login, OpenClaw changes only `auth login` to `auth status`
+in the retained non-secret continuation; the returned continuation restores
+the same project-scoped `onboard` flow and explicit local dependency
+overrides.
 The OpenClaw Skill and CreatorCut CLI must be installed from the same verified
 release archive. A mismatched older Skill fails closed before project access;
 until the matching Skill reaches ClawHub, reinstall it from the RC archive.

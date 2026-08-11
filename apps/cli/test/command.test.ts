@@ -229,6 +229,45 @@ describe("creatorcut CLI", () => {
     expect(resolveProject).not.toHaveBeenCalled();
   });
 
+  it("rejects missing dependency values before confirmed public adoption", async () => {
+    const projectDirectory = await legacyPublicProjectFixture();
+    const authorityPath = join(
+      projectDirectory,
+      ".creatorcut",
+      "storage-authority.json",
+    );
+    const journalPath = join(
+      projectDirectory,
+      ".creatorcut",
+      "storage-mutations.jsonl",
+    );
+    const result = await executeCli(
+      [
+        "project",
+        "adopt-public",
+        "--project",
+        projectDirectory,
+        "--confirm-local",
+        "--ffmpeg",
+      ],
+      io(),
+      { credentials: new MemoryCredentialStore() },
+    );
+
+    expect(result).toMatchObject({
+      ok: false,
+      command: "project adopt-public",
+      error: {
+        code: "invalid_input",
+        message: "CreatorCut requires a value for --ffmpeg",
+      },
+    });
+    await expect(access(authorityPath)).rejects.toMatchObject({
+      code: "ENOENT",
+    });
+    await expect(access(journalPath)).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
   it("adopts an unmarked public project without enabling internal migration", async () => {
     const projectDirectory = await legacyPublicProjectFixture();
     const adapterFactory = vi.fn();
@@ -314,6 +353,185 @@ describe("creatorcut CLI", () => {
       });
     } finally {
       for (const name of names) {
+        const value = previous[name];
+        if (value === undefined) delete process.env[name];
+        else process.env[name] = value;
+      }
+    }
+  });
+
+  it("doctor and onboard honor explicit dependency overrides", async () => {
+    const root = await mkdtemp(join(tmpdir(), "creatorcut-doctor-flags-"));
+    const executableNames =
+      process.platform === "win32"
+        ? ["ffmpeg.EXE", "ffprobe.EXE", "whisper-cli.EXE"]
+        : ["ffmpeg", "ffprobe", "whisper-cli"];
+    const ffmpeg = join(root, executableNames[0]!);
+    const ffprobe = join(root, executableNames[1]!);
+    const whisper = join(root, executableNames[2]!);
+    const model = join(root, "model.bin");
+    const missing = join(root, "configured-tool-is-missing");
+    await Promise.all([
+      writeFile(ffmpeg, "", { mode: 0o755 }),
+      writeFile(ffprobe, "", { mode: 0o755 }),
+      writeFile(whisper, "", { mode: 0o755 }),
+      writeFile(model, "model"),
+    ]);
+    const names = [
+      "CREATORCUT_FFMPEG",
+      "CREATORCUT_FFPROBE",
+      "CREATORCUT_WHISPER",
+      "CREATORCUT_WHISPER_MODEL",
+    ] as const;
+    const previous = Object.fromEntries(
+      names.map((name) => [name, process.env[name]]),
+    );
+    const argv = [
+      "--ffmpeg",
+      ffmpeg,
+      "--ffprobe",
+      ffprobe,
+      "--whisper",
+      whisper,
+      "--model",
+      model,
+    ];
+    const credentials = new MemoryCredentialStore();
+    try {
+      for (const name of names) process.env[name] = missing;
+
+      const doctor = await executeCli(["doctor", ...argv], io(), {
+        credentials,
+        cwd: () => root,
+      });
+      expect(doctor).toMatchObject({
+        ok: true,
+        command: "doctor",
+        data: {
+          dependencies_ready: true,
+          dependencies: {
+            ffmpeg: { path: ffmpeg, ready: true },
+            ffprobe: { path: ffprobe, ready: true },
+            whisper: { path: whisper, ready: true },
+            whisper_model: { path: model, ready: true },
+          },
+        },
+        next_argv: ["onboard", ...argv],
+      });
+
+      const onboard = await executeCli(doctor.next_argv!, io(), {
+        credentials,
+        cwd: () => root,
+      });
+      expect(onboard).toMatchObject({
+        ok: true,
+        command: "onboard",
+        data: {
+          stage: "authenticate",
+          checks: { dependencies_ready: true },
+        },
+        next_argv: ["auth", "login", ...argv],
+      });
+
+      const login = await executeCli(onboard.next_argv!, io("am_test_key\n"), {
+        credentials,
+        cwd: () => root,
+      });
+      expect(login).toMatchObject({
+        ok: true,
+        command: "auth login",
+        next_argv: ["onboard", ...argv],
+      });
+
+      const resumed = await executeCli(login.next_argv!, io(), {
+        credentials,
+        cwd: () => root,
+      });
+      expect(resumed).toMatchObject({
+        ok: true,
+        command: "onboard",
+        data: {
+          stage: "import_media",
+          checks: { dependencies_ready: true, authenticated: true },
+        },
+      });
+    } finally {
+      for (const name of names) {
+        const value = previous[name];
+        if (value === undefined) delete process.env[name];
+        else process.env[name] = value;
+      }
+    }
+  });
+
+  it("doctor rejects every invalid explicit dependency override", async () => {
+    const root = await mkdtemp(join(tmpdir(), "creatorcut-doctor-invalid-"));
+    const executable = join(
+      root,
+      process.platform === "win32" ? "tool.EXE" : "tool",
+    );
+    const model = join(root, "model.bin");
+    await writeFile(executable, "", { mode: 0o755 });
+    await writeFile(model, "model");
+    const configuration = {
+      CREATORCUT_FFMPEG: executable,
+      CREATORCUT_FFPROBE: executable,
+      CREATORCUT_WHISPER: executable,
+      CREATORCUT_WHISPER_MODEL: model,
+    } as const;
+    const previous = Object.fromEntries(
+      Object.keys(configuration).map((name) => [name, process.env[name]]),
+    );
+    const cases = [
+      ["ffmpeg", "ffmpeg"],
+      ["ffprobe", "ffprobe"],
+      ["whisper", "whisper"],
+      ["model", "whisper_model"],
+    ] as const;
+    try {
+      Object.assign(process.env, configuration);
+      for (const [flag, dependency] of cases) {
+        const missing = join(root, `missing-${flag}`);
+        const result = await executeCli(
+          ["doctor", `--${flag}`, missing],
+          io(),
+          {
+            credentials: new MemoryCredentialStore(),
+            cwd: () => root,
+          },
+        );
+        expect(result).toMatchObject({
+          ok: true,
+          data: {
+            dependencies_ready: false,
+            dependencies: {
+              [dependency]: { path: missing, ready: false },
+            },
+          },
+        });
+      }
+
+      const directory = join(root, "configured-tool-is-a-directory");
+      await mkdir(directory);
+      const directoryResult = await executeCli(
+        ["doctor", "--ffmpeg", directory],
+        io(),
+        {
+          credentials: new MemoryCredentialStore(),
+          cwd: () => root,
+        },
+      );
+      expect(directoryResult).toMatchObject({
+        ok: true,
+        data: {
+          dependencies_ready: false,
+          dependencies: {
+            ffmpeg: { path: directory, ready: false },
+          },
+        },
+      });
+    } finally {
+      for (const name of Object.keys(configuration)) {
         const value = previous[name];
         if (value === undefined) delete process.env[name];
         else process.env[name] = value;
@@ -427,8 +645,33 @@ describe("creatorcut CLI", () => {
         ok: true,
         data: {
           dependencies: {
-            ffmpeg: { path: ffmpeg, ready: true },
+            ffmpeg: { path: "", ready: false },
           },
+        },
+      });
+
+      process.env.CREATORCUT_FFMPEG = ffmpeg;
+      const emptyArgument = await executeCli(["doctor", "--ffmpeg", ""], io(), {
+        credentials: new MemoryCredentialStore(),
+      });
+      expect(emptyArgument).toMatchObject({
+        ok: true,
+        data: {
+          dependencies: {
+            ffmpeg: { path: "", ready: false },
+          },
+        },
+      });
+
+      const missingArgument = await executeCli(["doctor", "--ffmpeg"], io(), {
+        credentials: new MemoryCredentialStore(),
+      });
+      expect(missingArgument).toMatchObject({
+        ok: false,
+        command: "doctor",
+        error: {
+          code: "invalid_input",
+          message: "CreatorCut requires a value for --ffmpeg",
         },
       });
 
@@ -455,6 +698,169 @@ describe("creatorcut CLI", () => {
       else process.env.CREATORCUT_FFMPEG = previousFfmpeg;
     }
   });
+
+  it("rejects missing dependency values before credential or project side effects", async () => {
+    const credentials = new MemoryCredentialStore();
+    const setApiKey = vi.spyOn(credentials, "setApiKey");
+    const resolveProject = vi.fn(() => {
+      throw new Error("invalid dependency option resolved a project");
+    });
+    const login = await executeCli(
+      ["auth", "login", "--ffmpeg"],
+      io("am_must_not_be_stored\n"),
+      { credentials, cwd: resolveProject },
+    );
+    expect(login).toMatchObject({
+      ok: false,
+      command: "auth login",
+      error: {
+        code: "invalid_input",
+        message: "CreatorCut requires a value for --ffmpeg",
+      },
+    });
+    expect(setApiKey).not.toHaveBeenCalled();
+    expect(resolveProject).not.toHaveBeenCalled();
+    expect(await credentials.getApiKey()).toBeNull();
+
+    const root = await mkdtemp(join(tmpdir(), "creatorcut-missing-option-"));
+    const project = join(root, "must-not-exist.creatorcut");
+    const imported = await executeCli(
+      [
+        "media",
+        "import",
+        "--source",
+        join(root, "source.mov"),
+        "--project",
+        project,
+        "--whisper",
+      ],
+      io(),
+      { credentials: new MemoryCredentialStore() },
+    );
+    expect(imported).toMatchObject({
+      ok: false,
+      command: "media import",
+      error: {
+        code: "invalid_input",
+        message: "CreatorCut requires a value for --whisper",
+      },
+    });
+    await expect(access(project)).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
+  it.each([
+    [
+      "media import",
+      (root: string) => [
+        "media",
+        "import",
+        "--source",
+        join(root, "source.mov"),
+        "--project",
+        join(root, "new.creatorcut"),
+      ],
+      false,
+    ],
+    [
+      "transcribe start",
+      (root: string, model: string) => [
+        "transcribe",
+        "start",
+        "--model",
+        model,
+        "--project",
+        join(root, "new.creatorcut"),
+      ],
+      false,
+    ],
+    [
+      "edit preview",
+      (root: string) => [
+        "edit",
+        "preview",
+        "--project",
+        join(root, "new.creatorcut"),
+      ],
+      false,
+    ],
+    [
+      "export start",
+      (root: string) => [
+        "export",
+        "start",
+        "--output",
+        join(root, "output.mp4"),
+        "--project",
+        join(root, "new.creatorcut"),
+      ],
+      false,
+    ],
+    [
+      "transcribe start with an empty CLI override",
+      (root: string, model: string) => [
+        "transcribe",
+        "start",
+        "--model",
+        model,
+        "--ffmpeg",
+        "",
+        "--project",
+        join(root, "new.creatorcut"),
+      ],
+      true,
+    ],
+  ] as const)(
+    "rejects an empty executable path before %s can access a project or adapter",
+    async (_name, argvFor, explicitEmpty) => {
+      const root = await mkdtemp(join(tmpdir(), "creatorcut-empty-tool-"));
+      const executable = join(
+        root,
+        process.platform === "win32" ? "tool.EXE" : "tool",
+      );
+      const model = join(root, "model.bin");
+      const project = join(root, "new.creatorcut");
+      await writeFile(executable, "", { mode: 0o755 });
+      await writeFile(model, "model");
+      const names = [
+        "CREATORCUT_FFMPEG",
+        "CREATORCUT_FFPROBE",
+        "CREATORCUT_WHISPER",
+        "CREATORCUT_WHISPER_MODEL",
+      ] as const;
+      const previous = Object.fromEntries(
+        names.map((name) => [name, process.env[name]]),
+      );
+      const adapterFactory = vi.fn(() => {
+        throw new Error("empty tool validation reached the Director adapter");
+      });
+      try {
+        process.env.CREATORCUT_FFMPEG = explicitEmpty ? executable : "";
+        process.env.CREATORCUT_FFPROBE = executable;
+        process.env.CREATORCUT_WHISPER = executable;
+        process.env.CREATORCUT_WHISPER_MODEL = model;
+        const result = await executeCli(argvFor(root, model), io(), {
+          credentials: new MemoryCredentialStore(),
+          adapterFactory,
+        });
+        expect(result).toMatchObject({
+          ok: false,
+          error: {
+            code: "invalid_input",
+            message:
+              "CreatorCut --ffmpeg or CREATORCUT_FFMPEG must be a non-empty executable path",
+          },
+        });
+        expect(adapterFactory).not.toHaveBeenCalled();
+        await expect(access(project)).rejects.toMatchObject({ code: "ENOENT" });
+      } finally {
+        for (const name of names) {
+          const value = previous[name];
+          if (value === undefined) delete process.env[name];
+          else process.env[name] = value;
+        }
+      }
+    },
+  );
 
   it("onboard starts with secure authentication after a managed install", async () => {
     const root = await mkdtemp(join(tmpdir(), "creatorcut-onboard-"));
@@ -618,6 +1024,71 @@ describe("creatorcut CLI", () => {
     }
   });
 
+  it("onboard preserves explicit dependency overrides in transcription continuation", async () => {
+    const { projectDirectory } = await migratedNoVisualFixture();
+    const executable = join(
+      projectDirectory,
+      process.platform === "win32" ? "tool.EXE" : "tool",
+    );
+    const model = join(projectDirectory, "model.bin");
+    await writeFile(executable, "", { mode: 0o755 });
+    await writeFile(model, "model");
+    const names = [
+      "CREATORCUT_FFMPEG",
+      "CREATORCUT_FFPROBE",
+      "CREATORCUT_WHISPER",
+      "CREATORCUT_WHISPER_MODEL",
+    ] as const;
+    const previous = Object.fromEntries(
+      names.map((name) => [name, process.env[name]]),
+    );
+    const dependencyArguments = [
+      "--ffmpeg",
+      executable,
+      "--ffprobe",
+      executable,
+      "--whisper",
+      executable,
+      "--model",
+      model,
+    ];
+    const credentials = new MemoryCredentialStore();
+    await credentials.setApiKey("am_test_key");
+    try {
+      for (const name of names) {
+        process.env[name] = join(projectDirectory, `missing-${name}`);
+      }
+      const result = await executeCli(
+        ["onboard", "--project", projectDirectory, ...dependencyArguments],
+        io(),
+        { credentials },
+      );
+      expect(result).toMatchObject({
+        ok: true,
+        command: "onboard",
+        data: {
+          stage: "transcribe",
+          checks: { dependencies_ready: true },
+        },
+        next_argv: [
+          "transcribe",
+          "start",
+          "--language",
+          "auto",
+          ...dependencyArguments,
+          "--project",
+          projectDirectory,
+        ],
+      });
+    } finally {
+      for (const name of names) {
+        const value = previous[name];
+        if (value === undefined) delete process.env[name];
+        else process.env[name] = value;
+      }
+    }
+  });
+
   it("defers upgrades while a resumable local task is active", async () => {
     const project = await projectFixture();
     await writeLocalArtifact(project, "tasks/export.json", {
@@ -722,6 +1193,99 @@ describe("creatorcut CLI", () => {
       argv: ["onboard", "--project", project],
       stdin_mode: "none",
     });
+  });
+
+  it("resumes OpenClaw authentication with exact dependency overrides", async () => {
+    const root = await mkdtemp(join(tmpdir(), "creatorcut-auth-overrides-"));
+    const executableNames =
+      process.platform === "win32"
+        ? ["ffmpeg.EXE", "ffprobe.EXE", "whisper-cli.EXE"]
+        : ["ffmpeg", "ffprobe", "whisper-cli"];
+    const ffmpeg = join(root, executableNames[0]!);
+    const ffprobe = join(root, executableNames[1]!);
+    const whisper = join(root, executableNames[2]!);
+    const model = join(root, "model.bin");
+    const project = join(root, "scoped-$(do-not-run).creatorcut");
+    await Promise.all([
+      writeFile(ffmpeg, "", { mode: 0o755 }),
+      writeFile(ffprobe, "", { mode: 0o755 }),
+      writeFile(whisper, "", { mode: 0o755 }),
+      writeFile(model, "model"),
+    ]);
+    const names = [
+      "CREATORCUT_FFMPEG",
+      "CREATORCUT_FFPROBE",
+      "CREATORCUT_WHISPER",
+      "CREATORCUT_WHISPER_MODEL",
+    ] as const;
+    const previous = Object.fromEntries(
+      names.map((name) => [name, process.env[name]]),
+    );
+    const dependencyArguments = [
+      "--ffmpeg",
+      ffmpeg,
+      "--ffprobe",
+      ffprobe,
+      "--whisper",
+      whisper,
+      "--model",
+      model,
+    ];
+    const credentials = new MemoryCredentialStore();
+    try {
+      for (const name of names)
+        process.env[name] = join(root, `missing-${name}`);
+      const unauthenticated = await executeCli(
+        ["onboard", ...dependencyArguments, "--project", project],
+        io(),
+        { credentials },
+      );
+      expect(unauthenticated).toMatchObject({
+        ok: true,
+        command: "onboard",
+        requires_user_action: true,
+        data: {
+          stage: "authenticate",
+          checks: { dependencies_ready: true, authenticated: false },
+        },
+        next_argv: [
+          "auth",
+          "login",
+          ...dependencyArguments,
+          "--project",
+          project,
+        ],
+      });
+
+      await credentials.setApiKey("am_test_key");
+      const statusArgv = [...unauthenticated.next_argv!];
+      statusArgv[1] = "status";
+      const status = await executeCli(statusArgv, io(), { credentials });
+      expect(status).toMatchObject({
+        ok: true,
+        command: "auth status",
+        next_argv: ["onboard", ...dependencyArguments, "--project", project],
+        data: { authenticated: true },
+      });
+
+      const resumed = await executeCli(status.next_argv!, io(), {
+        credentials,
+      });
+      expect(resumed).toMatchObject({
+        ok: true,
+        command: "onboard",
+        data: {
+          stage: "import_media",
+          checks: { dependencies_ready: true, authenticated: true },
+        },
+      });
+    } finally {
+      for (const name of names) {
+        const value = previous[name];
+        if (value === undefined) delete process.env[name];
+        else process.env[name] = value;
+      }
+    }
   });
 
   it.each(["--key", "--key=am_leaked"])(

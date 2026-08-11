@@ -69,11 +69,17 @@ test("Claude Code and OpenClaw Skills preserve the public workflow boundary", as
   assert.match(openClawSkill, /process\.submit/u);
   assert.match(openClawSkill, /\["cards", "submit"/u);
   assert.match(openClawSkill, /Never transport an API key/iu);
+  assert.match(openClawSkill, /retain the exact non-secret\s+`next_argv`/su);
   assert.match(
     openClawSkill,
-    /\["auth", "status", "--project", "<same project>"\]/u,
+    /replace only\s+its first two array items, `"auth", "login"`, with `"auth", "status"`/su,
   );
-  assert.match(openClawSkill, /resumes the scoped `onboard` flow/u);
+  assert.match(
+    openClawSkill,
+    /leave\s+every remaining dependency override and project item byte-for-byte\s+unchanged/su,
+  );
+  assert.match(openClawSkill, /Never include the\s+API key/su);
+  assert.match(openClawSkill, /resumes the same scoped\s+`onboard` flow/su);
   assert.match(openClawSkill, /semantic text presentation/u);
   assert.doesNotMatch(openClawSkill, /AskUserQuestion/u);
   assert.match(

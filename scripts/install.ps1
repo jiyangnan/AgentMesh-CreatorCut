@@ -515,16 +515,33 @@ try {
         )
         [IO.File]::WriteAllLines($shim, $shimLines, [Text.Encoding]::ASCII)
 
-        $versionSmoke = & $shim version | ConvertFrom-Json
-        Assert-LastExit "$ProductName version smoke"
-        if (-not $versionSmoke.ok -or $versionSmoke.data.version -ne $Version) {
-            Fail "$ProductName smoke returned the wrong version."
-        }
-        $doctorSmoke = & $shim doctor | ConvertFrom-Json
-        Assert-LastExit "$ProductName doctor smoke"
-        if (-not $doctorSmoke.ok -or
-            $doctorSmoke.data.credential_storage -ne "Windows DPAPI") {
-            Fail "$ProductName doctor did not confirm Windows DPAPI."
+        $installerOpenClawShell = [Environment]::GetEnvironmentVariable(
+            "OPENCLAW_SHELL",
+            "Process"
+        )
+        try {
+            [Environment]::SetEnvironmentVariable(
+                "OPENCLAW_SHELL",
+                $null,
+                "Process"
+            )
+            $versionSmoke = & $shim version | ConvertFrom-Json
+            Assert-LastExit "$ProductName version smoke"
+            if (-not $versionSmoke.ok -or $versionSmoke.data.version -ne $Version) {
+                Fail "$ProductName smoke returned the wrong version."
+            }
+            $doctorSmoke = & $shim doctor | ConvertFrom-Json
+            Assert-LastExit "$ProductName doctor smoke"
+            if (-not $doctorSmoke.ok -or
+                $doctorSmoke.data.credential_storage -ne "Windows DPAPI") {
+                Fail "$ProductName doctor did not confirm Windows DPAPI."
+            }
+        } finally {
+            [Environment]::SetEnvironmentVariable(
+                "OPENCLAW_SHELL",
+                $installerOpenClawShell,
+                "Process"
+            )
         }
     } catch {
         Remove-Item -LiteralPath $InstallDir -Recurse -Force -ErrorAction SilentlyContinue
@@ -550,13 +567,17 @@ try {
 
     Write-Ok "$ProductName $Version installed at $InstallDir"
     Write-Host ""
-    Write-Info "Starting Agent-native onboarding"
-    try {
-        & $shim onboard
-        Assert-LastExit "$ProductName onboarding"
-    } catch {
-        Write-Info "This installed release predates guided onboarding."
-        Write-Host "Next: creatorcut doctor; creatorcut auth login"
+    if ($env:OPENCLAW_SHELL -eq "exec") {
+        Write-Info "OpenClaw exec detected. Use the --force replacement command in skills/openclaw-creatorcut/README.md from this verified v$Version release archive, then start through the fixed bridge."
+    } else {
+        Write-Info "Starting Agent-native onboarding"
+        try {
+            & $shim onboard
+            Assert-LastExit "$ProductName onboarding"
+        } catch {
+            Write-Info "This installed release predates guided onboarding."
+            Write-Host "Next: creatorcut doctor; creatorcut auth login"
+        }
     }
 } finally {
     Remove-Item -LiteralPath $WorkDir -Recurse -Force -ErrorAction SilentlyContinue

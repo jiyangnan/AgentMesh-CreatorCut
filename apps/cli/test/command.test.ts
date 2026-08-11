@@ -1,5 +1,6 @@
 import {
   access,
+  mkdir,
   mkdtemp,
   readFile,
   rmdir,
@@ -7,7 +8,7 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { delimiter, join, resolve } from "node:path";
 
 import { describe, expect, it, vi } from "vitest";
 
@@ -23,6 +24,10 @@ import {
 import * as publicRuntime from "@agentmesh/creatorcut-runtime";
 
 import { executeCli } from "../src/index.js";
+import {
+  OPENCLAW_REQUEST_ENVIRONMENT,
+  withNextProcess,
+} from "../src/next-process.js";
 import {
   migratedHandoffFixture,
   migratedNoVisualFixture,
@@ -160,6 +165,12 @@ describe("creatorcut CLI", () => {
       command: "version",
       data: { version: packageManifest.version },
     });
+
+    await expect(
+      executeCli(["--version"], io(), {
+        credentials: new MemoryCredentialStore(),
+      }),
+    ).resolves.toEqual(result);
   });
 
   it("fails closed before internal migration commands can resolve or mutate a project", async () => {
@@ -247,7 +258,8 @@ describe("creatorcut CLI", () => {
       ok: true,
       command: "project adopt-public",
       project_revision: 1,
-      next_suggested: "project status",
+      next_suggested: "project status --project PROJECT_DIRECTORY",
+      next_argv: ["project", "status", "--project", projectDirectory],
       data: {
         authority: "public-runtime",
         source_format: "creatorcut-public-runtime/1.0",
@@ -256,7 +268,7 @@ describe("creatorcut CLI", () => {
     expect(adapterFactory).not.toHaveBeenCalled();
     for (const call of credentialCalls) expect(call).not.toHaveBeenCalled();
     await expect(
-      executeCli(["project", "status", "--project", projectDirectory], io(), {
+      executeCli(adopted.next_argv!, io(), {
         credentials: new MemoryCredentialStore(),
       }),
     ).resolves.toMatchObject({ ok: true, command: "project status" });
@@ -306,6 +318,141 @@ describe("creatorcut CLI", () => {
         if (value === undefined) delete process.env[name];
         else process.env[name] = value;
       }
+    }
+  });
+
+  it("doctor resolves default media executables from PATH without a shell", async () => {
+    const root = await mkdtemp(join(tmpdir(), "creatorcut-doctor-path-"));
+    const model = join(root, "model.bin");
+    const executableNames =
+      process.platform === "win32"
+        ? ["ffmpeg.EXE", "ffprobe.EXE", "whisper-cli.EXE"]
+        : ["ffmpeg", "ffprobe", "whisper-cli"];
+    await Promise.all([
+      ...executableNames.map((name) =>
+        writeFile(join(root, name), "", { mode: 0o755 }),
+      ),
+      writeFile(model, "model"),
+    ]);
+    const names = [
+      "CREATORCUT_FFMPEG",
+      "CREATORCUT_FFPROBE",
+      "CREATORCUT_WHISPER",
+      "CREATORCUT_WHISPER_MODEL",
+      "PATH",
+      "PATHEXT",
+    ] as const;
+    const previous = Object.fromEntries(
+      names.map((name) => [name, process.env[name]]),
+    );
+    try {
+      delete process.env.CREATORCUT_FFMPEG;
+      delete process.env.CREATORCUT_FFPROBE;
+      delete process.env.CREATORCUT_WHISPER;
+      process.env.CREATORCUT_WHISPER_MODEL = model;
+      process.env.PATH = root;
+      if (process.platform === "win32") process.env.PATHEXT = ".EXE;.CMD";
+
+      const result = await executeCli(["doctor"], io(), {
+        credentials: new MemoryCredentialStore(),
+      });
+      expect(result).toMatchObject({
+        ok: true,
+        data: {
+          dependencies_ready: true,
+          dependencies: {
+            ffmpeg: { path: join(root, executableNames[0]!), ready: true },
+            ffprobe: { path: join(root, executableNames[1]!), ready: true },
+            whisper: { path: join(root, executableNames[2]!), ready: true },
+            whisper_model: { path: model, ready: true },
+          },
+        },
+      });
+
+      await unlink(join(root, executableNames[0]!));
+      await mkdir(join(root, executableNames[0]!));
+      if (process.platform === "win32") {
+        await writeFile(join(root, "ffmpeg.CMD"), "@exit /b 0\r\n");
+      }
+      const invalidExecutable = await executeCli(["doctor"], io(), {
+        credentials: new MemoryCredentialStore(),
+      });
+      expect(invalidExecutable).toMatchObject({
+        ok: true,
+        data: {
+          dependencies: {
+            ffmpeg: { path: null, ready: false },
+          },
+        },
+      });
+    } finally {
+      for (const name of names) {
+        const value = previous[name];
+        if (value === undefined) delete process.env[name];
+        else process.env[name] = value;
+      }
+    }
+  });
+
+  it("doctor never hides an invalid explicit executable behind PATH fallback", async () => {
+    const root = await mkdtemp(join(tmpdir(), "creatorcut-doctor-precedence-"));
+    const ffmpeg = join(
+      root,
+      process.platform === "win32" ? "ffmpeg.EXE" : "ffmpeg",
+    );
+    const missing = join(root, "configured-ffmpeg-is-missing");
+    await writeFile(ffmpeg, "", { mode: 0o755 });
+    const previousPath = process.env.PATH;
+    const previousFfmpeg = process.env.CREATORCUT_FFMPEG;
+    try {
+      process.env.PATH = `${root}${delimiter}${previousPath ?? ""}`;
+      process.env.CREATORCUT_FFMPEG = missing;
+      const result = await executeCli(["doctor"], io(), {
+        credentials: new MemoryCredentialStore(),
+      });
+      expect(result).toMatchObject({
+        ok: true,
+        data: {
+          dependencies: {
+            ffmpeg: { path: missing, ready: false },
+          },
+        },
+      });
+
+      process.env.CREATORCUT_FFMPEG = "";
+      const emptyConfiguration = await executeCli(["doctor"], io(), {
+        credentials: new MemoryCredentialStore(),
+      });
+      expect(emptyConfiguration).toMatchObject({
+        ok: true,
+        data: {
+          dependencies: {
+            ffmpeg: { path: ffmpeg, ready: true },
+          },
+        },
+      });
+
+      if (process.platform === "win32") {
+        const batch = join(root, "ffmpeg.CMD");
+        await writeFile(batch, "@exit /b 0\r\n");
+        process.env.CREATORCUT_FFMPEG = batch;
+        const batchConfiguration = await executeCli(["doctor"], io(), {
+          credentials: new MemoryCredentialStore(),
+        });
+        expect(batchConfiguration).toMatchObject({
+          ok: true,
+          data: {
+            dependencies: {
+              ffmpeg: { path: batch, ready: false },
+            },
+          },
+        });
+      }
+    } finally {
+      if (previousPath === undefined) delete process.env.PATH;
+      else process.env.PATH = previousPath;
+      if (previousFfmpeg === undefined) delete process.env.CREATORCUT_FFMPEG;
+      else process.env.CREATORCUT_FFMPEG = previousFfmpeg;
     }
   });
 
@@ -446,7 +593,8 @@ describe("creatorcut CLI", () => {
         ok: true,
         command: "onboard",
         requires_user_action: true,
-        next_suggested: `director context inspect --project ${JSON.stringify(project)}`,
+        next_suggested: "director context inspect --project PROJECT_DIRECTORY",
+        next_argv: ["director", "context", "inspect", "--project", project],
         data: {
           stage: "inspect_director_context",
           checks: {
@@ -492,7 +640,8 @@ describe("creatorcut CLI", () => {
     expect(result).toMatchObject({
       ok: true,
       command: "upgrade-check",
-      next_suggested: "export status",
+      next_suggested: "export status --project PROJECT_DIRECTORY",
+      next_argv: ["export", "status", "--project", project],
       data: {
         compatible: true,
         update_safe: false,
@@ -503,28 +652,90 @@ describe("creatorcut CLI", () => {
 
   it("stores auth through the credential abstraction and returns stable JSON", async () => {
     const credentials = new MemoryCredentialStore();
-    const login = await executeCli(["auth", "login"], io("am_test_key\n"), {
-      credentials,
-    });
+    const project = resolve(
+      tmpdir(),
+      "creatorcut-$(do-not-run)-%DO_NOT_EXPAND%.creatorcut",
+    );
+    const login = await executeCli(
+      ["auth", "login", "--project", project],
+      io("am_test_key\n"),
+      { credentials },
+    );
     expect(login).toMatchObject({
       schema_version: "creatorcut-cli/1.0",
       ok: true,
       command: "auth login",
       requires_user_action: false,
-      next_suggested: "onboard",
+      next_suggested: "onboard --project PROJECT_DIRECTORY",
+      next_argv: ["onboard", "--project", project],
     });
+    expect(login.next_suggested).not.toContain(project);
     expect(await credentials.getApiKey()).toBe("am_test_key");
   });
 
-  it("rejects API keys passed through argv", async () => {
-    const result = await executeCli(
-      ["auth", "login", "--key", "am_leaked"],
-      io(),
-      { credentials: new MemoryCredentialStore() },
+  it("resumes manual authentication through scoped auth status", async () => {
+    const credentials = new MemoryCredentialStore();
+    const project = resolve(
+      tmpdir(),
+      "creatorcut-auth-resume-$(do-not-run).creatorcut",
     );
-    expect(result.ok).toBe(false);
-    expect(JSON.stringify(result)).not.toContain("am_leaked");
+    const missing = await executeCli(
+      ["auth", "status", "--project", project],
+      io(),
+      { credentials },
+    );
+    expect(missing).toMatchObject({
+      ok: true,
+      command: "auth status",
+      requires_user_action: true,
+      next_suggested: "auth login --project PROJECT_DIRECTORY",
+      next_argv: ["auth", "login", "--project", project],
+      data: { authenticated: false },
+    });
+
+    await credentials.setApiKey("am_test_key");
+    const authenticated = await executeCli(
+      ["auth", "status", "--project", project],
+      io(),
+      { credentials },
+    );
+    expect(authenticated).toMatchObject({
+      ok: true,
+      command: "auth status",
+      requires_user_action: false,
+      next_suggested: "onboard --project PROJECT_DIRECTORY",
+      next_argv: ["onboard", "--project", project],
+      data: { authenticated: true },
+    });
+    expect(authenticated.next_suggested).not.toContain(project);
+    const continued = withNextProcess(authenticated, {
+      executable: process.execPath,
+      mainModule: resolve(import.meta.dirname, "../dist/src/main.js"),
+      cwd: resolve(import.meta.dirname, ".."),
+      environment: {},
+    });
+    expect(
+      JSON.parse(
+        continued.next_openclaw!.exec.env[OPENCLAW_REQUEST_ENVIRONMENT]!,
+      ),
+    ).toEqual({
+      argv: ["onboard", "--project", project],
+      stdin_mode: "none",
+    });
   });
+
+  it.each(["--key", "--key=am_leaked"])(
+    "rejects API keys passed through argv as %s",
+    async (keyArgument) => {
+      const result = await executeCli(
+        ["auth", "login", keyArgument, "am_leaked"],
+        io(),
+        { credentials: new MemoryCredentialStore() },
+      );
+      expect(result.ok).toBe(false);
+      expect(JSON.stringify(result)).not.toContain("am_leaked");
+    },
+  );
 
   it("requires inspect then explicit project-level consent", async () => {
     const project = await projectFixture();
@@ -536,7 +747,16 @@ describe("creatorcut CLI", () => {
     expect(inspect).toMatchObject({
       ok: true,
       requires_user_action: true,
-      next_suggested: "director context consent --confirm-upload",
+      next_suggested:
+        "director context consent --confirm-upload --project PROJECT_DIRECTORY",
+      next_argv: [
+        "director",
+        "context",
+        "consent",
+        "--confirm-upload",
+        "--project",
+        project,
+      ],
     });
     const denied = await executeCli(
       ["director", "context", "consent", "--project", project],
@@ -613,7 +833,8 @@ describe("creatorcut CLI", () => {
     );
     expect(replaced).toMatchObject({
       ok: true,
-      next_suggested: "director context inspect",
+      next_suggested: "director context inspect --project PROJECT_DIRECTORY",
+      next_argv: ["director", "context", "inspect", "--project", project],
       data: { language_mode: "mixed" },
     });
   });
@@ -636,7 +857,8 @@ describe("creatorcut CLI", () => {
     );
     expect(activeStatus).toMatchObject({
       ok: true,
-      next_suggested: "handoff verify",
+      next_suggested: "handoff verify --project PROJECT_DIRECTORY",
+      next_argv: ["handoff", "verify", "--project", projectDirectory],
       data: { handoff_visual_state: "active" },
     });
     expect(JSON.stringify(activeStatus)).not.toContain(
@@ -650,7 +872,8 @@ describe("creatorcut CLI", () => {
     );
     expect(verification).toMatchObject({
       ok: true,
-      next_suggested: "export plan",
+      next_suggested: "export plan --project PROJECT_DIRECTORY",
+      next_argv: ["export", "plan", "--project", projectDirectory],
       data: {
         visual_state: "active",
         preview_approval_present: true,
@@ -667,7 +890,8 @@ describe("creatorcut CLI", () => {
     );
     expect(plan).toMatchObject({
       ok: true,
-      next_suggested: "handoff verify",
+      next_suggested: "handoff verify --project PROJECT_DIRECTORY",
+      next_argv: ["handoff", "verify", "--project", projectDirectory],
       data: {
         ready: false,
         visual_render_supported: false,
@@ -724,7 +948,8 @@ describe("creatorcut CLI", () => {
     expect(undone).toMatchObject({
       ok: true,
       project_revision: 4,
-      next_suggested: "handoff verify",
+      next_suggested: "handoff verify --project PROJECT_DIRECTORY",
+      next_argv: ["handoff", "verify", "--project", projectDirectory],
     });
     const undoneStatus = await executeCli(
       ["project", "status", "--project", projectDirectory],
@@ -733,7 +958,8 @@ describe("creatorcut CLI", () => {
     );
     expect(undoneStatus).toMatchObject({
       ok: true,
-      next_suggested: "edit redo",
+      next_suggested: "edit redo --project PROJECT_DIRECTORY",
+      next_argv: ["edit", "redo", "--project", projectDirectory],
       data: { handoff_visual_state: "redo_available" },
     });
     expect(JSON.stringify(undoneStatus)).not.toMatch(
@@ -759,7 +985,8 @@ describe("creatorcut CLI", () => {
     );
     expect(undonePlan).toMatchObject({
       ok: true,
-      next_suggested: "handoff verify",
+      next_suggested: "handoff verify --project PROJECT_DIRECTORY",
+      next_argv: ["handoff", "verify", "--project", projectDirectory],
       data: { ready: false, visual_render_supported: false },
     });
     const undoneStart = await executeCli(
@@ -800,7 +1027,8 @@ describe("creatorcut CLI", () => {
     expect(redone).toMatchObject({
       ok: true,
       project_revision: 5,
-      next_suggested: "handoff verify",
+      next_suggested: "handoff verify --project PROJECT_DIRECTORY",
+      next_argv: ["handoff", "verify", "--project", projectDirectory],
     });
     const redoneStatus = await executeCli(
       ["project", "status", "--project", projectDirectory],
@@ -809,7 +1037,8 @@ describe("creatorcut CLI", () => {
     );
     expect(redoneStatus).toMatchObject({
       ok: true,
-      next_suggested: "handoff verify",
+      next_suggested: "handoff verify --project PROJECT_DIRECTORY",
+      next_argv: ["handoff", "verify", "--project", projectDirectory],
       data: { handoff_visual_state: "active" },
     });
   }, 20_000);
@@ -818,24 +1047,126 @@ describe("creatorcut CLI", () => {
     const { projectDirectory } = await migratedNoVisualFixture();
     const credentials = new MemoryCredentialStore();
     const output = join(projectDirectory, "exports", "planned-only.mp4");
+    const bin = join(projectDirectory, "test-bin");
+    const model = join(projectDirectory, "whisper-model.bin");
+    const executableNames =
+      process.platform === "win32"
+        ? ["ffmpeg.EXE", "ffprobe.EXE", "whisper-cli.EXE"]
+        : ["ffmpeg", "ffprobe", "whisper-cli"];
     const taskPath = join(
       projectDirectory,
       ".creatorcut",
       "tasks",
       "export.json",
     );
-
-    const status = await executeCli(
-      ["project", "status", "--project", projectDirectory],
-      io(),
-      { credentials },
+    const environmentNames = [
+      "CREATORCUT_FFMPEG",
+      "CREATORCUT_FFPROBE",
+      "CREATORCUT_WHISPER",
+      "CREATORCUT_WHISPER_MODEL",
+      "PATH",
+      "PATHEXT",
+    ] as const;
+    const previousEnvironment = Object.fromEntries(
+      environmentNames.map((name) => [name, process.env[name]]),
     );
-    expect(status).toMatchObject({
-      ok: true,
-      next_suggested: "transcribe start --language auto",
-      data: { visual_handoff_present: false },
-    });
-    expect(status.next_suggested).not.toMatch(/handoff verify|director/u);
+    await mkdir(bin);
+    await Promise.all(
+      executableNames.map((name) =>
+        writeFile(join(bin, name), "", { mode: 0o755 }),
+      ),
+    );
+    delete process.env.CREATORCUT_FFMPEG;
+    delete process.env.CREATORCUT_FFPROBE;
+    delete process.env.CREATORCUT_WHISPER;
+    delete process.env.CREATORCUT_WHISPER_MODEL;
+    process.env.PATH = bin;
+    if (process.platform === "win32") process.env.PATHEXT = ".EXE;.CMD";
+
+    try {
+      const status = await executeCli(
+        ["project", "status", "--project", projectDirectory],
+        io(),
+        { credentials },
+      );
+      expect(status).toMatchObject({
+        ok: true,
+        requires_user_action: true,
+        next_suggested: "doctor --project PROJECT_DIRECTORY",
+        next_argv: ["doctor", "--project", projectDirectory],
+        data: { visual_handoff_present: false },
+      });
+      expect(status.user_prompt).toMatch(/CREATORCUT_WHISPER_MODEL/iu);
+      expect(status.next_suggested).not.toMatch(
+        /transcribe start|handoff verify|director/u,
+      );
+
+      const opened = await executeCli(
+        ["project", "open", "--project", projectDirectory],
+        io(),
+        { credentials },
+      );
+      expect(opened).toMatchObject({
+        ok: true,
+        requires_user_action: true,
+        next_suggested: "doctor --project PROJECT_DIRECTORY",
+        next_argv: ["doctor", "--project", projectDirectory],
+      });
+
+      const doctor = await executeCli(
+        ["doctor", "--project", projectDirectory],
+        io(),
+        { credentials },
+      );
+      expect(doctor).toMatchObject({
+        ok: true,
+        next_suggested: "onboard --project PROJECT_DIRECTORY",
+        next_argv: ["onboard", "--project", projectDirectory],
+      });
+
+      await writeFile(model, "model");
+      process.env.CREATORCUT_WHISPER_MODEL = model;
+      const configuredStatus = await executeCli(
+        ["project", "status", "--project", projectDirectory],
+        io(),
+        { credentials },
+      );
+      expect(configuredStatus).toMatchObject({
+        ok: true,
+        requires_user_action: false,
+        next_suggested:
+          "transcribe start --language auto --project PROJECT_DIRECTORY",
+        next_argv: [
+          "transcribe",
+          "start",
+          "--language",
+          "auto",
+          "--project",
+          projectDirectory,
+        ],
+      });
+      expect(configuredStatus).not.toHaveProperty("user_prompt");
+
+      process.env.CREATORCUT_WHISPER = join(bin, "missing-whisper-cli");
+      const brokenExecutableStatus = await executeCli(
+        ["project", "status", "--project", projectDirectory],
+        io(),
+        { credentials },
+      );
+      expect(brokenExecutableStatus).toMatchObject({
+        ok: true,
+        requires_user_action: true,
+        next_suggested: "doctor --project PROJECT_DIRECTORY",
+        next_argv: ["doctor", "--project", projectDirectory],
+      });
+      expect(brokenExecutableStatus.user_prompt).toMatch(/whisper-cli/iu);
+    } finally {
+      for (const name of environmentNames) {
+        const value = previousEnvironment[name];
+        if (value === undefined) delete process.env[name];
+        else process.env[name] = value;
+      }
+    }
 
     const verification = await executeCli(
       ["handoff", "verify", "--project", projectDirectory],
@@ -844,7 +1175,8 @@ describe("creatorcut CLI", () => {
     );
     expect(verification).toMatchObject({
       ok: true,
-      next_suggested: "project status",
+      next_suggested: "project status --project PROJECT_DIRECTORY",
+      next_argv: ["project", "status", "--project", projectDirectory],
       data: {
         visual_handoff_present: false,
         next: "public_workflow",
@@ -860,7 +1192,8 @@ describe("creatorcut CLI", () => {
     );
     expect(plan).toMatchObject({
       ok: true,
-      next_suggested: "export start --output <path.mp4>",
+      next_suggested:
+        "export start --output <path.mp4> --project PROJECT_DIRECTORY",
       data: {
         ready: true,
         visual_render_supported: false,
@@ -894,7 +1227,8 @@ describe("creatorcut CLI", () => {
     expect(result).toMatchObject({
       ok: true,
       requires_user_action: true,
-      next_suggested: "cards submit",
+      next_suggested: "cards submit --project PROJECT_DIRECTORY",
+      next_argv: ["cards", "submit", "--project", "/synthetic/project"],
       data: {
         answer_set_id: `answers:${"d".repeat(32)}`,
         presentation: { presentation_digest: presentationDigest },

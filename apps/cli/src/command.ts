@@ -1,7 +1,7 @@
 import { constants } from "node:fs";
-import { access, readFile } from "node:fs/promises";
+import { access, readFile, stat } from "node:fs/promises";
 import { homedir } from "node:os";
-import { join, resolve } from "node:path";
+import { delimiter, extname, isAbsolute, join, resolve } from "node:path";
 
 import {
   createPlatformCredentialStore,
@@ -52,9 +52,10 @@ import {
   releaseCheck,
 } from "@agentmesh/creatorcut-release-manager";
 
+import { isApiKeyArgument } from "./next-process.js";
 import type { CliEnvelope, CliIo } from "./types.js";
 
-const CURRENT_CLIENT_VERSION = "0.3.0-rc.1";
+const CURRENT_CLIENT_VERSION = "0.3.0-rc.2";
 const DEFAULT_RELEASE_ENDPOINT =
   "https://api.agentmesh360.com/v1/products/creatorcut/client-release";
 
@@ -69,6 +70,26 @@ interface CliDependencies {
   cwd?: () => string;
 }
 
+interface TranscriptionSuggestion {
+  next: string;
+  argv: string[];
+  requiresUserAction: boolean;
+  userPrompt?: string;
+}
+
+interface NextCommand {
+  suggested: string;
+  argv?: string[];
+}
+
+interface SuccessOptions {
+  revision?: number;
+  next?: string;
+  nextArgv?: string[];
+  requiresUserAction?: boolean;
+  userPrompt?: string;
+}
+
 function parseArguments(argv: string[]): ParsedArguments {
   const command: string[] = [];
   const options = new Map<string, string | true>();
@@ -79,7 +100,7 @@ function parseArguments(argv: string[]): ParsedArguments {
       command.push(token);
       continue;
     }
-    if (token === "--key") {
+    if (isApiKeyArgument(token)) {
       throw new TypeError(
         "CreatorCut never accepts API keys in command arguments",
       );
@@ -121,15 +142,25 @@ function requiredOption(
   return value;
 }
 
-function success<T>(
+function projectNextCommand(
+  parsed: ParsedArguments,
+  projectDirectory: string,
+  suggested: string,
+  argv?: string[],
+): NextCommand {
+  if (typeof parsed.options.get("project") !== "string") {
+    return { suggested, ...(argv ? { argv } : {}) };
+  }
+  return {
+    suggested: `${suggested} --project PROJECT_DIRECTORY`,
+    ...(argv ? { argv: [...argv, "--project", projectDirectory] } : {}),
+  };
+}
+
+function baseSuccess<T>(
   command: string,
   data: T,
-  options: {
-    revision?: number;
-    next?: string;
-    requiresUserAction?: boolean;
-    userPrompt?: string;
-  } = {},
+  options: SuccessOptions = {},
 ): CliEnvelope<T> {
   return {
     schema_version: "creatorcut-cli/1.0",
@@ -142,6 +173,7 @@ function success<T>(
     ...(options.userPrompt ? { user_prompt: options.userPrompt } : {}),
     retryable: false,
     ...(options.next ? { next_suggested: options.next } : {}),
+    ...(options.nextArgv ? { next_argv: options.nextArgv } : {}),
     data,
   };
 }
@@ -280,45 +312,124 @@ async function fetchRelease(
 
 async function available(path: string | undefined, executable = true) {
   if (!path) return false;
-  return await access(path, executable ? constants.X_OK : constants.F_OK)
-    .then(() => true)
-    .catch(() => false);
+  try {
+    if (!(await stat(path)).isFile()) return false;
+    await access(path, executable ? constants.X_OK : constants.R_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function executableCandidates(command: string): string[] {
+  if (isAbsolute(command) || command.includes("/") || command.includes("\\")) {
+    return [resolve(command)];
+  }
+
+  const extensions =
+    process.platform === "win32" && extname(command) === ""
+      ? ["", ".COM", ".EXE"]
+      : [""];
+  const candidates = new Set<string>();
+  for (const rawEntry of (process.env.PATH ?? "").split(delimiter)) {
+    const unquoted = rawEntry.replace(/^"(.*)"$/u, "$1");
+    const entry = unquoted || ".";
+    for (const extension of extensions) {
+      candidates.add(resolve(entry, `${command}${extension}`));
+    }
+  }
+  return [...candidates];
+}
+
+async function inspectExecutable(
+  configuredPath: string | undefined,
+  defaultCommand: string,
+) {
+  const requested = configuredPath || defaultCommand;
+  for (const candidate of executableCandidates(requested)) {
+    if (process.platform === "win32") {
+      const extension = extname(candidate).toUpperCase();
+      if (extension && extension !== ".COM" && extension !== ".EXE") {
+        continue;
+      }
+    }
+    if (await available(candidate)) {
+      return { path: candidate, ready: true };
+    }
+  }
+  return {
+    path: configuredPath || null,
+    ready: false,
+  };
+}
+
+async function inspectLocalDependencies(parsed: ParsedArguments) {
+  const ffmpegPath = option(parsed, "ffmpeg", "CREATORCUT_FFMPEG");
+  const ffprobePath = option(parsed, "ffprobe", "CREATORCUT_FFPROBE");
+  const whisperPath = option(parsed, "whisper", "CREATORCUT_WHISPER");
+  const modelPath = option(parsed, "model", "CREATORCUT_WHISPER_MODEL");
+  const [ffmpeg, ffprobe, whisper] = await Promise.all([
+    inspectExecutable(ffmpegPath, "ffmpeg"),
+    inspectExecutable(ffprobePath, "ffprobe"),
+    inspectExecutable(whisperPath, "whisper-cli"),
+  ]);
+  return {
+    node: {
+      path: process.execPath,
+      version: process.versions.node,
+      ready: process.versions.node.split(".")[0] === "24",
+    },
+    ffmpeg,
+    ffprobe,
+    whisper,
+    whisper_model: {
+      path: modelPath ?? null,
+      ready: await available(modelPath, false),
+    },
+  };
+}
+
+async function transcriptionSuggestion(): Promise<TranscriptionSuggestion> {
+  const dependencies = await inspectLocalDependencies({
+    command: [],
+    options: new Map(),
+  });
+  const missing = Object.entries(dependencies)
+    .filter(([, dependency]) => !dependency.ready)
+    .map(([name]) =>
+      name === "node"
+        ? "Node.js 24"
+        : name === "whisper"
+          ? "whisper-cli"
+          : name === "whisper_model"
+            ? "CREATORCUT_WHISPER_MODEL"
+            : name,
+    );
+  if (missing.length === 0) {
+    return {
+      next: "transcribe start --language auto",
+      argv: ["transcribe", "start", "--language", "auto"],
+      requiresUserAction: false,
+    };
+  }
+  return {
+    next: "doctor",
+    argv: ["doctor"],
+    requiresUserAction: true,
+    userPrompt: `CreatorCut local transcription dependencies are incomplete (${missing.join(
+      ", ",
+    )}). Run creatorcut doctor, re-run the official managed installer or repair the listed local configuration, then resume this project.`,
+  };
 }
 
 async function inspectOnboardingState(
   projectDirectory: string,
   credentials: CredentialStore,
 ) {
-  const dependencyPaths = {
-    node: process.execPath,
-    ffmpeg: process.env.CREATORCUT_FFMPEG,
-    ffprobe: process.env.CREATORCUT_FFPROBE,
-    whisper: process.env.CREATORCUT_WHISPER,
-    whisper_model: process.env.CREATORCUT_WHISPER_MODEL,
-  };
-  const localDependencies = {
-    node: {
-      path: dependencyPaths.node,
-      version: process.versions.node,
-      ready: process.versions.node.split(".")[0] === "24",
-    },
-    ffmpeg: {
-      path: dependencyPaths.ffmpeg ?? null,
-      ready: await available(dependencyPaths.ffmpeg),
-    },
-    ffprobe: {
-      path: dependencyPaths.ffprobe ?? null,
-      ready: await available(dependencyPaths.ffprobe),
-    },
-    whisper: {
-      path: dependencyPaths.whisper ?? null,
-      ready: await available(dependencyPaths.whisper),
-    },
-    whisper_model: {
-      path: dependencyPaths.whisper_model ?? null,
-      ready: await available(dependencyPaths.whisper_model, false),
-    },
-  };
+  const localDependencies = await inspectLocalDependencies({
+    command: [],
+    options: new Map(),
+  });
   const directorPaths = {
     keyset: process.env.CREATORCUT_DIRECTOR_KEYSET,
     recovery_roots: process.env.CREATORCUT_DIRECTOR_RECOVERY_ROOTS,
@@ -371,7 +482,9 @@ export async function executeCli(
 ): Promise<CliEnvelope> {
   let commandName = "invalid";
   try {
-    const parsed = parseArguments(argv);
+    const normalizedArgv =
+      argv.length === 1 && argv[0] === "--version" ? ["version"] : argv;
+    const parsed = parseArguments(normalizedArgv);
     commandName = parsed.command.join(" ") || "help";
     if (commandName === "project adopt-public") {
       if (parsed.options.get("confirm-local") !== true) {
@@ -392,12 +505,19 @@ export async function executeCli(
       const projectDirectory = resolve(
         option(parsed, "project") ?? dependencies.cwd?.() ?? process.cwd(),
       );
+      const next = projectNextCommand(
+        parsed,
+        projectDirectory,
+        "project status",
+        ["project", "status"],
+      );
       const marker = await adoptLegacyPublicProject(projectDirectory, {
         confirmLocal: true,
       });
-      return success(commandName, marker, {
+      return baseSuccess(commandName, marker, {
         revision: marker.current_revision,
-        next: "project status",
+        next: next.suggested,
+        ...(next.argv ? { nextArgv: next.argv } : {}),
       });
     }
     const credentials =
@@ -405,6 +525,34 @@ export async function executeCli(
     const projectDirectory = resolve(
       option(parsed, "project") ?? dependencies.cwd?.() ?? process.cwd(),
     );
+    const success = <T>(
+      command: string,
+      data: T,
+      options: SuccessOptions = {},
+    ): CliEnvelope<T> => {
+      if (!options.next) return baseSuccess(command, data, options);
+      if (
+        options.next.includes("PROJECT_DIRECTORY") ||
+        options.nextArgv?.includes("--project") ||
+        options.next.includes("--project")
+      ) {
+        return baseSuccess(command, data, options);
+      }
+      const inferredArgv = /[<>\r\n]/u.test(options.next)
+        ? undefined
+        : options.next.split(/\s+/u).filter(Boolean);
+      const scoped = projectNextCommand(
+        parsed,
+        projectDirectory,
+        options.next,
+        options.nextArgv ?? inferredArgv,
+      );
+      return baseSuccess(command, data, {
+        ...options,
+        next: scoped.suggested,
+        ...(scoped.argv ? { nextArgv: scoped.argv } : {}),
+      });
+    };
     const adapter = () =>
       dependencies.adapterFactory?.() ?? defaultAdapter(parsed, credentials);
 
@@ -417,8 +565,12 @@ export async function executeCli(
         projectDirectory,
         credentials,
       );
+      const next = projectNextCommand(parsed, projectDirectory, "onboard", [
+        "onboard",
+      ]);
       return success(commandName, checks, {
-        next: "onboard",
+        next: next.suggested,
+        ...(next.argv ? { nextArgv: next.argv } : {}),
       });
     }
 
@@ -427,12 +579,11 @@ export async function executeCli(
         projectDirectory,
         credentials,
       );
-      const explicitProject = option(parsed, "project");
-      const projectSuffix = explicitProject
-        ? ` --project ${JSON.stringify(projectDirectory)}`
-        : "";
 
       if (!checks.dependencies_ready) {
+        const next = projectNextCommand(parsed, projectDirectory, "doctor", [
+          "doctor",
+        ]);
         return success(
           commandName,
           {
@@ -441,7 +592,8 @@ export async function executeCli(
             checks,
           },
           {
-            next: "doctor",
+            next: next.suggested,
+            ...(next.argv ? { nextArgv: next.argv } : {}),
             requiresUserAction: true,
             userPrompt:
               "CreatorCut local media dependencies are incomplete. Re-run the official managed installer, then run creatorcut onboard again.",
@@ -449,6 +601,12 @@ export async function executeCli(
         );
       }
       if (!checks.authenticated) {
+        const next = projectNextCommand(
+          parsed,
+          projectDirectory,
+          "auth login",
+          ["auth", "login"],
+        );
         return success(
           commandName,
           {
@@ -457,7 +615,8 @@ export async function executeCli(
             checks,
           },
           {
-            next: `auth login${projectSuffix}`,
+            next: next.suggested,
+            ...(next.argv ? { nextArgv: next.argv } : {}),
             requiresUserAction: true,
             userPrompt:
               "Open https://agentmesh360.com/app/#account, create or copy an AgentMesh API Key, then run creatorcut auth login and paste the key through stdin. Never put the key in command arguments, prompts, logs, or shell history.",
@@ -483,14 +642,24 @@ export async function executeCli(
 
       const opened = await openCreatorCutProject(projectDirectory);
       const consent = await readDirectorConsent(opened);
-      const next =
+      const next = projectNextCommand(
+        parsed,
+        projectDirectory,
         opened.transcript.segments.length === 0
-          ? `transcribe start --language auto${projectSuffix}`
+          ? "transcribe start --language auto"
           : !checks.director_configuration_ready
             ? "doctor"
             : consent
-              ? `director start${projectSuffix}`
-              : `director context inspect${projectSuffix}`;
+              ? "director start"
+              : "director context inspect",
+        opened.transcript.segments.length === 0
+          ? ["transcribe", "start", "--language", "auto"]
+          : !checks.director_configuration_ready
+            ? ["doctor"]
+            : consent
+              ? ["director", "start"]
+              : ["director", "context", "inspect"],
+      );
       const stage =
         opened.transcript.segments.length === 0
           ? "transcribe"
@@ -515,7 +684,8 @@ export async function executeCli(
         },
         {
           revision: opened.project.revision,
-          next,
+          next: next.suggested,
+          ...(next.argv ? { nextArgv: next.argv } : {}),
           requiresUserAction:
             stage === "repair_director_configuration" ||
             stage === "inspect_director_context",
@@ -655,19 +825,28 @@ export async function executeCli(
         commandName,
         { stored_in: credentials.storage, authenticated: true },
         {
-          next: `onboard${
-            option(parsed, "project")
-              ? ` --project ${JSON.stringify(projectDirectory)}`
-              : ""
-          }`,
+          next: "onboard",
         },
       );
     }
     if (commandName === "auth status") {
-      return success(commandName, {
-        authenticated: await credentials.hasApiKey(),
-        storage: credentials.storage,
-      });
+      const authenticated = await credentials.hasApiKey();
+      return success(
+        commandName,
+        {
+          authenticated,
+          storage: credentials.storage,
+        },
+        authenticated
+          ? { next: "onboard", nextArgv: ["onboard"] }
+          : {
+              next: "auth login",
+              nextArgv: ["auth", "login"],
+              requiresUserAction: true,
+              userPrompt:
+                "No AgentMesh API key is stored. Run creatorcut auth login in a private user-controlled terminal, then resume through auth status with the same project scope.",
+            },
+      );
     }
     if (commandName === "auth logout") {
       return success(commandName, {
@@ -691,15 +870,32 @@ export async function executeCli(
         migratedHandoff?.visual_handoff_present === true
           ? migratedHandoff
           : null;
-      const next = migratedVisualHandoff
-        ? migratedVisualHandoff.next === "edit_redo"
-          ? "edit redo"
-          : "handoff verify"
-        : opened.transcript.segments.length === 0
-          ? "transcribe start --language auto"
-          : consent
-            ? "director start"
-            : "director context inspect";
+      const transcription =
+        !migratedVisualHandoff && opened.transcript.segments.length === 0
+          ? await transcriptionSuggestion()
+          : null;
+      const next = projectNextCommand(
+        parsed,
+        projectDirectory,
+        migratedVisualHandoff
+          ? migratedVisualHandoff.next === "edit_redo"
+            ? "edit redo"
+            : "handoff verify"
+          : transcription
+            ? transcription.next
+            : consent
+              ? "director start"
+              : "director context inspect",
+        migratedVisualHandoff
+          ? migratedVisualHandoff.next === "edit_redo"
+            ? ["edit", "redo"]
+            : ["handoff", "verify"]
+          : transcription
+            ? transcription.argv
+            : consent
+              ? ["director", "start"]
+              : ["director", "context", "inspect"],
+      );
       return success(
         commandName,
         {
@@ -718,12 +914,31 @@ export async function executeCli(
         },
         {
           revision: opened.project.revision,
-          next,
+          next: next.suggested,
+          ...(next.argv ? { nextArgv: next.argv } : {}),
+          ...(transcription
+            ? {
+                requiresUserAction: transcription.requiresUserAction,
+                ...(transcription.userPrompt
+                  ? { userPrompt: transcription.userPrompt }
+                  : {}),
+              }
+            : {}),
         },
       );
     }
     if (commandName === "project open") {
       const opened = await openCreatorCutProject(projectDirectory);
+      const transcription =
+        opened.transcript.segments.length === 0
+          ? await transcriptionSuggestion()
+          : null;
+      const next = projectNextCommand(
+        parsed,
+        projectDirectory,
+        transcription?.next ?? "director context inspect",
+        transcription?.argv ?? ["director", "context", "inspect"],
+      );
       return success(
         commandName,
         {
@@ -734,10 +949,16 @@ export async function executeCli(
         },
         {
           revision: opened.project.revision,
-          next:
-            opened.transcript.segments.length > 0
-              ? "director context inspect"
-              : "transcribe start",
+          next: next.suggested,
+          ...(next.argv ? { nextArgv: next.argv } : {}),
+          ...(transcription
+            ? {
+                requiresUserAction: transcription.requiresUserAction,
+                ...(transcription.userPrompt
+                  ? { userPrompt: transcription.userPrompt }
+                  : {}),
+              }
+            : {}),
         },
       );
     }
@@ -753,9 +974,21 @@ export async function executeCli(
         ...(ffmpegPath ? { ffmpegPath } : {}),
         ...(ffprobePath ? { ffprobePath } : {}),
       });
+      const transcription = await transcriptionSuggestion();
+      const next = projectNextCommand(
+        parsed,
+        projectDirectory,
+        transcription.next,
+        transcription.argv,
+      );
       return success(commandName, imported, {
         revision: 0,
-        next: "transcribe start",
+        next: next.suggested,
+        ...(next.argv ? { nextArgv: next.argv } : {}),
+        requiresUserAction: transcription.requiresUserAction,
+        ...(transcription.userPrompt
+          ? { userPrompt: transcription.userPrompt }
+          : {}),
       });
     }
 

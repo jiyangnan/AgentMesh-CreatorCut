@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.3.0-rc.2
+
+- Make `creatorcut --version` return the same stable JSON envelope as
+  `creatorcut version`.
+- Make `doctor` discover FFmpeg, FFprobe, and whisper.cpp from `PATH` when no
+  managed path is configured, while preserving fail-closed precedence for an
+  invalid explicit configuration.
+- Stop advertising a transcription command that must fail when any required
+  local transcription dependency is unavailable; return an explicit
+  user-action checkpoint instead.
+- Preserve project scope in follow-up commands through structured `next_argv`
+  and cross-platform `next_process` fields, including the original cwd and a
+  non-secret managed-environment allowlist. This avoids shell interpolation of
+  local project paths or reliance on Windows command shims.
+- Add an exact `next_openclaw` continuation for the supported OpenClaw host.
+  Its shell command is a fixed literal, argv stays in a bounded structured-env
+  request, non-secret JSON input uses a no-echo PTY line, and API keys are
+  refused by the bridge. Mixed CLI/Skill versions fail closed before project
+  access; install the matching Skill from the same verified RC archive until
+  ClawHub distribution is activated. Private-terminal authentication resumes
+  through a structured, project-scoped `auth status` continuation.
+- Keep CLI stderr clean by filtering only Node's known `node:sqlite`
+  experimental warning while preserving all other process warnings.
+
 ## 0.3.0-rc.1
 
 - Add generation- and digest-bound public storage authority plus a durable

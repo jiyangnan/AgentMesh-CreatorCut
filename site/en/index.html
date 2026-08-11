@@ -584,9 +584,18 @@
             <article>
               <span>04</span>
               <b>Let the Agent continue</b>
-              <p>
-                Each step follows <code>next_suggested</code> and pauses only
-                when your confirmation is required.
+              <p
+                data-agent-next-contract="process-env-no-shell-v2"
+                data-agent-skill-pair="same-release"
+              >
+                Direct-process hosts invoke <code>next_process</code> without a
+                shell and merge only <code>env_overrides</code>. OpenClaw passes
+                <code>next_openclaw.exec</code> unchanged to its exec tool: the
+                command is fixed and argv stays in structured env.
+                <code>next_argv</code> is for embedded API hosts. Treat
+                <code>next_suggested</code> as display-only, and pause when your
+                confirmation is required. Install the OpenClaw Skill and CLI
+                from the same verified release archive.
               </p>
             </article>
           </div>

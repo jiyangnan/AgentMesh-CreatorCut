@@ -13,13 +13,33 @@ signing material, or billing internals. The signed Director response and the
 local project are the only workflow authorities.
 
 Treat the command arguments as the user's project path and requested outcome.
-If the project path is missing, ask for it. Quote every path passed to the
-shell.
+If the project path is missing, ask for it. Never interpolate a path, option,
+or user value into the OpenClaw `exec.command` string. For every initial
+CreatorCut call, use the fixed literal command
+`creatorcut __openclaw-bridge`, set the structured
+`env.CREATORCUT_OPENCLAW_REQUEST_JSON` value to
+`JSON.stringify({ argv, stdin_mode: "none" })`, and put the intended cwd in
+`workdir`. Do not stringify `argv` by itself. Every `creatorcut ...` example
+below describes argv semantics: still send its string-array argv through this
+fixed bridge, never concatenate the example into shell text.
 
 ## Invariants
 
-- Read the complete JSON envelope from every command. Follow
-  `next_suggested`; do not infer a hidden step.
+- Read the complete JSON envelope from every command. After honoring any
+  `requires_user_action` boundary, pass `next_openclaw.exec` unchanged to the
+  OpenClaw `exec` tool. Its command is a fixed bridge literal; argv stays in a
+  structured environment field and is never shell text. Direct-process hosts
+  use `next_process`; embedded API hosts use `next_argv`. Treat
+  `next_suggested` as display-only guidance; do not infer a hidden step.
+- When `next_openclaw.input.mode` is `json-line-v1`, start its exact background
+  PTY exec, wait for the exact `ready_marker`, send one minified JSON line with
+  `process.write`, and finish it with `process.submit`. Do not paste the JSON
+  into a shell command. The bridge disables PTY echo and enforces the stated
+  byte limit. Never transport an API key this way: `auth login` must be run by
+  the user in a private terminal. After it completes, resume through the fixed
+  bridge with argv `["auth", "status", "--project", "<same project>"]` (omit
+  `--project` only when the original workflow had none). The returned
+  structured continuation resumes the scoped `onboard` flow.
 - Stop on `ok: false` and report its stable error. Retry only when
   `retryable: true`.
 - A `requires_user_action: true` result is a real confirmation boundary. Do not
@@ -60,7 +80,10 @@ revision-bound content, run:
 creatorcut director context consent --project "<project>" --confirm-upload
 ```
 
-Then follow `next_suggested`.
+Then pass the exact `next_openclaw.exec` object to OpenClaw's exec tool when
+present. Direct-process hosts use `next_process`, and embedded API hosts use
+`next_argv`. Otherwise present the display-only `next_suggested` guidance and
+obtain any required value.
 
 ## Signed decision cards
 
@@ -99,11 +122,14 @@ Build one complete submission:
 ```
 
 Use `text_value` for text cards and `approved` for review cards. Include every
-required card exactly once. Pipe the complete JSON to:
+required card exactly once. Start the fixed bridge for this argv:
 
-```text
-creatorcut cards submit --project "<project>"
+```json
+["cards", "submit", "--project", "<project>"]
 ```
+
+Use its `json-line-v1` PTY contract to send the complete minified JSON through
+`process.write`, then `process.submit`. Never put the answers in shell text.
 
 Do not manually convert displayed tokens into option IDs; the public client
 normalizes and validates them. If another signed card set is returned, repeat
@@ -116,7 +142,8 @@ this section using its new binding.
 - Poll or resume with `creatorcut edit status --project "<project>"`; never
   create a second Generation after a timeout or interrupted response.
 - Show every signed review suggestion and collect a complete decision set
-  before piping it to `edit finalize`.
+  before sending it to `edit finalize` through the same `json-line-v1` PTY
+  bridge contract.
 - Run `edit preview` before apply. Ask the user to inspect the local preview.
   Pass the exact returned confirmation token to `edit apply` only after the
   user confirms the preview.

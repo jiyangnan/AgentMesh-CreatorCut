@@ -35,8 +35,25 @@ creatorcut onboard
 `onboard` checks the local toolchain and trusted Director configuration, asks
 for the AgentMesh API key through secure standard input, guides local recording
 import, starts multilingual transcription, and then returns the exact
-`next_suggested` action. Run the same command at any time to resume from the
-first incomplete stage.
+next action. Agents starting another process must invoke the exact
+`next_process.executable` with `next_process.argv`, `next_process.cwd`,
+`shell: false`, and the allowlisted `env_overrides` merged into the host
+environment. Embedded API hosts may pass `next_argv` directly back to
+`executeCli`.
+OpenClaw must instead pass the exact `next_openclaw.exec` object to its exec
+tool. That object always uses the fixed literal command
+`creatorcut __openclaw-bridge`; argv is carried only in the tool's structured
+environment field. For the two non-secret JSON-input steps, follow the returned
+PTY `json-line-v1` contract. API keys never use the bridge and remain a manual,
+private-terminal input.
+After that private login, OpenClaw resumes with structured `auth status` argv;
+the returned continuation restores the same project-scoped `onboard` flow.
+The OpenClaw Skill and CreatorCut CLI must be installed from the same verified
+release archive. A mismatched older Skill fails closed before project access;
+until the matching Skill reaches ClawHub, reinstall it from the RC archive.
+`next_suggested` is display-only and uses placeholders when user input is still
+required. Run the same command at any time to resume from the first incomplete
+stage.
 
 When a project was created by v0.2.1, v0.3.0 requires a one-time, explicit
 metadata adoption before status or mutation commands:

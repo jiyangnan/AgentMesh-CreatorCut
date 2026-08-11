@@ -634,8 +634,18 @@
             <article>
               <span>04</span>
               <b>Agent 接续执行</b>
-              <p>
-                每一步读取 <code>next_suggested</code>，需要你确认时才暂停。
+              <p
+                data-agent-next-contract="process-env-no-shell-v2"
+                data-agent-skill-pair="same-release"
+              >
+                直连进程的主机通过无 shell 接口执行
+                <code>next_process</code>，并且只合并其中的
+                <code>env_overrides</code>。OpenClaw 把
+                <code>next_openclaw.exec</code> 原样交给 exec 工具：命令固定，
+                argv 只放在结构化环境字段里。<code>next_argv</code> 只供内嵌 API
+                主机接续；<code>next_suggested</code>
+                只用于展示，需要你确认时才暂停。OpenClaw Skill 与 CLI
+                必须来自同一个已验证的发布归档。
               </p>
             </article>
           </div>

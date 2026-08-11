@@ -359,7 +359,16 @@ test("installer and managed updater pin the frozen pnpm runtime", async () => {
   assert.match(installer, /export CREATORCUT_DIRECTOR_ENDPOINT=%q/u);
   assert.match(installer, /export CREATORCUT_DIRECTOR_KEYSET=%q/u);
   assert.match(installer, /export CREATORCUT_PROTOCOL_BUNDLE_DIGEST=%q/u);
+  assert.match(installer, /run_installer_smoke\(\) \(/u);
+  assert.match(installer, /unset OPENCLAW_SHELL/u);
+  assert.match(installer, /exec "\$SHIM" "\$@"/u);
+  assert.match(installer, /run_installer_smoke version/u);
+  assert.match(installer, /run_installer_smoke doctor/u);
   assert.match(installer, /"\$SHIM" onboard/u);
+  assert.match(
+    installer,
+    /if \[ "\$\{OPENCLAW_SHELL:-\}" = "exec" \]; then[\s\S]+--force replacement command[\s\S]+else[\s\S]+"\$SHIM" onboard/u,
+  );
   assert.match(installer, /"\$COREPACK_PATH" pnpm@10\.30\.3 install/u);
   assert.doesNotMatch(installer, /corepack pnpm --dir/u);
   assert.match(installer, /"\$COREPACK_PATH" pnpm@10\.30\.3 build/u);
@@ -410,6 +419,14 @@ test("installer and managed updater pin the frozen pnpm runtime", async () => {
     /CREATORCUT_PROTOCOL_BUNDLE_DIGEST=\$ProtocolBundleDigest/u,
   );
   assert.match(windowsInstaller, /& \$shim onboard/u);
+  assert.match(
+    windowsInstaller,
+    /GetEnvironmentVariable\([\s\S]+"OPENCLAW_SHELL"[\s\S]+"Process"[\s\S]+try[\s\S]+SetEnvironmentVariable\([\s\S]+"OPENCLAW_SHELL"[\s\S]+\$null[\s\S]+"Process"[\s\S]+& \$shim version[\s\S]+& \$shim doctor[\s\S]+finally[\s\S]+\$installerOpenClawShell[\s\S]+"Process"/u,
+  );
+  assert.match(
+    windowsInstaller,
+    /if \(\$env:OPENCLAW_SHELL -eq "exec"\)[\s\S]+--force replacement command[\s\S]+else[\s\S]+& \$shim onboard/u,
+  );
   assert.doesNotMatch(
     windowsInstaller,
     /CREATORCUT_(?:API_KEY|CORE_SERVICE_TOKEN)\s*=/u,

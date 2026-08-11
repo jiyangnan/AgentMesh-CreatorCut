@@ -20,8 +20,11 @@
       cards and paid edit workflow.
 - [x] Resumable `creatorcut onboard` state machine connects environment repair,
       secure login, local media import, multilingual transcription, explicit
-      context consent, and Director start through stable `next_suggested`
-      actions.
+      context consent, and Director start through shell-free `next_process`
+      actions with cwd plus allowlisted environment continuity, embedded
+      `next_argv`, a fixed-command structured-env `next_openclaw` bridge for
+      the supported OpenClaw shell host, and display-only `next_suggested`
+      guidance.
 - [x] Public stdio MCP server using only public runtime/Director client; no
       Studio or local Director policy dependency.
 - [x] Cross-host semantic card presentation and generic text fallback adapters

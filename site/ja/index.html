@@ -587,10 +587,21 @@
             <article>
               <span>04</span>
               <b>Agent に続行させる</b>
-              <p>
-                各ステップは
-                <code>next_suggested</code>
-                に従い、確認が必要なときだけ一時停止します。
+              <p
+                data-agent-next-contract="process-env-no-shell-v2"
+                data-agent-skill-pair="same-release"
+              >
+                直接プロセスを扱えるホストは
+                <code>next_process</code> をシェルなしで実行し、<code
+                  >env_overrides</code
+                >
+                だけをマージします。OpenClaw は
+                <code>next_openclaw.exec</code> をそのまま exec
+                ツールへ渡します。コマンドは固定で、argv
+                は構造化環境フィールドだけに入ります。<code>next_argv</code>
+                は組み込み API 用、<code>next_suggested</code> は表示専用です。
+                OpenClaw Skill と CLI は同じ検証済みリリースアーカイブから
+                インストールしてください。
               </p>
             </article>
           </div>

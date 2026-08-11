@@ -29,17 +29,36 @@
 ## TC-PUBLIC-007: CLI auth and stable output
 
 - [x] CLI returns `creatorcut-cli/1.0` JSON with stable success/error,
-      `requires_user_action`, `retryable`, and `next_suggested` fields.
+      `requires_user_action`, `retryable`, display-only `next_suggested`,
+      embedded `next_argv`, optional shell-free `next_process`, and fixed-command
+      structured-env `next_openclaw` fields.
 - [x] `creatorcut onboard` resumes at the first incomplete stage: environment
       repair, secure authentication, local media import, transcription,
       explicit Director-context consent, or Director start.
 - [x] `doctor` and `auth login` return to `onboard` instead of suggesting a
       project-dependent action before a project exists.
+- [x] `doctor` mirrors runtime PATH discovery without hiding an invalid explicit
+      tool path, `--version` matches `version`, and missing local transcription
+      dependencies stop at an explicit user-action checkpoint.
+- [x] Project-scoped recovery actions expose embedded `next_argv` plus a
+      direct-process `next_process`; cwd and the non-secret managed environment
+      survive the hop, unrelated secrets do not, and no absolute project path
+      is interpolated into `next_suggested`.
+- [x] The supported OpenClaw shell host uses only the fixed literal bridge
+      command; argv travels in the exec tool's structured env, JSON answer and
+      review input uses the bounded no-echo PTY contract, and API keys are
+      refused by the bridge. An old OpenClaw Skill is rejected before project
+      or credential access; the trusted installer runs its version/doctor
+      smoke in a child environment with the OpenClaw marker removed and then
+      restores the marker before returning.
 - [x] macOS Keychain write sends the AgentMesh API key on stdin and never puts
       it in argv.
 - [x] `--key` is rejected and the attempted secret is absent from output.
 - [x] `auth logout` removes only the local Keychain item and explicitly reports
       that the remote Core API key was not revoked.
+- [x] After private-terminal login, `auth status --project P` returns a
+      structured, project-scoped `onboard` continuation; a missing credential
+      remains a user-action boundary and never enters the OpenClaw bridge.
 
 ## TC-PUBLIC-PRIVACY-001: context inspection and consent
 

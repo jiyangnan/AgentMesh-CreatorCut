@@ -581,9 +581,17 @@
             <article>
               <span>04</span>
               <b>Agent가 계속 진행하도록 하기</b>
-              <p>
-                각 단계는 <code>next_suggested</code> 를 따르며, 확인이 필요할
-                때만 멈춥니다.
+              <p
+                data-agent-next-contract="process-env-no-shell-v2"
+                data-agent-skill-pair="same-release"
+              >
+                직접 프로세스 호스트는 <code>next_process</code> 를 셸 없이
+                실행하고 <code>env_overrides</code> 만 병합합니다. OpenClaw는
+                <code>next_openclaw.exec</code> 를 exec 도구에 그대로 전달하며,
+                명령은 고정되고 argv는 구조화된 환경 필드에만 들어갑니다.
+                <code>next_argv</code> 는 임베디드 API 전용이고
+                <code>next_suggested</code> 는 표시용입니다. OpenClaw Skill과
+                CLI는 동일한 검증된 릴리스 아카이브에서 설치해야 합니다.
               </p>
             </article>
           </div>

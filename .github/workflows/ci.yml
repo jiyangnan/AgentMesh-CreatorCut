@@ -89,5 +89,14 @@ jobs:
       - name: Confirm CLI platform credential contract
         shell: bash
         run: |
-          node apps/cli/dist/src/main.js version > version.json
-          node -e "const v=require('./version.json'); const expected=require('./apps/cli/package.json').version; if(!v.ok||v.data.version!==expected)process.exit(1)"
+          node apps/cli/dist/src/main.js version > version.json 2> version.stderr
+          node apps/cli/dist/src/main.js --version > version-flag.json 2> version-flag.stderr
+          node -e "require('node:fs').writeFileSync('warning-preload.cjs', 'setImmediate(() => process.emitWarning(\"creatorcut-warning-probe\", { type: \"ExperimentalWarning\" }));\\n')"
+          node -e "require('node:fs').writeFileSync('sqlite-warning-preload.cjs', 'setImmediate(() => process.emitWarning(\"SQLite is an experimental feature and might change at any time\", { type: \"ExperimentalWarning\" }));\\n')"
+          node --require ./warning-preload.cjs apps/cli/dist/src/main.js version > warning-version.json 2> warning-version.stderr
+          node --require ./sqlite-warning-preload.cjs apps/cli/dist/src/main.js version > sqlite-warning-version.json 2> sqlite-warning-version.stderr
+          test ! -s version.stderr
+          test ! -s version-flag.stderr
+          test ! -s sqlite-warning-version.stderr
+          test "$(grep -c creatorcut-warning-probe warning-version.stderr)" -eq 1
+          node -e "const positional=require('./version.json'); const flag=require('./version-flag.json'); const warning=require('./warning-version.json'); const sqliteWarning=require('./sqlite-warning-version.json'); const expected=require('./apps/cli/package.json').version; if(!positional.ok||positional.data.version!==expected||JSON.stringify(flag)!==JSON.stringify(positional)||JSON.stringify(warning)!==JSON.stringify(positional)||JSON.stringify(sqliteWarning)!==JSON.stringify(positional))process.exit(1)"

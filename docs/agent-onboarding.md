@@ -20,18 +20,40 @@ The official installer verifies the signed release and public Director trust
 bundle, then invokes `creatorcut onboard`. If the terminal or host is
 interrupted, resume with the same command. The command returns one stable JSON
 envelope describing the current onboarding stage, whether user action is
-required, and the exact `next_suggested` command.
+required, and the next action. When `next_process` is present, invoke its exact
+`executable` with its `argv` array, set its exact `cwd`, merge its allowlisted
+`env_overrides` into the host environment, and keep `shell: false`. Embedded
+API hosts may pass `next_argv` directly back to `executeCli`. Treat
+`next_suggested` as display text only; placeholders mean the user must supply a
+value before execution.
+OpenClaw uses the host-specific `next_openclaw` contract instead: pass its
+`exec` object unchanged to the OpenClaw exec tool. The command is always the
+fixed literal `creatorcut __openclaw-bridge`; argv stays in structured env, not
+shell text. For `json-line-v1`, use the returned background PTY, wait for its
+ready marker, send one minified JSON line with `process.write`, then
+`process.submit`. Never send an API key through that bridge.
+The OpenClaw Skill and CLI must come from the same verified release archive.
+Until the matching Skill is on ClawHub, reinstall it from that archive; an old
+Skill fails closed before project access instead of executing display-only
+continuation text.
 
 ## Required operating sequence
 
-1. Run `creatorcut onboard`. Do not guess the next action; follow its
-   `next_suggested` field.
+1. Run `creatorcut onboard`. Do not guess the next action. Stop first when
+   `requires_user_action` is true; otherwise execute all fields of
+   `next_process` exactly with no shell, merging only its `env_overrides` into
+   the host environment. Embedded hosts may feed `next_argv` to `executeCli`;
+   OpenClaw must use `next_openclaw`; use `next_suggested` only as display
+   guidance.
 2. The onboarding command runs the equivalent of `creatorcut doctor` and stops
    with a repair action if Node, FFmpeg, FFprobe, whisper.cpp, the local model,
    or the pinned Director trust configuration is missing.
 3. Authenticate through `creatorcut auth login`; supply the AgentMesh API key
-   on stdin. It is stored in macOS Keychain, Windows DPAPI, or Linux Secret
-   Service. Never place it in argv, a project, a prompt, a log or shell history.
+   on stdin from a private user-controlled terminal. It is stored in macOS
+   Keychain, Windows DPAPI, or Linux Secret Service. Never place it in argv, a
+   project, a prompt, an Agent tool call, a log or shell history. OpenClaw then
+   resumes through the fixed bridge with `auth status --project P`; the
+   returned structured continuation restores the same scoped `onboard` flow.
 4. Import the recording with `media import`, then run local transcription with
    `transcribe start --language zh|en|auto|mixed`. Resume the same task after an
    interruption; do not invent a transcript.

@@ -384,7 +384,12 @@ SHIM="$BIN_DIR/creatorcut"
 } > "$SHIM"
 chmod 755 "$SHIM"
 
-if ! "$SHIM" version > "$WORK_DIR/version-smoke.json"; then
+run_installer_smoke() (
+  unset OPENCLAW_SHELL
+  exec "$SHIM" "$@"
+)
+
+if ! run_installer_smoke version > "$WORK_DIR/version-smoke.json"; then
   rm -rf "$INSTALL_DIR"
   [ ! -e "$BACKUP_DIR" ] || mv "$BACKUP_DIR" "$INSTALL_DIR"
   err "$PRODUCT_NAME smoke check failed; the previous install was restored."
@@ -402,7 +407,7 @@ if (response.ok !== true || response.data?.version !== process.argv[2]) {
 fi
 rm -rf "$BACKUP_DIR"
 
-"$SHIM" doctor > "$WORK_DIR/doctor-smoke.json"
+run_installer_smoke doctor > "$WORK_DIR/doctor-smoke.json"
 ok "$PRODUCT_NAME $VERSION installed at $INSTALL_DIR"
 case ":$PATH:" in
   *":$BIN_DIR:"*) ;;
@@ -413,8 +418,12 @@ case ":$PATH:" in
     ;;
 esac
 printf '\n'
-info "Starting Agent-native onboarding"
-if ! "$SHIM" onboard; then
-  info "This installed release predates guided onboarding."
-  printf 'Next: creatorcut doctor && creatorcut auth login\n'
+if [ "${OPENCLAW_SHELL:-}" = "exec" ]; then
+  info "OpenClaw exec detected. Use the --force replacement command in skills/openclaw-creatorcut/README.md from this verified v$VERSION release archive, then start through the fixed bridge."
+else
+  info "Starting Agent-native onboarding"
+  if ! "$SHIM" onboard; then
+    info "This installed release predates guided onboarding."
+    printf 'Next: creatorcut doctor && creatorcut auth login\n'
+  fi
 fi

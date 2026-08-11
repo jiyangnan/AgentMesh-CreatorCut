@@ -20,8 +20,13 @@ project path is missing, ask for it. Quote every path passed to the shell.
 
 ## Invariants
 
-- Read the complete JSON envelope from every command. Follow
-  `next_suggested`; do not infer a hidden step.
+- Read the complete JSON envelope from every command. After honoring any
+  `requires_user_action` boundary, invoke `next_process.executable` with
+  `next_process.argv`, use `next_process.cwd`, merge only
+  `next_process.env_overrides` into the host environment, and keep
+  `shell: false`. If embedding `executeCli`, pass `next_argv` back to that API
+  instead. Treat `next_suggested` as display-only guidance; do not infer a
+  hidden step.
 - Stop on `ok: false` and report its stable error. Retry only when
   `retryable: true`.
 - A `requires_user_action: true` result is a real confirmation boundary. Do not
@@ -62,7 +67,10 @@ revision-bound content, run:
 creatorcut director context consent --project "<project>" --confirm-upload
 ```
 
-Then follow `next_suggested`.
+Then execute every field of `next_process` without a shell when present,
+merging only its `env_overrides` into the host environment. Embedded API hosts
+may pass `next_argv` to `executeCli`; otherwise present the display-only
+`next_suggested` guidance and obtain any required value.
 
 ## Signed decision cards
 

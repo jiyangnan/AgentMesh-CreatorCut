@@ -195,6 +195,19 @@ export function validateSite(rootInput) {
     ) {
       errors.push(`${page}: product boundary contract is missing`);
     }
+    if (
+      !html.includes('data-agent-next-contract="process-env-no-shell-v2"') ||
+      !html.includes('data-agent-skill-pair="same-release"') ||
+      !/<code\s*>\s*next_process\s*<\/code\s*>/u.test(html) ||
+      !/<code\s*>\s*env_overrides\s*<\/code\s*>/u.test(html) ||
+      !/<code\s*>\s*next_openclaw\.exec\s*<\/code\s*>/u.test(html) ||
+      !/<code\s*>\s*next_argv\s*<\/code\s*>/u.test(html) ||
+      !/<code\s*>\s*next_suggested\s*<\/code\s*>/u.test(html)
+    ) {
+      errors.push(
+        `${page}: agent continuation must preserve direct-process and fixed-command OpenClaw execution without interpolation and keep next_suggested display-only`,
+      );
+    }
     const directorRoute =
       html.match(
         /data-route=["']director["'][\s\S]{0,240}data-access=["']paid["'][\s\S]{0,240}data-media=["']local["']/giu,

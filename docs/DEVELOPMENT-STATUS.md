@@ -302,3 +302,10 @@ evidence is recorded in
   source does not activate native migration: packaging, immutable installation,
   signing, x64 and non-Darwin policy, power-loss tests, and product caller
   integration remain blocking work.
+
+## AgentMesh360 账户活动入口（2026-09-07）
+
+- 官网四种语言均提供中央账户签到入口，完成后可显示账户返回的进度。
+- 浏览器阻止小窗口时，入口在当前标签页打开；活动是否可参加以账户页面为准。
+- 入口不传递 API Key、访问令牌或邮箱，不改变 CreatorCut 的原有使用流程。
+- 当前是通过本地验证的候选改动，尚未表示活动已向所有用户开放。

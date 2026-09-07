@@ -294,6 +294,14 @@
       website ID with query-string collection disabled; the site contract
       rejects missing, duplicated or mixed-product analytics configuration.
 
+## TC-SITE-002：中央账户签到入口
+
+- [x] 四语言入口地址和文案正确，标识产品来源为 `creatorcut`。
+- [x] 普通点击打开中央窗口，修饰键点击保留浏览器原生行为，弹窗被阻止时在当前标签打开。
+- [x] 完成回执严格校验来源、发起窗口、请求标识和有效时间，拒绝伪造回执。
+- [x] 有效回执更新进度，不传递令牌、API Key 或邮箱。
+- [x] 公共契约测试以及桌面、手机浏览器验证通过。
+
 ## Cycle 3 closeout gate
 
 The operations/ref/real-Server fixture gates, Codex MCP App UI, OpenClaw Skill,

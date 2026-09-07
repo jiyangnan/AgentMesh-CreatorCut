@@ -141,6 +141,11 @@ a {
   text-underline-offset: 4px;
 }
 
+.nav-checkin {
+  color: var(--coral);
+  font-weight: 750;
+}
+
 .nav-pass {
   min-height: 38px;
   display: inline-flex;
@@ -1017,7 +1022,7 @@ h2 {
 }
 
 @media (max-width: 920px) {
-  .nav-links > a:not(.nav-pass) {
+  .nav-links > a:not(.nav-pass):not(.nav-checkin) {
     display: none;
   }
 
@@ -1053,6 +1058,18 @@ h2 {
 
   .brand-parent {
     display: none;
+  }
+
+  .nav {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px 0;
+  }
+
+  .nav-links {
+    width: 100%;
+    justify-content: space-between;
+    gap: 12px;
   }
 
   .nav-links > a.nav-pass {

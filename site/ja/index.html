@@ -23,12 +23,12 @@
     <meta property="og:url" content="https://creatorcut.agentmesh360.com/ja/" />
     <meta
       property="og:image"
-      content="https://agentmesh360.com/agentmesh360-icon.png"
+      content="https://creatorcut.agentmesh360.com/assets/og-share-1200x630.png"
     />
-    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:card" content="summary_large_image" />
     <meta
       name="twitter:image"
-      content="https://agentmesh360.com/agentmesh360-icon.png"
+      content="https://creatorcut.agentmesh360.com/assets/og-share-1200x630.png"
     />
     <link rel="canonical" href="https://creatorcut.agentmesh360.com/ja/" />
     <link
@@ -75,29 +75,71 @@
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
-        "@type": "SoftwareApplication",
-        "name": "AgentMesh-CreatorCut",
-        "applicationCategory": "MultimediaApplication",
-        "applicationSubCategory": "AI post-production agent",
-        "operatingSystem": "macOS, Windows, Ubuntu",
-        "url": "https://creatorcut.agentmesh360.com/ja/",
-        "codeRepository": "https://github.com/jiyangnan/AgentMesh-CreatorCut",
-        "isAccessibleForFree": false,
-        "provider": {
-          "@type": "Organization",
-          "@id": "https://agentmesh360.com/#organization",
-          "name": "AgentMesh360",
-          "url": "https://agentmesh360.com/",
-          "logo": "https://agentmesh360.com/agentmesh360-icon.png?v=transparent-2",
-          "sameAs": ["https://github.com/jiyangnan"]
-        },
-        "description": "AgentMesh-CreatorCut は撮影済みのトーク動画と製品画面録画を、中英文字起こし、可逆編集、字幕、音楽、原色ローカル書き出しで完成動画にします。",
-        "offers": {
-          "@type": "Offer",
-          "url": "https://agentmesh360.com/app/?lang=ja#pricing",
-          "description": "ローカル実行は cloud credits を消費しません。確認済みの署名付き Director 編集プラン 1 件は 50 AgentMesh credits です。",
-          "availability": "https://schema.org/InStock"
-        }
+        "@graph": [
+          {
+            "@type": "SoftwareApplication",
+            "name": "AgentMesh-CreatorCut",
+            "applicationCategory": "MultimediaApplication",
+            "applicationSubCategory": "AI post-production agent",
+            "operatingSystem": "macOS, Windows, Ubuntu",
+            "url": "https://creatorcut.agentmesh360.com/ja/",
+            "codeRepository": "https://github.com/jiyangnan/AgentMesh-CreatorCut",
+            "isAccessibleForFree": false,
+            "provider": {
+              "@type": "Organization",
+              "@id": "https://agentmesh360.com/#organization",
+              "name": "AgentMesh360",
+              "url": "https://agentmesh360.com/",
+              "logo": "https://agentmesh360.com/agentmesh360-icon.png?v=transparent-2",
+              "sameAs": ["https://github.com/jiyangnan"]
+            },
+            "description": "AgentMesh-CreatorCut は撮影済みのトーク動画と製品画面録画を、中英文字起こし、可逆編集、字幕、音楽、原色ローカル書き出しで完成動画にします。",
+            "offers": {
+              "@type": "Offer",
+              "url": "https://agentmesh360.com/app/?lang=ja#pricing",
+              "description": "ローカル実行は cloud credits を消費しません。確認済みの署名付き Director 編集プラン 1 件は 50 AgentMesh credits です。",
+              "availability": "https://schema.org/InStock"
+            }
+          },
+          {
+            "@type": "FAQPage",
+            "inLanguage": "ja",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "動画はアップロードされますか？",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "いいえ。元メディア、音声、文字起こしの中間ファイル、プレビュー、書き出しはローカルに残ります。確認して承認した構造化 DirectorContext だけが戦略サービスへ送信されます。"
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "自動でフィルターを追加しますか？",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "いいえ。デフォルトで元の色を保ちます。自動 LUT、露出補正、HDR から SDR への変換、BT.709 タグの強制はありません。"
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "アップデートでプロジェクトや API Key が消えますか？",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "いいえ。プロジェクトとメディアはインストール先の外にあり、API Key は OS の安全なストレージに保存されます。更新に失敗した場合は以前の管理バージョンへ戻ります。"
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "LectureCast との違いは？",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "AgentMesh-LectureCast はテーマから講座動画を生成します。AgentMesh-CreatorCut は撮影済みのトーク動画や製品デモから始め、スマートな後編集を行います。"
+                }
+              }
+            ]
+          }
+        ]
       }
     </script>
   </head>

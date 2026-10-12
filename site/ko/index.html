@@ -21,12 +21,12 @@
     <meta property="og:url" content="https://creatorcut.agentmesh360.com/ko/" />
     <meta
       property="og:image"
-      content="https://agentmesh360.com/agentmesh360-icon.png"
+      content="https://creatorcut.agentmesh360.com/assets/og-share-1200x630.png"
     />
-    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:card" content="summary_large_image" />
     <meta
       name="twitter:image"
-      content="https://agentmesh360.com/agentmesh360-icon.png"
+      content="https://creatorcut.agentmesh360.com/assets/og-share-1200x630.png"
     />
     <link rel="canonical" href="https://creatorcut.agentmesh360.com/ko/" />
     <link
@@ -73,29 +73,71 @@
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
-        "@type": "SoftwareApplication",
-        "name": "AgentMesh-CreatorCut",
-        "applicationCategory": "MultimediaApplication",
-        "applicationSubCategory": "AI post-production agent",
-        "operatingSystem": "macOS, Windows, Ubuntu",
-        "url": "https://creatorcut.agentmesh360.com/ko/",
-        "codeRepository": "https://github.com/jiyangnan/AgentMesh-CreatorCut",
-        "isAccessibleForFree": false,
-        "provider": {
-          "@type": "Organization",
-          "@id": "https://agentmesh360.com/#organization",
-          "name": "AgentMesh360",
-          "url": "https://agentmesh360.com/",
-          "logo": "https://agentmesh360.com/agentmesh360-icon.png?v=transparent-2",
-          "sameAs": ["https://github.com/jiyangnan"]
-        },
-        "description": "AgentMesh-CreatorCut은 촬영된 토킹헤드와 제품 화면 녹화를 중영문 전사, 되돌릴 수 있는 편집, 자막, 음악, 원색 로컬 출력으로 완성합니다.",
-        "offers": {
-          "@type": "Offer",
-          "url": "https://agentmesh360.com/app/?lang=ko#pricing",
-          "description": "로컬 실행에는 cloud credits가 필요하지 않습니다. 확인된 서명 Director 편집 계획 1건은 50 AgentMesh credits를 사용합니다.",
-          "availability": "https://schema.org/InStock"
-        }
+        "@graph": [
+          {
+            "@type": "SoftwareApplication",
+            "name": "AgentMesh-CreatorCut",
+            "applicationCategory": "MultimediaApplication",
+            "applicationSubCategory": "AI post-production agent",
+            "operatingSystem": "macOS, Windows, Ubuntu",
+            "url": "https://creatorcut.agentmesh360.com/ko/",
+            "codeRepository": "https://github.com/jiyangnan/AgentMesh-CreatorCut",
+            "isAccessibleForFree": false,
+            "provider": {
+              "@type": "Organization",
+              "@id": "https://agentmesh360.com/#organization",
+              "name": "AgentMesh360",
+              "url": "https://agentmesh360.com/",
+              "logo": "https://agentmesh360.com/agentmesh360-icon.png?v=transparent-2",
+              "sameAs": ["https://github.com/jiyangnan"]
+            },
+            "description": "AgentMesh-CreatorCut은 촬영된 토킹헤드와 제품 화면 녹화를 중영문 전사, 되돌릴 수 있는 편집, 자막, 음악, 원색 로컬 출력으로 완성합니다.",
+            "offers": {
+              "@type": "Offer",
+              "url": "https://agentmesh360.com/app/?lang=ko#pricing",
+              "description": "로컬 실행에는 cloud credits가 필요하지 않습니다. 확인된 서명 Director 편집 계획 1건은 50 AgentMesh credits를 사용합니다.",
+              "availability": "https://schema.org/InStock"
+            }
+          },
+          {
+            "@type": "FAQPage",
+            "inLanguage": "ko",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "내 영상이 업로드되나요?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "아니요. 원본 미디어, 음성, 전사 중간 파일, 미리보기, 출력물은 로컬에 남습니다. 직접 확인하고 승인한 구조화 DirectorContext만 전략 서비스로 전송됩니다."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "자동으로 필터를 추가하나요?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "아니요. 기본값은 원본 색상을 유지합니다. 자동 LUT, 노출 증가, HDR-SDR 변환, BT.709 태그 강제가 없습니다."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "업데이트로 프로젝트나 API Key가 삭제될 수 있나요?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "아니요. 프로젝트와 미디어는 설치 경로 밖에 있고 API Key는 운영체제의 안전한 저장소에 보관됩니다. 업데이트가 실패하면 이전 관리 버전으로 복원됩니다."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "LectureCast와 무엇이 다른가요?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "AgentMesh-LectureCast는 주제에서 강의 영상을 만듭니다. AgentMesh-CreatorCut은 이미 촬영한 토킹헤드나 제품 데모에서 시작해 스마트 후반 작업을 수행합니다."
+                }
+              }
+            ]
+          }
+        ]
       }
     </script>
   </head>

@@ -21,12 +21,12 @@
     <meta property="og:url" content="https://creatorcut.agentmesh360.com/en/" />
     <meta
       property="og:image"
-      content="https://agentmesh360.com/agentmesh360-icon.png"
+      content="https://creatorcut.agentmesh360.com/assets/og-share-1200x630.png"
     />
-    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:card" content="summary_large_image" />
     <meta
       name="twitter:image"
-      content="https://agentmesh360.com/agentmesh360-icon.png"
+      content="https://creatorcut.agentmesh360.com/assets/og-share-1200x630.png"
     />
     <link rel="canonical" href="https://creatorcut.agentmesh360.com/" />
     <link
@@ -73,29 +73,71 @@
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
-        "@type": "SoftwareApplication",
-        "name": "AgentMesh-CreatorCut",
-        "applicationCategory": "MultimediaApplication",
-        "applicationSubCategory": "AI post-production agent",
-        "operatingSystem": "macOS, Windows, Ubuntu",
-        "url": "https://creatorcut.agentmesh360.com/en/",
-        "codeRepository": "https://github.com/jiyangnan/AgentMesh-CreatorCut",
-        "isAccessibleForFree": false,
-        "provider": {
-          "@type": "Organization",
-          "@id": "https://agentmesh360.com/#organization",
-          "name": "AgentMesh360",
-          "url": "https://agentmesh360.com/",
-          "logo": "https://agentmesh360.com/agentmesh360-icon.png?v=transparent-2",
-          "sameAs": ["https://github.com/jiyangnan"]
-        },
-        "description": "AgentMesh-CreatorCut performs bilingual transcription, reversible editing, captions, music, and true-color local export for existing talking-head and product screen recordings.",
-        "offers": {
-          "@type": "Offer",
-          "url": "https://agentmesh360.com/app/#pricing",
-          "description": "Local execution uses no cloud credits. A confirmed signed Director edit plan uses 50 AgentMesh credits.",
-          "availability": "https://schema.org/InStock"
-        }
+        "@graph": [
+          {
+            "@type": "SoftwareApplication",
+            "name": "AgentMesh-CreatorCut",
+            "applicationCategory": "MultimediaApplication",
+            "applicationSubCategory": "AI post-production agent",
+            "operatingSystem": "macOS, Windows, Ubuntu",
+            "url": "https://creatorcut.agentmesh360.com/en/",
+            "codeRepository": "https://github.com/jiyangnan/AgentMesh-CreatorCut",
+            "isAccessibleForFree": false,
+            "provider": {
+              "@type": "Organization",
+              "@id": "https://agentmesh360.com/#organization",
+              "name": "AgentMesh360",
+              "url": "https://agentmesh360.com/",
+              "logo": "https://agentmesh360.com/agentmesh360-icon.png?v=transparent-2",
+              "sameAs": ["https://github.com/jiyangnan"]
+            },
+            "description": "AgentMesh-CreatorCut performs bilingual transcription, reversible editing, captions, music, and true-color local export for existing talking-head and product screen recordings.",
+            "offers": {
+              "@type": "Offer",
+              "url": "https://agentmesh360.com/app/#pricing",
+              "description": "Local execution uses no cloud credits. A confirmed signed Director edit plan uses 50 AgentMesh credits.",
+              "availability": "https://schema.org/InStock"
+            }
+          },
+          {
+            "@type": "FAQPage",
+            "inLanguage": "en",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "Does it upload my video?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "No. Source media, audio, transcript intermediates, previews, and exports stay local. Only structured DirectorContext you inspect and approve is sent to the strategy service."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Does it automatically add a filter?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "No. Source color is preserved by default. There is no automatic LUT, exposure boost, HDR-to-SDR conversion, or forced BT.709 tag."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Can an update remove projects or my API key?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "No. Projects and media live outside the install root, and the API key lives in operating-system secure storage. Failed updates restore the previous managed version."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "How is this different from Lecturecast?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Lecturecast creates a course video from a topic. AgentMesh-CreatorCut starts with a talking-head recording or product demo you already recorded and performs intelligent post."
+                }
+              }
+            ]
+          }
+        ]
       }
     </script>
   </head>

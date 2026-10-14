@@ -10,6 +10,9 @@
 - [x] The actual stdio server initializes, lists tools, reads project status,
       inspects a path-free context and serves its decision-card resource.
 - [x] Read-only smoke calls leave project files unchanged and call no paid tools.
+- [x] The public GitHub Release download matches the verified MCPB checksum.
+- [x] Official Registry response matches every submitted metadata field and
+      reports distribution version `0.2.1` as active and latest.
 
 Reproduce with `node scripts/verify-mcp-bundle.mjs <extracted-bundle-directory>`.
 This is a package-distribution gate; it does not repeat media rendering, paid

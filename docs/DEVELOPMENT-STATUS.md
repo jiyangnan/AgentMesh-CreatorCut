@@ -1,6 +1,6 @@
 # Development status
 
-## MCP distribution preparation (2026-10-14)
+## MCP distribution publication (2026-10-14)
 
 - [x] Repackage the exact Core-approved `v0.2.1` public source as a standalone
       local MCPB without changing managed release policy.
@@ -9,8 +9,10 @@
       status, context inspection and the decision-card resource.
 - [x] The smoke leaves fixture state unchanged and invokes no paid tools.
 - [x] MCPB manifest and official registry metadata validation.
-- [ ] Public MCP distribution Release and registry publication are verified
-      separately after submission.
+- [x] Public MCP distribution Release: independently downloaded and verified
+      against the published SHA-256.
+- [x] Official Registry: `io.github.jiyangnan/creatorcut@0.2.1` returned as active
+      on 2026-10-14, with the exact MCPB URL, checksum and stdio transport.
 
 See [MCP distribution](mcp-distribution.md). The first bundle uses distribution
 version `0.2.1`; its existing server initialize response remains `0.2.0`.

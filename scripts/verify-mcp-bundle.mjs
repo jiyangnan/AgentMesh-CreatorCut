@@ -22,7 +22,7 @@ assert.equal(manifest.server.entry_point, "server/main.mjs");
 const executable = resolve(bundle, manifest.server.entry_point);
 const code = await readFile(executable, "utf8");
 assert(
-  !code.includes("/Users/ferdinandji/"),
+  !/(?:\/Users\/|\/home\/)[^/\s]+\//u.test(code),
   "Local checkout path in artifact",
 );
 assert(!code.includes("/private/tmp/"), "Build path in artifact");

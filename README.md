@@ -199,6 +199,9 @@ installer provisions the pinned public production trust bundle. A source build
 does not ship credentials, silently select staging, or bypass that trust
 configuration.
 
+For the standalone local MCP bundle, see
+[MCP distribution](docs/mcp-distribution.md).
+
 See [Agent onboarding](docs/agent-onboarding.md),
 [privacy contract](docs/privacy.md), and
 [managed release policy](docs/release-policy.md). Exact Cycle 4 scope and

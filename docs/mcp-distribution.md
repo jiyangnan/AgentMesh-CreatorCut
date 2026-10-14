@@ -24,6 +24,9 @@ Download the `.mcpb` asset and `SHA256SUMS` from the MCP distribution release.
 Verify the file's SHA-256 before opening it in a host that supports MCPB.
 Select an existing CreatorCut **v0.2.1** project directory. The bundle requires
 Node.js 24; a host's bundled Node version must meet that requirement.
+Use the same client version for a project: this bundle is not for projects
+adopted by v0.3.0, and different client versions must not open the same project
+concurrently.
 
 For a generic stdio MCP host, extract the verified bundle to a dedicated
 directory and configure it with your Node.js 24 executable:

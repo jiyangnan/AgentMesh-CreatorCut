@@ -14,6 +14,10 @@ The first bundle uses the exact Core-approved `v0.2.1` source archive:
 - distribution tag: `mcp-v0.2.1`;
 - registry name: `io.github.jiyangnan/creatorcut`.
 
+The [official registry entry](https://registry.modelcontextprotocol.io/v0.1/servers/io.github.jiyangnan%2Fcreatorcut/versions/latest)
+was verified as active on 2026-10-14. The returned distribution version,
+repository, download URL, checksum and transport match this release.
+
 The MCP distribution version identifies the bundle. The server's existing
 initialize response reports `0.2.0`. Installing the bundle does not change the
 managed client version policy or upgrade an existing installation.

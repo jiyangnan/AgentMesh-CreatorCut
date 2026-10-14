@@ -1,5 +1,20 @@
 # AgentMesh-CreatorCut test cases
 
+## TC-MCP-DISTRIBUTION-001: standalone archive
+
+- [x] Packaging rejects an archive digest or tracked source file that differs
+      from the Core-approved `v0.2.1` source.
+- [x] Official MCPB manifest and registry metadata validation pass.
+- [x] The extracted archive runs from an empty cwd with Node 24.18.0, without
+      a source checkout, package installation, `NODE_PATH` or remote credentials.
+- [x] The actual stdio server initializes, lists tools, reads project status,
+      inspects a path-free context and serves its decision-card resource.
+- [x] Read-only smoke calls leave project files unchanged and call no paid tools.
+
+Reproduce with `node scripts/verify-mcp-bundle.mjs <extracted-bundle-directory>`.
+This is a package-distribution gate; it does not repeat media rendering, paid
+Director or native-host UI acceptance.
+
 ## TC-PROTO-001: canonical signatures
 
 - [x] JCS is stable and rejects non-JSON or ambiguous inputs.
